@@ -58,11 +58,6 @@ const config = {
     iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
 };
 
-socket.on('new-peer', (roomId) => {
-    console.log("I AM THE INITIATOR")
-    // start(roomId,true);//isInitiator = true;
-});
-
 socket.on('joined', roomId => {
     console.log(`Joined room ${roomId}`);
     // Save to localStorage
