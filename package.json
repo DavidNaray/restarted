@@ -13,6 +13,9 @@
   "dependencies": {
     "express": "^5.1.0",
     "node-pre-gyp": "^0.17.0",
+    "pngjs": "^7.0.0",
+    "seedrandom": "^3.0.5",
+    "simplex-noise": "^4.0.3",
     "socket.io": "^4.8.1",
     "three": "^0.176.0",
     "wrtc": "^0.4.7"
