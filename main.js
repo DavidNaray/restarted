@@ -185,6 +185,7 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
     }
 
 
+
     // ✅ CHUNK-AWARE GET HEIGHT FUNCTION
     function getHeight(x, y) {
         const nx = (x + chunkX * width) / width *scale ;
@@ -192,8 +193,8 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
 
         const plains=fBm(nx, ny);
 
-        const mountainRegion = (fBm(nx * 0.5, ny * 0.5, 3, 2.0, 0.5) + 1) / 2;
-        const mountainStrength = Math.pow(mountainRegion, 2.0);
+        const mountainRegion = fBm(nx * 0.5, ny * 0.5, 3, 2.0, 0.5);
+        const mountainStrength = Math.pow(mountainRegion, 2);
 
         // Edge fade
         const dx = x / width;
@@ -223,29 +224,114 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
 
         // Mountain noise
         const mountainNoise = fBm(nx * 4, ny * 4, 4, 2.0, 0.5);
-        const mountains = Math.pow(mountainNoise, 4) * mountainStrength * edgeMask*centerMask;
+        const rawMountains = Math.pow(mountainNoise, 2) * mountainStrength * edgeMask * centerMask;
+        const mountains = Math.pow(clamp(rawMountains, 0, 1), 1.5);
+        // console.log(mountains)
 
         // 👇 River influence
         const { strength: riverStrength, crossable } = riverMask(x, y, riverPath, 6);
         const riverDepth = crossable ? 0.05 : 0.3;
-        
 
-        // const height=clamp((plains*0.5) * (1 - mountainStrength) + mountains * 5);//old
-        const heightmap = clamp((plains * 0.5) * (1 - mountainStrength) + mountains * 5 - riverStrength * riverDepth);
+
+        const base = plains * (0.7 - mountainStrength);
+        let heightmap = clamp(base + mountains*10 - riverStrength*6 * riverDepth);
+        let heightmapBase=heightmap;
+        
+        // Apply cliffs
+        const cliffCenterNoise = fBm(nx * 0.08, ny * 0.08, 3, 2.0, 0.5);
+        const cliffThreshold = 0.6;
+        const cliffRadius = 0.1;
+        const cliffHeight = 0.3;
+        const cliffFalloff = 5.0;
+
+        // Only place cliffs if:
+        // console.log(mountainStrength)
+        // ⛔ Avoid cliffs where mountains or rivers dominate
+
+        const cliffRegion = fBm(nx * 1.5, ny * 1.5, 4, 2.0, 0.5);
+        const shouldPlaceCliff = cliffRegion > 0.5 && mountainStrength < 0.1 && riverStrength < 0.2;
+        
+        let cliffSteepness=0;
+        let dot=0;
+        let directionalFalloff=0;
+        let isCliffFace=false;
+        if (shouldPlaceCliff) {
+            // Directional push: create asymmetrical slope
+            const dirX = fBm(nx + 100, ny) * 2 - 1;
+            const dirY = fBm(nx, ny + 100) * 2 - 1;
+        
+            // Directional offset (how "in front" of the cliff center we are)
+            const centerOffsetX = nx - cliffCenterNoise;
+            const centerOffsetY = ny - cliffCenterNoise;
+            dot = centerOffsetX * dirX + centerOffsetY * dirY;
+        
+            // Steep on the front side, blend on the back
+            directionalFalloff = 1.0 / (1.0 + Math.exp(-cliffFalloff * (dot - 0.02)));
+            
+            const smoothed = Math.max(0, 1 - Math.abs(cliffCenterNoise - cliffThreshold) * 6.0);
+            cliffSteepness = directionalFalloff * smoothed;
+            isCliffFace = cliffSteepness > 0.15 && directionalFalloff > 0.1 && directionalFalloff < 0.9;
+            
+
+            const cliffHeightContribution = cliffSteepness * cliffHeight;
+            heightmap = clamp(heightmap + cliffHeightContribution);
+        }
+
+
         return {
+            heightmapBase:heightmapBase,
             heightmap: heightmap,
-            // mount: mountains,
             walkable: (mountains < 0.008) && (crossable || riverStrength < 0.3),
             riverStrength:riverStrength,
-            crossable:crossable
+            crossable:crossable,
+            cliffSteepness:cliffSteepness,
+            isCliffFace:isCliffFace,
+            mountainStrength:mountainStrength,
+            riverStrength:riverStrength
         };
     }
 
+
+    // === FIRST PASS: Compute all heights and metadata ===
+    const heightBuffer = Array.from({ length: height }, () => new Array(width));
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
+            heightBuffer[y][x] = getHeight(x, y); // Only once!
+        }
+    }
 
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const {
+                heightmapBase,
+                heightmap,
+                walkable,
+                riverStrength,
+                crossable,
+                cliffSteepness,
+                isCliffFace,
+                mountainStrength,
+            } = heightBuffer[y][x];
             // let dict= getHeight(x, y);
-            const { heightmap,walkable,riverStrength,crossable } = getHeight(x, y);
+            // const { heightmapBase,heightmap,walkable,riverStrength,crossable,cliffSteepness, isCliffFace } = getHeight(x, y);
+            // === Check neighbors for drop-offs ===
+            const neighbors = [];
+            for (let dy = -1; dy <= 1; dy++) {
+                for (let dx = -1; dx <= 1; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const nx = x + dx;
+                    const ny = y + dy;
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        neighbors.push(heightBuffer[ny][nx].heightmap);
+                    }
+                }
+            }
+
+            const dropThreshold = 0.1; // Tweak as needed
+            let isCliff = neighbors.some(h => (heightmap - h) > dropThreshold);
+            // SECOND PASS: Detect cliffs by height drop-off
+            const cliffThreshold = 0.1; // tweak this as needed
             const val = Math.floor(heightmap * 255);
 
             const idx = (width * y + x) << 2;
@@ -254,12 +340,33 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
             png.data[idx + 2] = val; // B
             png.data[idx + 3] = 255; // A
 
-            // Walkability mask
-            // const walkable = mount < 0.008; // ⬅️ Tune threshold here
-            // const walkVal = walkable ? 255 : 0;
-
-
             let r, g, b;
+
+            // Check nearby for any strong river influence
+            let nearRiver = false;
+            const riverRadius = 2;
+
+            for (let ry = -riverRadius; ry <= riverRadius && !nearRiver; ry++) {
+                for (let rx = -riverRadius; rx <= riverRadius && !nearRiver; rx++) {
+                    const nx = x + rx;
+                    const ny = y + ry;
+                    if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
+                        const neighborRiverStrength = heightBuffer[ny][nx].riverStrength;
+                        if (neighborRiverStrength > 0.1) {
+                            nearRiver = true;
+                        }
+                    }
+                }
+            }
+
+
+
+            // ✅ Remove cliffs in mountainous regions
+            // console.log(riverStrength)
+            if (mountainStrength > 0.1 || nearRiver) {
+                isCliff = false;
+            }
+
 
             if ( riverStrength > 0) {
                 // It's part of the river
@@ -269,7 +376,13 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                 } else {
                     r = 0; g = 0; b = 255;   // Blue
                 }
-            } else {
+            } 
+            
+            else if (isCliff) { // 🎯 Adjust this threshold as needed
+                r = 255; g = 0; b = 0; // Black cliff face
+            }
+
+            else {
                 // Land
                 r = walkable ? 255 : 0;
                 g = walkable ? 255 : 0;
