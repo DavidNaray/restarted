@@ -5,14 +5,19 @@ const socket = io();
 
 var controls,renderer,camera;
 const scene = new THREE.Scene();
+const loader = new THREE.TextureLoader();
+
+let heightTexture = null;
+let colourTexture = null;
+
 
 function sceneSetup(){
-    scene.background = new THREE.Color( 0xff0000 );
+    scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
     renderer = new THREE.WebGLRenderer();
     renderer.setSize(document.getElementById("ThreeBlock").clientWidth, document.getElementById("ThreeBlock").clientHeight);//window.innerWidth, window.innerHeight );
     
-    camera = new THREE.PerspectiveCamera( 75, renderer.domElement.width/renderer.domElement.height, 0.1, 10000 );//window.innerWidth / window.innerHeight
+    camera = new THREE.PerspectiveCamera( 75, renderer.domElement.width / renderer.domElement.height, 0.1, 10000 );//window.innerWidth / window.innerHeight
     camera.position.z = 5;
     camera.position.y = 1;
     camera.lookAt(new THREE.Vector3(0,0,0))
@@ -20,15 +25,55 @@ function sceneSetup(){
     controls = new OrbitControls( camera, renderer.domElement );
     
     const geometry = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
-    const material = new THREE.MeshLambertMaterial({color: 0x0000ff, transparent: false, opacity: 0.5}) 
+    const material = new THREE.MeshLambertMaterial({color: 0x00ff00, transparent: false, opacity: 0.5}) 
     const cube = new THREE.Mesh( geometry, material );
     scene.add( cube );
     
-    let ambientLight = new THREE.AmbientLight(new THREE.Color('hsl(0, 0%, 100%)'), 3);
+    let ambientLight = new THREE.AmbientLight(new THREE.Color('hsl(0, 100%, 100%)'), 3);
     scene.add(ambientLight);
 
     document.getElementById("ThreeBlock").append(renderer.domElement)
+
+    loader.load('../heightmap.png', (texture) => {
+        heightTexture = texture;
+        tryBuildTerrain();
+    });
+      
+    loader.load('../colourMap.png', (texture) => {
+        colourTexture = texture;
+        tryBuildTerrain();
+    });
 }
+
+async function tryBuildTerrain(){
+    console.log("tried!!!")
+    if (heightTexture && colourTexture) {
+        const width = heightTexture.image.width;
+        const height = heightTexture.image.height;
+    
+        const geometry = new THREE.PlaneGeometry(1, 1, width - 1, height - 1);
+        geometry.rotateX(-Math.PI / 2);
+
+        const material = new THREE.MeshToonMaterial({
+        map: colourTexture,
+        displacementMap: heightTexture,
+        displacementScale: 1,
+        // wireframe:true
+        // flatShading: true
+        });
+        // material.magFilter = THREE.NearestFilter;
+        // material.minFilter = THREE.NearestFilter;
+        // material.generateMipmaps = false;
+        // material.needsUpdate = true;
+    
+        const terrain = new THREE.Mesh(geometry, material);
+        const terrainHeight=10;
+        const terrainWidth=10;
+        terrain.scale.set(terrainWidth, 1, terrainHeight);
+        scene.add(terrain);
+    }
+}
+
 
 function animate() {
 	// raycaster.setFromCamera( pointer, camera );
@@ -44,6 +89,7 @@ window.onresize=function(){//resize the canvas
 }
 
 sceneSetup();
+// addTerrain();
 animate();
 
 const peers = {};  // roomId -> { pc, dc }

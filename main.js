@@ -250,11 +250,12 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
 
         // 👇 River influence
         const { strength: riverStrength, crossable } = riverMask(x, y, riverPath, 6);
-        const riverDepth = crossable ? 0.05 : 0.3;
+        const riverDepth = crossable ? 0.1 : 0.2;
 
 
-        const base = plains * (0.7 - mountainStrength);
-        let heightmap = clamp(base + mountains*10 - riverStrength*6 * riverDepth);
+        const base = (plains* 0.5) * (0.7 - mountainStrength);
+        // console.log(riverStrength)
+        let heightmap = clamp(base + mountains*7);
         let heightmapBase=heightmap;
         
         // Apply cliffs
@@ -348,16 +349,12 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
             const dropThreshold = 0.1; // Tweak as needed
             let isCliff = neighbors.some(h => (heightmap - h) > dropThreshold);
             // SECOND PASS: Detect cliffs by height drop-off
-            const val = Math.floor(heightmap * 255);
+            let val = Math.floor(heightmap * 255);
 
 
 
 
-            const idx = (width * y + x) << 2;
-            png.data[idx] = val;     // R
-            png.data[idx + 1] = val; // G
-            png.data[idx + 2] = val; // B
-            png.data[idx + 3] = 255; // A
+
 
 
             let r, g, b;
@@ -391,16 +388,32 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
             }
 
             if ( riverStrength > 0) {
+                // console.log(val)
                 // River body
                 terrainR = 50;
                 terrainG = 70;
                 terrainB = 100;
                 // It's part of the river
+                val = Math.floor(heightmapBase * 255);
                 if (crossable) {
+                    
+                    //should strictly be the height of the plains just coloured differently, maybe slightly lower
+                    // console.log(val+"VALUE"+heightmapBase +","+heightmap)
+                    
+                    console.log(val + "crossing")
                     // Crossing point
+                    terrainR = 50;
+                    terrainG = 90;
+                    terrainB = 100;
                     r = 255; g = 255; b = 0; // Yellow
+
                 } else {
                     r = 0; g = 0; b = 255;   // Blue
+                    // console.log(val + "depth")
+                    if((val-5)>=0){
+                        val=val-5;
+                    }
+                    
                 }
             }else if(nearRiver && (heightmap - heightmapBase)>0.05){
                 terrainR = 110;
@@ -408,6 +421,26 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                 terrainB = 90;
 
                 r = 255; g = 0; b = 0; // red cliff face
+                
+                //need this if crossable thing because it still overlaps the river edge, this is what prevents what
+                //  jerks the blue in the river up the cliff
+                if (crossable) {
+                    val = Math.floor(heightmapBase * 255);
+                    console.log(val + "crossing")
+                    // Crossing point
+                    terrainR = 50;
+                    terrainG = 90;
+                    terrainB = 100;
+                    r = 255; g = 255; b = 0; // Yellow
+
+                } else {
+                    r = 0; g = 0; b = 255;   // Blue
+                    val = Math.floor(heightmapBase * 255);
+                    if((val-5)>=0){
+                        val=val-5;
+                    }
+                    
+                }
             }
 
             
@@ -416,7 +449,6 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                 terrainR = 110;
                 terrainG = 100 + Math.floor(Math.random() * 20); // subtle pebble noise
                 terrainB = 90;
-
             }
 
             else{
@@ -456,6 +488,14 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                 // terrainG = 120 + greenNoise;
                 // terrainB = 40;
             }
+
+
+            const idx = (width * y + x) << 2;
+            png.data[idx] = val;     // R
+            png.data[idx + 1] = val; // G
+            png.data[idx + 2] = val; // B
+            png.data[idx + 3] = 255; // A
+
 
             colourMap.data[idx]     = terrainR;
             colourMap.data[idx + 1] = terrainG;
@@ -503,6 +543,18 @@ app.get("/",(req,res)=>{
     //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
     //any errors in the future, potentially use path.resolve
     res.status(200).sendFile(path.join(__dirname,'./sitePages/index.html'))
+})
+
+app.get("/heightmap.png",(req,res)=>{
+    //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
+    //any errors in the future, potentially use path.resolve
+    res.status(200).sendFile(path.join(__dirname,'./heightmap.png'))
+})
+
+app.get("/colourMap.png",(req,res)=>{
+    //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
+    //any errors in the future, potentially use path.resolve
+    res.status(200).sendFile(path.join(__dirname,'./colourMap.png'))
 })
 
 // app.get("/about",(req,res)=>{res.status(200).send("aboutpage")})
