@@ -42,6 +42,7 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
     const height = 512;
     const scale=5;
     const png = new PNG({ width, height });
+    const colourMap = new PNG({ width, height });
 
     const walkWidth=width*3;
     const walkHeight=height*3;
@@ -50,7 +51,26 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
 
     const tileData = new TileData(chunkX, chunkY, width, height,openEdges);
 
-
+    function lerp(a, b, t) {
+        return a + (b - a) * t;
+    }
+    
+    function lerpColor(c1, c2, t) {
+        return [
+            Math.round(lerp(c1[0], c2[0], t)),
+            Math.round(lerp(c1[1], c2[1], t)),
+            Math.round(lerp(c1[2], c2[2], t)),
+        ];
+    }
+    
+    const COLORS = {
+        snow:    [255, 255, 255],
+        rock:    [120, 110, 100],
+        grass1:  [80, 130, 60],
+        grass2:  [100, 150, 80],
+        river:   [70, 80, 90],       // Pebble grey-blue
+        riverbank: [110, 130, 100],  // Damp soil near water
+    };
 
     // Pick start/end points for river
     function pickRiverEndpoints(openEdges, width, height,margin = 20, minDistance = 100) {
@@ -240,7 +260,6 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
         // Apply cliffs
         const cliffCenterNoise = fBm(nx * 0.08, ny * 0.08, 3, 2.0, 0.5);
         const cliffThreshold = 0.6;
-        const cliffRadius = 0.1;
         const cliffHeight = 0.3;
         const cliffFalloff = 5.0;
 
@@ -313,9 +332,7 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                 isCliffFace,
                 mountainStrength,
             } = heightBuffer[y][x];
-            // let dict= getHeight(x, y);
-            // const { heightmapBase,heightmap,walkable,riverStrength,crossable,cliffSteepness, isCliffFace } = getHeight(x, y);
-            // === Check neighbors for drop-offs ===
+
             const neighbors = [];
             for (let dy = -1; dy <= 1; dy++) {
                 for (let dx = -1; dx <= 1; dx++) {
@@ -331,8 +348,10 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
             const dropThreshold = 0.1; // Tweak as needed
             let isCliff = neighbors.some(h => (heightmap - h) > dropThreshold);
             // SECOND PASS: Detect cliffs by height drop-off
-            const cliffThreshold = 0.1; // tweak this as needed
             const val = Math.floor(heightmap * 255);
+
+
+
 
             const idx = (width * y + x) << 2;
             png.data[idx] = val;     // R
@@ -340,7 +359,10 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
             png.data[idx + 2] = val; // B
             png.data[idx + 3] = 255; // A
 
+
             let r, g, b;
+            // === TERRAIN COLORING ===
+            let terrainR = 0, terrainG = 0, terrainB = 0;
 
             // Check nearby for any strong river influence
             let nearRiver = false;
@@ -352,7 +374,7 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                     const ny = y + ry;
                     if (nx >= 0 && nx < width && ny >= 0 && ny < height) {
                         const neighborRiverStrength = heightBuffer[ny][nx].riverStrength;
-                        if (neighborRiverStrength > 0.1) {
+                        if (neighborRiverStrength > 0.2) {
                             nearRiver = true;
                         }
                     }
@@ -361,14 +383,18 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
 
 
 
-            // ✅ Remove cliffs in mountainous regions
-            // console.log(riverStrength)
+            // ✅ Remove cliffs in mountainous regions and edge of river...
+
             if (mountainStrength > 0.1 || nearRiver) {
                 isCliff = false;
+
             }
 
-
             if ( riverStrength > 0) {
+                // River body
+                terrainR = 50;
+                terrainG = 70;
+                terrainB = 100;
                 // It's part of the river
                 if (crossable) {
                     // Crossing point
@@ -376,19 +402,65 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                 } else {
                     r = 0; g = 0; b = 255;   // Blue
                 }
-            } 
-            
-            else if (isCliff) { // 🎯 Adjust this threshold as needed
-                r = 255; g = 0; b = 0; // Black cliff face
+            }else if(nearRiver && (heightmap - heightmapBase)>0.05){
+                terrainR = 110;
+                terrainG = 100 + Math.floor(Math.random() * 20); // subtle pebble noise
+                terrainB = 90;
+
+                r = 255; g = 0; b = 0; // red cliff face
             }
 
-            else {
+            
+            else if (isCliff) { // 🎯 Adjust this threshold as needed
+                r = 255; g = 0; b = 0; // red cliff face
+                terrainR = 110;
+                terrainG = 100 + Math.floor(Math.random() * 20); // subtle pebble noise
+                terrainB = 90;
+
+            }
+
+            else{
                 // Land
                 r = walkable ? 255 : 0;
                 g = walkable ? 255 : 0;
                 b = walkable ? 255 : 0;
+
+                const greenNoise = (fBm(x * 0.01, y * 0.01) * 0.5 + 0.5) * 60;
+                
+                // terrainR = walkable ? 40 : 0;
+                // terrainG = walkable ? 120 + greenNoise : 0;
+                // terrainB = walkable ? 40 : 0;
+                if(walkable){
+                    terrainR = 40;
+                    terrainG = 120 + greenNoise;
+                    terrainB = 40 ;
+                }else{
+                    if(heightmapBase>0.6){//this is a peak, hence white
+                        terrainR=255;
+                        terrainG=255;
+                        terrainB=255;
+                    }else{//overwise its rocky
+                        terrainR = 110;
+                        terrainG = 100 + Math.floor(Math.random() * 10); // subtle pebble noise
+                        terrainB = 90;
+                    }
+
+                }
+                if(nearRiver){
+                    // isCliff = false;
+                    terrainR = 110;
+                    terrainG = 100 + Math.floor(Math.random() * 20); // subtle pebble noise
+                    terrainB = 90;
+                }
+                // terrainR = 40;
+                // terrainG = 120 + greenNoise;
+                // terrainB = 40;
             }
 
+            colourMap.data[idx]     = terrainR;
+            colourMap.data[idx + 1] = terrainG;
+            colourMap.data[idx + 2] = terrainB;
+            colourMap.data[idx + 3] = 255;
 
             for (let dy = 0; dy < 3; dy++) {
                 for (let dx = 0; dx < 3; dx++) {
@@ -412,7 +484,9 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
     walkmap.pack().pipe(fs.createWriteStream('walkmap.png')).on('finish', () => {
         console.log('✅ Saved: Walkmap.png');
     });
-
+    colourMap.pack().pipe(fs.createWriteStream('colourMap.png')).on('finish', () => {
+        console.log('✅ Saved: colourMap.png');
+    });
 
 }
 generateHeightmap();
