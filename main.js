@@ -8,11 +8,7 @@ const { PNG } = require('pngjs');
 const seedrandom = require('seedrandom');
 
 
-// Choose 2 open edges randomly
-function chooseOpenEdges() {
-    const edges = ['top', 'right', 'bottom', 'left'];
-    return edges.sort(() => Math.random() - 0.5).slice(0, 2);
-}
+
 
 class TileData {
     constructor(chunkX, chunkY, width, height,openEdges) {
@@ -30,6 +26,8 @@ class TileData {
         this.nonCrossingPoints = path.filter(p => !p.crossable);
     }
 }
+
+
 
 
 async function generateHeightmap(chunkX=0,chunkY=0) {
@@ -51,26 +49,11 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
 
     const tileData = new TileData(chunkX, chunkY, width, height,openEdges);
 
-    function lerp(a, b, t) {
-        return a + (b - a) * t;
+    // Choose 2 open edges randomly
+    function chooseOpenEdges() {
+        const edges = ['top', 'right', 'bottom', 'left'];
+        return edges.sort(() => Math.random() - 0.5).slice(0, 2);
     }
-    
-    function lerpColor(c1, c2, t) {
-        return [
-            Math.round(lerp(c1[0], c2[0], t)),
-            Math.round(lerp(c1[1], c2[1], t)),
-            Math.round(lerp(c1[2], c2[2], t)),
-        ];
-    }
-    
-    const COLORS = {
-        snow:    [255, 255, 255],
-        rock:    [120, 110, 100],
-        grass1:  [80, 130, 60],
-        grass2:  [100, 150, 80],
-        river:   [70, 80, 90],       // Pebble grey-blue
-        riverbank: [110, 130, 100],  // Damp soil near water
-    };
 
     // Pick start/end points for river
     function pickRiverEndpoints(openEdges, width, height,margin = 20, minDistance = 100) {
@@ -398,9 +381,6 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                 if (crossable) {
                     
                     //should strictly be the height of the plains just coloured differently, maybe slightly lower
-                    // console.log(val+"VALUE"+heightmapBase +","+heightmap)
-                    
-                    console.log(val + "crossing")
                     // Crossing point
                     terrainR = 50;
                     terrainG = 90;

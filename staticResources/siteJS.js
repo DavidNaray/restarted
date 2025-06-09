@@ -9,6 +9,77 @@ const loader = new THREE.TextureLoader();
 
 let heightTexture = null;
 let colourTexture = null;
+const tileSize=10;
+
+
+//track the instances within a tile (its buildings and units) and also responsible for generating the tile
+class Tile{
+    constructor(x,y,GInstanceManager,texUrl,HeightUrl){
+        this.instanceManager=GInstanceManager
+
+        this.x=x;
+        this.y=y;
+        this.texUrl=texUrl;
+        this.HeightUrl=HeightUrl;
+        this.texture;
+        this.heightmap;
+        this.loadtextures();
+    }
+
+    async loadtextures(){
+        loader.load(this.HeightUrl, (texture) => {//'../heightmap.png'
+            this.heightmap = texture;
+            this.BuildTileBase();
+        });
+          
+        loader.load(this.texUrl, (texture) => {//'../colourMap.png'
+            this.texture = texture;
+            this.BuildTileBase();
+        });
+    }
+    async BuildTileBase(){
+        console.log("tried!!!")
+        if (this.heightmap && this.texture) {
+            const width = this.heightmap.image.width;
+            const height = this.heightmap.image.height;
+        
+            const geometry = new THREE.PlaneGeometry(1, 1, width - 1, height - 1);
+            geometry.rotateX(-Math.PI / 2);
+    
+            const material = new THREE.MeshToonMaterial({
+                map: this.texture,
+                displacementMap: this.heightmap,
+                displacementScale: 1,
+            });
+        
+            const terrain = new THREE.Mesh(geometry, material);
+            const terrainHeight=10;
+            const terrainWidth=10;
+            terrain.scale.set(terrainWidth, 1, terrainHeight);
+            scene.add(terrain);
+        }
+    }
+}
+
+//track all tiles 
+class GlobalInstanceManager {
+    constructor() {
+      this.tiles = new Map(); // tileCoord => TileInstancePool
+    }
+    getTile(x, y) {
+        return this.tiles.get(`${x},${y}`);
+    }
+    
+    registerTile(tile) {
+        this.tiles.set(tile.tileCoord, tile);
+    }
+
+    getTileByWorldPosition(x, z) {
+        const tileX = Math.floor(x / tileSize); // tileSize known
+        const tileY = Math.floor(z / tileSize);
+        return this.getTile(tileX, tileY);
+    }
+}
 
 
 function sceneSetup(){
@@ -34,44 +105,9 @@ function sceneSetup(){
 
     document.getElementById("ThreeBlock").append(renderer.domElement)
 
-    loader.load('../heightmap.png', (texture) => {
-        heightTexture = texture;
-        tryBuildTerrain();
-    });
-      
-    loader.load('../colourMap.png', (texture) => {
-        colourTexture = texture;
-        tryBuildTerrain();
-    });
-}
+    const globalmanager=new GlobalInstanceManager();
+    const tileyay=new Tile(0,0,globalmanager,'../colourMap.png','../heightmap.png');
 
-async function tryBuildTerrain(){
-    console.log("tried!!!")
-    if (heightTexture && colourTexture) {
-        const width = heightTexture.image.width;
-        const height = heightTexture.image.height;
-    
-        const geometry = new THREE.PlaneGeometry(1, 1, width - 1, height - 1);
-        geometry.rotateX(-Math.PI / 2);
-
-        const material = new THREE.MeshToonMaterial({
-        map: colourTexture,
-        displacementMap: heightTexture,
-        displacementScale: 1,
-        // wireframe:true
-        // flatShading: true
-        });
-        // material.magFilter = THREE.NearestFilter;
-        // material.minFilter = THREE.NearestFilter;
-        // material.generateMipmaps = false;
-        // material.needsUpdate = true;
-    
-        const terrain = new THREE.Mesh(geometry, material);
-        const terrainHeight=10;
-        const terrainWidth=10;
-        terrain.scale.set(terrainWidth, 1, terrainHeight);
-        scene.add(terrain);
-    }
 }
 
 
