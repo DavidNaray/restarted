@@ -12,7 +12,203 @@ let colourTexture = null;
 const tileSize=10;
 
 
-//track the instances within a tile (its buildings and units) and also responsible for generating the tile
+//objects, stores all the assets like soldiers etc
+
+var OBJECTS=new Map(); 
+
+class Template{
+    constructor(name, structure = {}) {
+        this.id = generateUniqueId();
+        this.name = name;
+        this.structure = structure; // { infantry: 20, artillery: 5 }
+        this.instanceGroups = new Set(); // All instance groups (from many tiles)
+        this.division = null;            // Assigned division (optional)
+    }
+}
+
+
+class TileInstancePool { 
+    constructor(tile) {
+        this.tile = tile; // 👈 Full reference to the Tile instance
+        this.dummyMatrix = new THREE.Matrix4(); // Globally or per class
+        this.instanceGroups = new Map(); // objectType → instanceObject (for that objectType) 
+        
+
+
+    }
+
+    getTileCoord() {
+        return [this.tile.x,this.tile.y]; // or directly access this.tile.x, this.tile.y, etc.
+    }
+
+    GeneralAddInstance(objectType, transform,meta={}){
+        //instance Objects are then given a meta-data tag
+        //form of meta will vary, buildings may have name, type of building, under construction, resistances etc
+        //units may have health, damage, weaknesses etc 
+        //most importantly a reference to a template object if its part of a template
+        let mesh=this.instanceGroups.get(objectType);
+        if(!mesh){
+            console.log("didnt exist, make it!")
+            //if there was no key of objectType then there wont be a value
+            mesh=this.createInstanceObjectOfCount(objectType,3);
+            mesh.metadata=new Map();
+            mesh.freeIndices=new Set([0,1,2])//every index is free 
+            
+            this.instanceGroups.set(objectType,mesh)
+        }else{//exists, 
+            console.log("exists")
+
+            const trueMax=mesh.instanceMatrix.count
+
+            if(mesh.count >= trueMax){
+                console.log("need to make bigger!")
+                //create a new instanceObject that is larger
+                const newMesh=this.createInstanceObjectOfCount(objectType,trueMax+16,mesh);
+                newMesh.metadata=mesh.metadata;
+                //need to copy over the information from the current mesh, +16 so it doesnt replace too often
+                scene.remove(mesh)
+                mesh = newMesh;
+                this.instanceGroups.set(objectType,mesh);
+            }
+        }
+
+
+        let index;
+
+        if (mesh.freeIndices.size > 0) {
+            
+            index = mesh.freeIndices.values().next().value; // Reuse a free index
+            console.log("woah, free indice!", index)
+            mesh.freeIndices.delete(index);
+        } else {
+            index = mesh.count++;
+
+        }
+
+        mesh.setMatrixAt(index, transform);
+        mesh.metadata.set(index,meta);
+        mesh.instanceMatrix.needsUpdate = true;
+        if (index >= mesh.count) {
+            mesh.count = index + 1;
+        }
+        console.log(mesh.freeIndices)
+        scene.add(mesh);
+
+    }
+
+
+    createInstanceObjectOfCount(objectType,count,oldMesh = null){
+        const objectTypeMesh=OBJECTS.get(objectType);
+        const geometry = objectTypeMesh.geometry;//refers to the geometry
+        const material = objectTypeMesh.material;
+        const mesh = new THREE.InstancedMesh( geometry, material, count );
+        const freeIndices=new Set();
+        for(let j = 0; j < count; j++){
+            freeIndices.add(j)
+        }
+        mesh.freeIndices=freeIndices;
+        // If upgrading an old mesh, copy transforms
+        if (oldMesh) {
+            
+            for (let i = 0; i < oldMesh.count; i++) { 
+                freeIndices.delete(i)
+                oldMesh.getMatrixAt(i, this.dummyMatrix);
+                mesh.setMatrixAt(i, this.dummyMatrix);
+            }
+            mesh.count = oldMesh.count;
+            
+            
+        } else {//ie when oldMesh is null
+            mesh.count = 0; // Start fresh
+        }
+
+
+        return mesh;
+    }
+
+    removeInstance(objectType, index) {
+        let mesh=this.instanceGroups.get(objectType);
+
+        if (!mesh) return false;
+    
+        if (index >= mesh.count) return false; // Invalid index
+
+        const lastIndex = mesh.count - 1;
+
+        //so when count is decremented, it chops off the top instance, so we swap the index to be removed with the lastindex
+        if (index !== lastIndex) {
+            // Move last matrix into the removed slot
+            mesh.getMatrixAt(lastIndex, this.dummyMatrix);
+            mesh.setMatrixAt(index, this.dummyMatrix);
+    
+            // Update metadata
+            const lastMeta = mesh.metadata.get(lastIndex);
+            mesh.metadata.set(index, lastMeta);
+            mesh.metadata.delete(lastIndex);
+            
+        } else {
+            // If you're removing the last one directly since index ==last
+            mesh.metadata.delete(index);
+            
+        }
+        //you do not add the last index to free-indices because count is decremented
+
+        mesh.count--;
+        mesh.instanceMatrix.needsUpdate = true;
+
+        
+        // Compact every 10 removals (adjustable)
+        if (mesh.freeIndices.size>=10) {
+            console.log("trigger compact")
+            this.compactInstanceObject(objectType, mesh);
+        }
+        return true;
+    }
+
+    compactInstanceObject(objectType, oldMesh) {
+        const usedIndices = new Set();
+        for (let i = 0; i <= oldMesh.count; i++) {
+            if (!oldMesh.freeIndices.has(i)) {
+                usedIndices.add(i);
+            }
+        }
+    
+        // Nothing to compact if it's full or only a couple used
+        if (usedIndices.size === oldMesh.instanceMatrix.count) return;
+    
+        //creating newMesh, not updating hence no oldMesh 3rd param into this, have to define freeIndices here, empty cus full
+        const newMesh = this.createInstanceObjectOfCount(objectType, usedIndices.size);
+        newMesh.metadata=new Map();
+        newMesh.freeIndices = new Set();
+        
+        let j = 0;
+        for (const i of usedIndices) {
+            oldMesh.getMatrixAt(i, this.dummyMatrix);
+            newMesh.setMatrixAt(j, this.dummyMatrix);
+            
+            const meta=oldMesh.metadata.get(i);
+            if(meta){
+                newMesh.metadata.set(j, meta);
+            }
+            j++;
+        }
+        newMesh.count = usedIndices.size;
+        newMesh.instanceMatrix.needsUpdate = true;
+    
+        scene.remove(oldMesh);
+        scene.add(newMesh);
+    
+        // targetMap.set(objectType, newMesh);
+        this.instanceGroups.set(objectType,newMesh);
+    }
+
+
+    transferInstance(targetTile, index, objectType, targetMap){
+
+    }
+}
+
+// responsible for generating the tile and holding the instancePools objects that track units and buildings
 class Tile{
     constructor(x,y,GInstanceManager,texUrl,HeightUrl){
         this.instanceManager=GInstanceManager
@@ -23,6 +219,12 @@ class Tile{
         this.HeightUrl=HeightUrl;
         this.texture;
         this.heightmap;
+
+        this.instancePooling=new TileInstancePool(this);
+        // this.instancePoolUnits = new TileInstancePool(this);     // Track units here
+        // this.instancePoolBuildings = new TileInstancePool(this); // Track buildings here
+
+
         this.loadtextures();
     }
 
@@ -59,12 +261,35 @@ class Tile{
             scene.add(terrain);
         }
     }
+
+    async addcubeInstance(increment){
+        const geometry = new THREE.BoxGeometry( 0.5, 0.5, 0.5 );
+        const material = new THREE.MeshLambertMaterial({color: 0x00ff00, transparent: false, opacity: 0.5}) 
+        const cube = new THREE.Mesh( geometry, material );
+        // scene.add( cube );
+        OBJECTS.set("cube",cube);
+
+
+        const transform = new THREE.Matrix4();
+        // transform.makeTranslation(0, 1, 0); // Sets position (x, y, z)
+        const position = new THREE.Vector3(0, increment, 0);
+        const quaternion = new THREE.Quaternion();  // No rotation
+        const scale = new THREE.Vector3(1, 1, 1);
+        transform.compose(position, quaternion, scale);
+        this.instancePooling.GeneralAddInstance("cube",transform);
+    }
+    async removecubeInstance(index){
+        this.instancePooling.removeInstance("cube",index);
+    }
+
 }
 
 //track all tiles 
 class GlobalInstanceManager {
     constructor() {
-      this.tiles = new Map(); // tileCoord => TileInstancePool
+        this.tiles = new Map();         // tileCoord => TileInstancePool
+        this.divisions = new Map();     // divisionName → DivisionInfo (only *unassigned* divisions here)
+        this.armies = new Map();        // armyName => Map<divisionName, DivisionInfo>
     }
     getTile(x, y) {
         return this.tiles.get(`${x},${y}`);
@@ -79,6 +304,63 @@ class GlobalInstanceManager {
         const tileY = Math.floor(z / tileSize);
         return this.getTile(tileX, tileY);
     }
+
+    createDivision(divisionName, metadata = {}) {
+        if (this.divisions.has(divisionName) || this.findDivisionInArmies(divisionName)) {
+            throw new Error(`Division '${divisionName}' already exists globally.`);
+        }
+        const division = {
+            name: divisionName,
+            instanceGroups: new Set(),
+            army: null,
+            metadata
+        };
+        this.divisions.set(divisionName, division);
+        return division;
+    }
+
+    assignDivisionToArmy(divisionName, armyName) {
+        const division = this.divisions.get(divisionName);
+        if (!division) throw new Error(`Division '${divisionName}' does not exist in unassigned divisions.`);
+
+        let army = this.armies.get(armyName);
+        if (!army) {
+            army = new Map();
+            this.armies.set(armyName, army);
+        }
+
+        division.army = armyName;
+        army.set(divisionName, division);
+        this.divisions.delete(divisionName); // REMOVE from unassigned
+    }
+
+    findDivisionInArmies(divisionName) {
+        for (const army of this.armies.values()) {
+            if (army.has(divisionName)) return army.get(divisionName);
+        }
+        return null;
+    }
+
+    unassignDivisionFromArmy(armyName,divisionName) {
+        const army = this.armies.get(armyName);
+        if (!army) throw new Error(`Army '${armyName}' does not exist.`);
+    
+        const division = army.get(divisionName);
+        if (!division) throw new Error(`Division '${divisionName}' does not exist in Army '${armyName}'.`);
+    
+        if (this.divisions.has(divisionName)) {
+            throw new Error(`Cannot unassign division '${divisionName}' because an unassigned division with that name already exists.`);
+        }
+    
+        army.delete(divisionName);
+        division.army = null;
+        this.divisions.set(divisionName, division);
+    }
+
+    getDivisionAnywhere(divisionName) {
+        return this.divisions.get(divisionName) || this.findDivisionInArmies(divisionName);
+    }
+
 }
 
 
@@ -95,11 +377,6 @@ function sceneSetup(){
     
     controls = new OrbitControls( camera, renderer.domElement );
     
-    const geometry = new THREE.BoxGeometry( 0.1, 0.1, 0.1 );
-    const material = new THREE.MeshLambertMaterial({color: 0x00ff00, transparent: false, opacity: 0.5}) 
-    const cube = new THREE.Mesh( geometry, material );
-    scene.add( cube );
-    
     let ambientLight = new THREE.AmbientLight(new THREE.Color('hsl(0, 100%, 100%)'), 3);
     scene.add(ambientLight);
 
@@ -107,6 +384,26 @@ function sceneSetup(){
 
     const globalmanager=new GlobalInstanceManager();
     const tileyay=new Tile(0,0,globalmanager,'../colourMap.png','../heightmap.png');
+
+    tileyay.addcubeInstance(1);
+    tileyay.addcubeInstance(2);
+    tileyay.addcubeInstance(3);
+    tileyay.addcubeInstance(4);
+    console.log("DIVISION, NOW IN REMOVAL process")
+    tileyay.removecubeInstance(0);
+    tileyay.removecubeInstance(1);
+    tileyay.removecubeInstance(2);
+    // tileyay.removecubeInstance(3);
+
+    // tileyay.addcubeInstance(0);
+    // tileyay.addcubeInstance(1);
+    // tileyay.addcubeInstance(2);
+    // tileyay.addcubeInstance(3);
+    // tileyay.addcubeInstance(4);
+    // tileyay.addcubeInstance(5);
+    // tileyay.addcubeInstance(6);
+    // tileyay.addcubeInstance(7);
+
 
 }
 
