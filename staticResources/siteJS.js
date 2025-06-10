@@ -368,7 +368,12 @@ function sceneSetup(){
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
     renderer = new THREE.WebGLRenderer();
-    renderer.setSize(document.getElementById("ThreeBlock").clientWidth, document.getElementById("ThreeBlock").clientHeight);//window.innerWidth, window.innerHeight );
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    renderer.setPixelRatio(window.devicePixelRatio * 0.75); // Half the normal pixel ratio
+
+    document.getElementById("ThreeBlock").appendChild(renderer.domElement)
+    // insertBefore(renderer.domElement, document.getElementById("ThreeBlock").firstChild)
+    // document.getElementById("container").insertBefore(renderer.domElement, document.getElementById("container").firstChild)
     
     camera = new THREE.PerspectiveCamera( 75, renderer.domElement.width / renderer.domElement.height, 0.1, 10000 );//window.innerWidth / window.innerHeight
     camera.position.z = 5;
@@ -380,7 +385,7 @@ function sceneSetup(){
     let ambientLight = new THREE.AmbientLight(new THREE.Color('hsl(0, 100%, 100%)'), 3);
     scene.add(ambientLight);
 
-    document.getElementById("ThreeBlock").append(renderer.domElement)
+
 
     const globalmanager=new GlobalInstanceManager();
     const tileyay=new Tile(0,0,globalmanager,'../colourMap.png','../heightmap.png');
@@ -392,7 +397,7 @@ function sceneSetup(){
     console.log("DIVISION, NOW IN REMOVAL process")
     tileyay.removecubeInstance(0);
     tileyay.removecubeInstance(1);
-    tileyay.removecubeInstance(2);
+    // tileyay.removecubeInstance(2);
     // tileyay.removecubeInstance(3);
 
     // tileyay.addcubeInstance(0);
@@ -412,6 +417,7 @@ function animate() {
 	// raycaster.setFromCamera( pointer, camera );
 	requestAnimationFrame( animate );
 	controls.update();
+    // renderer.clear();
 	renderer.render( scene, camera );
 }
 

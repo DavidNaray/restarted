@@ -1,27 +1,61 @@
-* { 
+
+
+html, body {
     margin: 0;
     padding: 0;
-    box-sizing: border-box;
-    height:100vh;
-    width: 100vw;
-    /* scrollbar-gutter: stable both-edges; */
-    scrollbar-width: none;
-}
-body{
-    background-color: white;
-}
-#ThreeBlock{
+    height: 100%;
+    overflow: hidden;
+    background-color: black;
+  }
+
+  #ThreeBlock {
     position: absolute;
     top: 0;
-    bottom: 0;
-    /* background-color: blue; */
-};
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
 
-h1{
-    color:red;
-}
+  #bruh {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;     /* full-screen overlay */
+    background-color: transparent;
+    pointer-events: none; /* let clicks go through unless overridden */
+    z-index: 1;
+  }
 
-p{
-    color:blue
-};
+  #bruh > div {
+    position: absolute;
+    
+    left: 0;
+    pointer-events: auto; /* only this div gets events */
+  }
+
+  #Resources_Buttons{
+    top: 0;
+    width: 50%;
+    height: 60px;       /* specific size for the overlay part you want */
+    background-color: black;
+  }
+
+  #Button_Dropdown{
+    top:60px;
+    width: 45%;
+    height: 500px;       /* specific size for the overlay part you want */
+    background-color: orange;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+
+
+
 

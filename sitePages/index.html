@@ -12,9 +12,43 @@
     <title>Page Title</title>
 </head>
 <body>
-    <!-- <div id="output" style="position: absolute;width: 500px;height:500px;background-color: white;z-index: 1000"></div> -->
-    <script src="/socket.io/socket.io.js"></script>
-    <script type="module" src="siteJS.js"></script>
+    
     <div id="ThreeBlock"></div>
+    
+    <div id="bruh">
+        <!-- holds resource bar and button for: 
+            decisions, 
+            research, 
+            trade/income, 
+            construction, 
+            production, 
+            unit training,
+            security (garrisons, coring)
+        -->
+        <div id="Resources_Buttons"></div> 
+
+        <!-- dropdown for when Buttons activate  -->
+        <div id="Button_Dropdown"></div>
+    </div>
+    
+    
+
+
+    <!-- <div id="UI-overlay" ></div> -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="siteJS.js"></script>    
+
+    <!-- <div id="container" style="width: 100%;height: 100%;position: relative;">
+
+
+    </div>         -->
+
+    <!-- <div id="ThreeBlock">
+        <div id="actualUI" style="position: absolute;top:0;left:0;height: 1000px;width: 35vw;display: flex;"></div>
+    </div> -->
+    <!-- <div id="UI" style="position: fixed;height: 13vw;width: 35vw;display: flex;bottom:0;background-color: white;z-index: 100000;">
+        </div> -->
+
+    
 </body>
 </html>
