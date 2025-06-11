@@ -55,9 +55,14 @@ html, body {
   /* 100% if less than 550px */
   width:  min(550px,40%);
   /* height: 500px;       specific size for the overlay part you want */
-  aspect-ratio: 1/1.2;
-  max-height: 50%;
-  background-color: orange;
+  /* aspect-ratio: 1/1.2; */
+  /* max-height: 50%; */
+  height: 90%;
+  background-color: gray;
+  padding:min(0.75vw,0.75vh);
+  padding-top: 0;
+  /* total padding of 0.5 vw or vh */
+  /* border-radius: 1vw; */
 }
 
 #TopButResHolder{
@@ -126,10 +131,22 @@ p{
   line-height: 1.25;
   padding:0
 }
+
+@media (max-width: 800px) {
+  #Button_Dropdown {
+    /* width: 100%; */
+    /* aspect-ratio: 1.75/1; */
+    height: 40%;
+    /* padding:min(0.75vw,0.75vh) */
+  }
+}
 @media (max-width: 550px) {
   #Button_Dropdown {
-    width: 100%;
-    aspect-ratio: 1.75/1;
+    width: calc(100% - max(1.5vw,1.5vh));
+    /* aspect-ratio: 1.75/1; */
+    /* height: 40%; */
+    padding:max(0.75vw,0.75vh);
+    padding-top: 0;
   }
   #Resources_Buttons{
     border-radius: 0;

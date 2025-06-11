@@ -15,21 +15,16 @@
     
     <div id="ThreeBlock"></div>
     
+    <!-- parent, allows overlay to happen -->
     <div id="bruh">
-        <!-- holds resource bar and button for: 
-            decisions, 
-            research, 
-            trade/income (Finance), 
-            construction, 
-            production, 
-            unit training,
-            security (garrisons, coring)
-        -->
+        <!-- the div that is the top bar, displaying the resources and buttons -->
         <div id="Resources_Buttons">
+            <!-- focus tree button-->
             <div style="padding:4px;display: grid;">
-                <!-- focus tree -->
+                
                 <div style="background-color: navy;border-radius: 5px;"></div>
             </div>
+            <!-- the grid div, upper half displays resources, lower the buttons for all sorts -->
             <div id="TopButResHolder">
 
                 <div id="Resources" style="background-color: transparent;border-radius: 5px;"><!-- rgb(98, 98, 98) -->
@@ -115,11 +110,12 @@
 
 
             </div>
-
         </div> 
 
         <!-- dropdown for when Buttons activate  -->
-        <div id="Button_Dropdown"></div>
+        <div id="Button_Dropdown">
+            <div style="width: 100%;height: 100%;border-radius: min(1vw,1vh);background-color: rgb(98, 98, 98);;"></div>
+        </div>
     </div>
     
     
