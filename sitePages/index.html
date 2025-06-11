@@ -19,13 +19,104 @@
         <!-- holds resource bar and button for: 
             decisions, 
             research, 
-            trade/income, 
+            trade/income (Finance), 
             construction, 
             production, 
             unit training,
             security (garrisons, coring)
         -->
-        <div id="Resources_Buttons"></div> 
+        <div id="Resources_Buttons">
+            <div style="padding:4px;display: grid;">
+                <!-- focus tree -->
+                <div style="background-color: navy;border-radius: 5px;"></div>
+            </div>
+            <div id="TopButResHolder">
+
+                <div id="Resources" style="background-color: transparent;border-radius: 5px;"><!-- rgb(98, 98, 98) -->
+                    
+
+                    <div class="ResourceBlock"  ><!-- POLITICAL POWER -->
+                        <div class="IconGeneral" style="background-image: url('Icons/PoliticalPower.png')"></div>
+                        <div class="resourceText" >
+                            <p>yoyoyyoaadasdasdadadadadad</p>
+                        </div>
+                    </div>
+
+                    <div class="ResourceBlock"  ><!-- STABILITY -->
+                        <div class="IconGeneral" style="background-image: url('Icons/Stability.png')"></div>
+                        <div class="resourceText" >
+                            <p>yoyoyyoaadasdasdadadadadad</p>
+                        </div>
+                    </div>
+
+                    <div class="ResourceBlock" ><!-- WAR SUPPORT -->
+                        <div class="IconGeneral" style="background-image: url('Icons/WarSupport.png')"></div>
+                        <div class="resourceText" >
+                            <p>yoyoyyoaadasdasdadadadadad</p>
+                        </div>
+                    </div> 
+                               
+                    <div class="ResourceBlock" ><!-- MANPOWER -->
+                        <div class="IconGeneral" style="background-image: url('Icons/ManPower.png')"></div>
+                        <div class="resourceText" >
+                            <p>yoyoyyoaadasdasdadadadadad</p>
+                        </div>
+                    </div> 
+
+                    <div class="ResourceBlock" ><!-- GOLD -->
+                        <div class="IconGeneral" style="background-image: url('Icons/Gold.png')"></div>
+                        <div class="resourceText" >
+                            <p>yoyoyyoaadasdasdadadadadad</p>
+                        </div>
+                    </div> 
+
+                    <div class="ResourceBlock" ><!-- STONE -->
+                        <div class="IconGeneral" style="background-image: url('Icons/Stone.png')"></div>
+                        <div class="resourceText" >
+                            <p>yoyoyyoaadasdasdadadadadad</p>
+                        </div>
+                    </div> 
+
+                    <div class="ResourceBlock" ><!-- WOOD -->
+                        <div class="IconGeneral" style="background-image: url('Icons/Wood.png')"></div>
+                        <div class="resourceText" >
+                            <p>yoyoyyoaadasdasdadadadadad</p>
+                        </div>
+                    </div> 
+
+
+                </div>
+
+                <div id="TopBarButtonHolder" style="background-color: rgb(98, 98, 98);border-radius: 5px;">
+                    <div class="TopBarBtn" id="btn_Decisions" style="position: relative;">
+                        <div class="IconGeneral" style="background-image: url('Icons/Decisions.png');"></div>
+                    </div>
+                    <div class="TopBarBtn" id="btn_Research" >
+                        <div class="IconGeneral" style="background-image: url('Icons/Research.png');"></div>
+                    </div>
+                    <div class="TopBarBtn" id="btn_Finance" >
+                        <div class="IconGeneral" style="background-image: url('Icons/Finance.png');"></div>
+                    </div>
+                    <div class="TopBarBtn" id="btn_Construction" >
+                        <div class="IconGeneral" style="background-image: url('Icons/Construction.png');"></div>
+                    </div>
+                    <div class="TopBarBtn" id="btn_Production" >
+                        <div class="IconGeneral" style="background-image: url('Icons/Production.png');"></div>
+                    </div>
+                    <div class="TopBarBtn" id="btn_Train" >
+                        <div class="IconGeneral" style="background-image: url('Icons/Recruitment.png');"></div>
+                    </div>
+                    <div class="TopBarBtn" id="btn_Security" >
+                        <div class="IconGeneral" style="background-image: url('Icons/Security.png');"></div>
+                    </div>
+
+                </div>
+
+
+
+            </div>
+
+        </div> 
 
         <!-- dropdown for when Buttons activate  -->
         <div id="Button_Dropdown"></div>

@@ -1,61 +1,145 @@
 
 
 html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    overflow: hidden;
-    background-color: black;
-  }
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background-color: black;
+}
 
-  #ThreeBlock {
-    position: absolute;
-    top: 0;
-    left: 0;
+#ThreeBlock {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+#bruh {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;     /* full-screen overlay */
+  background-color: transparent;
+  pointer-events: none; /* let clicks go through unless overridden */
+  z-index: 1;
+
+  display: flex;
+  flex-direction: column;
+}
+
+#bruh > div {
+  /* position: absolute; */
+  
+  left: 0;
+  pointer-events: auto; /* only this div gets events */
+}
+
+#Resources_Buttons{
+  top: 0;
+  width: min(100%, 800px);
+  aspect-ratio: 12/1;
+  min-height: 7%;
+  background-color: gray;
+  display: grid;
+  grid-template-columns: 1fr 5fr;
+  border-radius: 0 0 7px 0;
+}
+
+#Button_Dropdown{
+  /* top:calc( ( min(100%, 650px) ) / 10); */
+  
+  /* 100% if less than 550px */
+  width:  min(550px,40%);
+  /* height: 500px;       specific size for the overlay part you want */
+  aspect-ratio: 1/1.2;
+  max-height: 50%;
+  background-color: orange;
+}
+
+#TopButResHolder{
+  display: grid;
+  grid-template-rows: 1.3fr 2fr;
+  padding:4px 4px 4px 0px;
+  row-gap: 4px;
+}
+
+#Resources {
+  /* grid-column: 1 / -1; Span all 7 columns */
+  /* background: orange;  Example */
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  column-gap: 4px;
+  /* padding-left:4px; */
+  /* padding-right: 4px; */
+}
+
+.ResourceBlock{
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  overflow: hidden;
+  position: relative;
+  background-color: rgb(98, 98, 98);
+  border-radius: 4px;
+}
+
+#TopBarButtonHolder{
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  column-gap: 4px;
+  padding:4px 4px 2px 4px;
+  /* padding-right: 4px; */
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.TopBarBtn{
+  background-color: rgb(188, 187, 187);
+  border-radius: 6px;
+}
+
+.IconGeneral{
+  /* height: 100%; */
+  /* background-size: cover; */
+  /* background-position: center; */
+  height:100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.resourceText{
+  background-color: transparent;
+  text-overflow: clip;
+  overflow: hidden;
+}
+
+p{
+  margin:0;
+  line-height: 1.25;
+  padding:0
+}
+@media (max-width: 550px) {
+  #Button_Dropdown {
     width: 100%;
-    height: 100%;
-    z-index: 0;
+    aspect-ratio: 1.75/1;
   }
-
-  #bruh {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;     /* full-screen overlay */
-    background-color: transparent;
-    pointer-events: none; /* let clicks go through unless overridden */
-    z-index: 1;
-  }
-
-  #bruh > div {
-    position: absolute;
-    
-    left: 0;
-    pointer-events: auto; /* only this div gets events */
-  }
-
   #Resources_Buttons{
-    top: 0;
-    width: 50%;
-    height: 60px;       /* specific size for the overlay part you want */
-    background-color: black;
+    border-radius: 0;
   }
-
-  #Button_Dropdown{
-    top:60px;
-    width: 45%;
-    height: 500px;       /* specific size for the overlay part you want */
-    background-color: orange;
+  #TopBarButtonHolder{
+    column-gap: 2px;
+    padding-left:2px;
+    padding-right: 2px;
   }
-
-  canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-
-
+}
 
 
 
