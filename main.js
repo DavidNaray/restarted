@@ -6,9 +6,82 @@ const { Server } = require('socket.io');
 // const { RTCPeerConnection, RTCSessionDescription } = require('wrtc');
 const { PNG } = require('pngjs');
 const seedrandom = require('seedrandom');
+const bcrypt = require('bcrypt');
+
+const mongoose = require('mongoose');
+const mongoDB="mongodb://localhost:27017/firstEver"
+// console.log(mongoDB)
+mongoose.connect(mongoDB).then(()=>{
+    console.log("successfully connected to mongoDB")
+})
+
+const userSchema = new mongoose.Schema({
+  username: { type: String, unique: true },
+  passwordHash: String,  // store hashed password here
+});
+
+const templateSchema = new mongoose.Schema({
+    name: { type: String, required: true },           // Name of the template
+    owner: { type: String, required: true },          // Username of the creator/owner
+    
+    composition: [{
+        // unitAsset: { type: String, required: true },  // Which unit asset/model this refers to
+        assetId: { type: String, required: true },        // what type of unit they are
+        count: { type: Number, required: true },      // Number of this unit in the template
+        // config: { type: mongoose.Schema.Types.Mixed } // Optional: equipment, formation, etc.
+    }],
+    
+    createdAt: { type: Date, default: Date.now }
+});
+
+const tileSchema = new mongoose.Schema({
+    owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },       // ✅ Full control & vision
+    allies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],    // ✅ Full vision, restricted actions (per owners rules)
+    involvedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],// ⚔️ Enemies or visiting users
+
+    textures: {
+        heightmapUrl: String,
+        texturemapUrl: String
+    },
+
+    buildings: [{
+        userId: String,
+        assetId: String, // building type
+        instances:[{
+            position: [Number], // [x, y] on the tile
+            metaData: {
+                health: Number,
+                state: String,     // e.g., "under_construction", "built", etc.
+            }
+        }]
+    }],
+
+    units: [{
+        username: String,       // who owns these units
+        assetId: String,        // what type of unit they are
+        instances: [{
+            position: [Number], // [x, y]
+            metaData: {
+                // templateId: { type: String, default: null },  // null = free unit
+                templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', default: null },
+                health: Number,
+                state: String,       // e.g., "idle", "moving", "attacking"
+
+            }
+        }]
+    }],
+
+
+    updatedAt: { type: Date, default: Date.now }
+});
 
 
 
+const User = mongoose.model('User', userSchema);
+
+const TemplateScheme = mongoose.model('TemplateScheme', templateSchema);
+
+const TileScheme = mongoose.model('TileScheme', tileSchema);
 
 class TileData {
     constructor(chunkX, chunkY, width, height,openEdges) {
@@ -498,18 +571,20 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
         }
     }
     
-    png.pack().pipe(fs.createWriteStream('heightmap.png')).on('finish', () => {
+    png.pack().pipe(fs.createWriteStream('./Tiles/HeightMaps/'+chunkX+chunkY+'.png')).on('finish', () => {
         console.log('✅ Saved: heightmap.png');
     });
-    walkmap.pack().pipe(fs.createWriteStream('walkmap.png')).on('finish', () => {
+    walkmap.pack().pipe(fs.createWriteStream('./Tiles/WalkMaps/'+chunkX+chunkY+'.png')).on('finish', () => {
         console.log('✅ Saved: Walkmap.png');
     });
-    colourMap.pack().pipe(fs.createWriteStream('colourMap.png')).on('finish', () => {
+    colourMap.pack().pipe(fs.createWriteStream('./Tiles/TextureMaps/'+chunkX+chunkY+'.png')).on('finish', () => {
         console.log('✅ Saved: colourMap.png');
     });
 
 }
 generateHeightmap();
+
+
 
 const app=express()//creates server
 const server = http.createServer(app);
@@ -517,6 +592,53 @@ const io = new Server(server);
 
 
 app.use(express.static("./staticResources"))
+app.use(express.json()); // <-- This must come BEFORE your POST route handlers
+
+app.get("/homepage",(req,res)=>{
+    //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
+    //any errors in the future, potentially use path.resolve
+    res.status(200).sendFile(path.join(__dirname,'./sitePages/Homepage.html'))
+})
+
+app.post('/Register-user', async (req, res) => {
+  const { username,password } = req.body;
+
+  try {
+    const existingUser = await User.findOne({ username });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: 'Username already exists' });
+    }
+    
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+
+    const user = new User({ username, passwordHash });
+    await user.save();
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "server failure" });
+  }
+});
+app.post('/Login-user', async (req, res) => {
+  const { username,password } = req.body;
+
+  try {
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'User not found' });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordMatch) {
+      return res.status(400).json({ success: false, message: 'Incorrect password' });
+    }
+
+    res.json({ success: true, user });
+  } catch (err) {
+
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
 
 app.get("/",(req,res)=>{
@@ -543,7 +665,8 @@ app.get('/{*any}',(req,res)=>{//handles urls not the explicitly defined, wanted 
     res.status(200).send("pluh")
 })
 
-server.listen(5000,()=>{
+const PORT= 5000
+server.listen(PORT,()=>{
     console.log("listening to port 5000")
 })
 
