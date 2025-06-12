@@ -364,7 +364,8 @@ class GlobalInstanceManager {
 }
 
 
-function sceneSetup(){
+function sceneSetup(tiles){
+    console.log("YOOO")
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
     renderer = new THREE.WebGLRenderer();
@@ -426,6 +427,28 @@ window.onresize=function(){//resize the canvas
     camera.aspect = renderer.domElement.width/renderer.domElement.height;
     camera.updateProjectionMatrix();
 }
+
+window.onload=function(){
+    const accessToken = localStorage.getItem('accessToken');
+
+    fetch('/tiles', {
+        method: 'GET',
+        headers: {
+        'Authorization': `Bearer ${accessToken}`
+        }
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+        console.log('Tiles:', data.tiles);
+        // Call your Three.js scene setup with the tile data here
+        } else {
+        console.error(data.message);
+        }
+    })
+    .catch(err => console.error('Error fetching tiles:', err));
+}
+
 
 sceneSetup();
 // addTerrain();

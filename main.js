@@ -7,6 +7,9 @@ const { Server } = require('socket.io');
 const { PNG } = require('pngjs');
 const seedrandom = require('seedrandom');
 const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+const ACCESS_TOKEN_SECRET = "your_access_secret_here";
+const REFRESH_TOKEN_SECRET = "your_refresh_secret_here";
 
 const mongoose = require('mongoose');
 const mongoDB="mongodb://localhost:27017/firstEver"
@@ -18,6 +21,7 @@ mongoose.connect(mongoDB).then(()=>{
 const userSchema = new mongoose.Schema({
   username: { type: String, unique: true },
   passwordHash: String,  // store hashed password here
+  refreshTokens: [String],  // Store issued refresh tokens (optional)
 });
 
 const templateSchema = new mongoose.Schema({
@@ -600,6 +604,12 @@ app.get("/homepage",(req,res)=>{
     res.status(200).sendFile(path.join(__dirname,'./sitePages/Homepage.html'))
 })
 
+app.get("/play",(req,res)=>{
+    //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
+    //any errors in the future, potentially use path.resolve
+    res.status(200).sendFile(path.join(__dirname,'./sitePages/index.html'))
+})
+
 app.post('/Register-user', async (req, res) => {
   const { username,password } = req.body;
 
@@ -613,8 +623,35 @@ app.post('/Register-user', async (req, res) => {
     const passwordHash = await bcrypt.hash(password, saltRounds);
 
     const user = new User({ username, passwordHash });
+
+    // Create a JWT token with payload identifying the user
+    const accessToken = jwt.sign({ username: user.username }, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ username: user.username }, REFRESH_TOKEN_SECRET);
+
+    // Save refreshToken to user in DB (optional)
+    user.refreshTokens.push(refreshToken);
     await user.save();
-    res.json({ success: true, user });
+
+    // === Create Tile ===
+    const defaultHeightmapURL = './Tiles/HeightMaps/00.png';
+    const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
+
+    const tile = new TileScheme({
+      owner: user._id,
+      allies: [],
+      involvedUsers: [],
+      heightmapUrl: defaultHeightmapURL,
+      texturemapUrl: defaultTexturemapURL,
+      units: [],
+      buildings: []
+    });
+
+    await tile.save();
+
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
+    res.json({ accessToken,user, success: true, message: 'User recognised'});
+    // res.status(201).json({ success: true, message: 'User created' });
+    // res.json({ success: true, user });
   } catch (err) {
     res.status(500).json({ success: false, message: "server failure" });
   }
@@ -632,21 +669,75 @@ app.post('/Login-user', async (req, res) => {
     if (!passwordMatch) {
       return res.status(400).json({ success: false, message: 'Incorrect password' });
     }
+    
+    // Create a JWT token with payload identifying the user
+    const accessToken = jwt.sign({ username: user.username }, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+    const refreshToken = jwt.sign({ username: user.username }, REFRESH_TOKEN_SECRET);
 
-    res.json({ success: true, user });
+    // Save refreshToken to user in DB (optional)
+    user.refreshTokens.push(refreshToken);
+    await user.save();
+    // res.status(201).json({ success: true, message: 'User recognised',user,token });
+
+    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
+    res.json({ accessToken,user, success: true, message: 'User recognised'});
   } catch (err) {
 
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
+// refresh token route
+app.post('/token', async (req, res) => {
+  const refreshToken = req.cookies.refreshToken;
+  if (!refreshToken) return res.status(401).json({ message: "No refresh token provided" });
 
-app.get("/",(req,res)=>{
-    //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
-    //any errors in the future, potentially use path.resolve
-    res.status(200).sendFile(path.join(__dirname,'./sitePages/index.html'))
-})
+  try {
+    const payload = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET);
 
+    // Check if refreshToken is still valid (optional)
+    const user = await User.findOne({ username: payload.username });
+    if (!user || !user.refreshTokens.includes(refreshToken)) {
+      return res.status(403).json({ message: "Invalid refresh token" });
+    }
+
+    const accessToken = jwt.sign({ username: user.username }, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
+
+    res.json({ accessToken });
+  } catch (err) {
+    return res.status(403).json({ message: "Invalid or expired refresh token" });
+  }
+});
+
+// Middleware to authenticate token
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.sendStatus(401);
+
+  jwt.verify(token, ACCESS_TOKEN_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user; // { username: ... }
+    next();
+  });
+}
+
+app.get('/tiles', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.user.username });
+    console.log(user)
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const tiles = await TileScheme.find({ owner: user._id });
+    res.json({ success: true, tiles });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Failed to fetch tiles' });
+  }
+});
+
+
+
+//get resources
 app.get("/heightmap.png",(req,res)=>{
     //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
     //any errors in the future, potentially use path.resolve
@@ -659,8 +750,6 @@ app.get("/colourMap.png",(req,res)=>{
     res.status(200).sendFile(path.join(__dirname,'./colourMap.png'))
 })
 
-// app.get("/about",(req,res)=>{res.status(200).send("aboutpage")})
-
 app.get('/{*any}',(req,res)=>{//handles urls not the explicitly defined, wanted ones
     res.status(200).send("pluh")
 })
@@ -669,6 +758,19 @@ const PORT= 5000
 server.listen(PORT,()=>{
     console.log("listening to port 5000")
 })
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //users join a room and then establish a connection with users in that room
 //for this app users will establish one on one peer to peer connection
