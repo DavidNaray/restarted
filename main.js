@@ -39,6 +39,9 @@ const templateSchema = new mongoose.Schema({
 });
 
 const tileSchema = new mongoose.Schema({
+    x:Number,
+    y:Number,
+
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },       // ✅ Full control & vision
     allies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],    // ✅ Full vision, restricted actions (per owners rules)
     involvedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],// ⚔️ Enemies or visiting users
@@ -596,6 +599,10 @@ const io = new Server(server);
 
 
 app.use(express.static("./staticResources"))
+// app.use(express.static('./Tiles/TextureMaps'));
+// app.use(express.static('./Tiles/HeightMaps'));
+// app.use('/Tiles/TextureMaps', express.static(path.join(__dirname, '/Tiles/TextureMaps')));
+
 app.use(express.json()); // <-- This must come BEFORE your POST route handlers
 
 app.get("/homepage",(req,res)=>{
@@ -637,13 +644,17 @@ app.post('/Register-user', async (req, res) => {
     const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
 
     const tile = new TileScheme({
-      owner: user._id,
-      allies: [],
-      involvedUsers: [],
-      heightmapUrl: defaultHeightmapURL,
-      texturemapUrl: defaultTexturemapURL,
-      units: [],
-      buildings: []
+        x:0,
+        y:0,
+        owner: user._id,
+        allies: [],
+        involvedUsers: [],
+        textures:{
+            heightmapUrl: defaultHeightmapURL,
+            texturemapUrl: defaultTexturemapURL
+        },
+        units: [],
+        buildings: []
     });
 
     await tile.save();
@@ -736,6 +747,34 @@ app.get('/tiles', authenticateToken, async (req, res) => {
 });
 
 
+app.get('/Tiles/TextureMaps/{*any}', (req, res) => {
+    const filePath = req.params; // captures everything after /Tiles/TextureMaps/
+    // console.log(filePath[0],"huh")
+    // console.log('Requested file:', path.join(__dirname,'Tiles/TextureMaps',filePath.any[0]));
+    res.status(200).sendFile(path.join(__dirname,'Tiles/TextureMaps',filePath.any[0]))
+    // const fullPath = path.join(__dirname, 'Tiles/TextureMaps', filePath);
+
+    // res.sendFile(fullPath, err => {
+    //     if (err) {
+    //         console.error(err);
+    //         res.status(404).send('File not found');
+    //     }
+    // });
+});
+
+app.get('/Tiles/HeightMaps/{*any}', (req, res) => {
+    const filePath = req.params; // captures everything after /Tiles/TextureMaps/
+    // console.log('Requested file:', filePath);
+    res.status(200).sendFile(path.join(__dirname,'Tiles/HeightMaps',filePath.any[0]))
+    // const fullPath = path.join(__dirname, 'Tiles/TextureMaps', filePath);
+
+    // res.sendFile(fullPath, err => {
+    //     if (err) {
+    //         console.error(err);
+    //         res.status(404).send('File not found');
+    //     }
+    // });
+});
 
 //get resources
 app.get("/heightmap.png",(req,res)=>{

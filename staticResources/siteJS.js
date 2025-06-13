@@ -231,6 +231,7 @@ class Tile{
     }
 
     async loadtextures(){
+        console.log("REQUEST THESE FILES",this.HeightUrl,this.texUrl)
         loader.load(this.HeightUrl, (texture) => {//'../heightmap.png'
             this.heightmap = texture;
             this.BuildTileBase();
@@ -428,7 +429,7 @@ class GlobalInstanceManager {
 
 
 function sceneSetup(tiles){
-    console.log("YOOO")
+    // console.log("YOOO",tiles)
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false,powerPreference: "high-performance" });
@@ -451,10 +452,11 @@ function sceneSetup(tiles){
     let ambientLight = new THREE.AmbientLight(new THREE.Color('hsl(0, 100%, 100%)'), 3);
     scene.add(ambientLight);
 
-
-
+    const userData=tiles[0];
+    console.log(userData.textures.texturemapUrl,"THIS IS THE X")
     const globalmanager=new GlobalInstanceManager();
-    const tileyay=new Tile(0,0,globalmanager,'../colourMap.png','../heightmap.png');
+    // const tileyay=new Tile(0,0,globalmanager,'../colourMap.png','../heightmap.png');
+    const tileyay=new Tile(userData.x,userData.y,globalmanager,userData.textures.texturemapUrl,userData.textures.heightmapUrl);
 
     tileyay.addcubeInstance(1);
     tileyay.addcubeInstance(2);
@@ -490,15 +492,6 @@ function requestRenderIfNotRequested() {
   }
 }
 
-// function animate() {
-
-// 	requestAnimationFrame( animate );
-// 	// controls.update();
-//     // const start = performance.now();
-// 	renderer.render( scene, camera );
-//     // const end = performance.now();
-//     // console.log('Render took', (end - start), 'ms');
-// }
 
 window.onresize=function(){//resize the canvas
     renderer.setSize( window.innerWidth, window.innerHeight );
@@ -522,8 +515,9 @@ window.onload=function(){
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-        console.log('Tiles:', data.tiles);
+        // console.log('Tiles:', data.tiles);
         // Call your Three.js scene setup with the tile data here
+        sceneSetup(data.tiles)
         } else {
         console.error(data.message);
         }
@@ -532,7 +526,7 @@ window.onload=function(){
 }
 
 
-sceneSetup();
+// sceneSetup();
 // addTerrain();
 // animate();
 
