@@ -429,6 +429,10 @@ window.onresize=function(){//resize the canvas
 }
 
 window.onload=function(){
+
+    
+
+
     const accessToken = localStorage.getItem('accessToken');
 
     fetch('/tiles', {
@@ -453,6 +457,67 @@ window.onload=function(){
 sceneSetup();
 // addTerrain();
 animate();
+
+
+function buttonpressed(event){
+    // console.log("parameter of pressed button:", event.currentTarget.myParam)
+    const dropdownElement=document.getElementById("Button_Dropdown")
+    if(dropdownElement.style.display=="none" && dropdownElement.style.visibility=="hidden"){
+        dropdownElement.style.display="flex";
+        dropdownElement.style.visibility="visible"
+    }//if they want to close the dropdownElement there will be an X button in the element to do so
+
+    let Title;
+    switch(event.currentTarget.myParam){
+        case "btn_Decisions":
+            Title="Events & Decisions"
+            break;
+        case "btn_Research":
+            Title="Research"
+            break;
+        case "btn_Finance":
+            Title="Trade & Cooperation"
+            break;
+        case "btn_Construction":
+            Title="Construction"
+            break;
+        case "btn_Production":
+            Title="Production"
+            break;
+        case "btn_Train":
+            Title="Military Training"
+            break;
+        case "btn_Security":
+            Title="Security"
+            break;
+        default:
+            console.log("something has gone wrong with button press")
+
+    }
+    console.log(Title, "bruh")
+    document.getElementById("Title").innerHTML=Title
+
+}
+const addEventsToButtons=   ["btn_Decisions","btn_Research","btn_Finance",
+                            "btn_Construction","btn_Production","btn_Train",
+"btn_Security"]
+addEventsToButtons.forEach(function (item, index) {
+//   console.log(item, index);
+    const target= document.getElementById(item)
+    target.addEventListener("click", buttonpressed)
+    target.myParam=item
+
+});
+
+function closeDropdown(){
+    const dropdownElement=document.getElementById("Button_Dropdown")
+    dropdownElement.style.display="none";
+    dropdownElement.style.visibility="hidden"
+}
+
+document.getElementById("close_Dropdown").addEventListener("click",closeDropdown)
+
+
 
 const peers = {};  // roomId -> { pc, dc }
 const pendingCandidates = {}; // e.g., { roomId1: [candidate1, candidate2], roomId2: [...] }

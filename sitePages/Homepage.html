@@ -78,7 +78,10 @@
 
         const resultEl = document.getElementById('result');
         if (data.success) {
-            resultEl.textContent = `✅ User "${data.user.username}" created successfully!`;
+            // resultEl.textContent = `✅ User "${data.user.username}" created successfully!`;
+            localStorage.setItem('accessToken', data.accessToken);
+            //redirect the user
+            window.location.href = '/play';
         } else {
             resultEl.textContent = `❌ Error: ${data.error}, ${data.message}`;
         }
