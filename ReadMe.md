@@ -15,3 +15,7 @@ nevermind that part up top though, still need to do that
 npm start           -this runs a single time
 
 npm run dev         -this runs the server and the plugin tracks changes and refreshes
+
+
+
+to activate the MongoDB run the command: net start MongoDB  

@@ -3,7 +3,7 @@ import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples
 
 const socket = io();
 
-var controls,renderer,camera;
+var controls,renderer,camera,renderRequested;
 const scene = new THREE.Scene();
 const loader = new THREE.TextureLoader();
 
@@ -55,6 +55,7 @@ class TileInstancePool {
             mesh.freeIndices=new Set([0,1,2])//every index is free 
             
             this.instanceGroups.set(objectType,mesh)
+            scene.add(mesh);
         }else{//exists, 
             console.log("exists")
 
@@ -68,6 +69,7 @@ class TileInstancePool {
                 //need to copy over the information from the current mesh, +16 so it doesnt replace too often
                 scene.remove(mesh)
                 mesh = newMesh;
+                scene.add(mesh);
                 this.instanceGroups.set(objectType,mesh);
             }
         }
@@ -92,7 +94,7 @@ class TileInstancePool {
             mesh.count = index + 1;
         }
         console.log(mesh.freeIndices)
-        scene.add(mesh);
+        
 
     }
 
@@ -244,21 +246,82 @@ class Tile{
         if (this.heightmap && this.texture) {
             const width = this.heightmap.image.width;
             const height = this.heightmap.image.height;
-        
-            const geometry = new THREE.PlaneGeometry(1, 1, width - 1, height - 1);
-            geometry.rotateX(-Math.PI / 2);
-    
-            const material = new THREE.MeshToonMaterial({
-                map: this.texture,
-                displacementMap: this.heightmap,
-                displacementScale: 1,
-            });
-        
-            const terrain = new THREE.Mesh(geometry, material);
-            const terrainHeight=10;
-            const terrainWidth=10;
-            terrain.scale.set(terrainWidth, 1, terrainHeight);
-            scene.add(terrain);
+
+            const TERRAIN_SIZE = 30; // World size for scaling
+            const HEIGHT_SCALE = 0.6;
+            const totalTiles=16
+
+            // ----
+            const tilesPerSide = 4; // 4x4 grid => 16 tiles total
+            const tileSize = 1; // Each tile covers part of the 1x1 plane
+            const segmentsPerTile = ((this.heightmap.image.width/2) / tilesPerSide) - 1; // 128 segments for 512px heightmap
+
+            for (let y = 0; y < tilesPerSide; y++) {
+                for (let x = 0; x < tilesPerSide; x++) {
+                    // Create a plane geometry for this tile
+                    const geometry = new THREE.PlaneGeometry(tileSize, tileSize, segmentsPerTile,segmentsPerTile );//segmentsPerTile
+                    geometry.rotateX(-Math.PI / 2);
+
+                    const uvOffset = new THREE.Vector2(x / tilesPerSide, 1.0 - (y + 1) / tilesPerSide);
+                    const uvScale = 1 / tilesPerSide;
+
+                    const material = new THREE.ShaderMaterial({
+                        uniforms: {
+                            heightmap: { value: this.heightmap },
+                            textureMap: { value: this.texture },
+                            heightScale: { value: HEIGHT_SCALE },
+                            uvOffset: { value: uvOffset },
+                            uvScale: { value: uvScale }
+                        },
+                        vertexShader: `
+                            precision mediump float;
+                            precision mediump int;
+
+                            uniform sampler2D heightmap;
+                            uniform float heightScale;
+                            uniform vec2 uvOffset;
+                            uniform float uvScale;
+                            varying vec2 vUv;
+
+                            void main() {
+                                vUv = uvOffset + uv * uvScale;
+                                float height = texture2D(heightmap, vUv).r * heightScale;
+                                vec3 newPosition = position + normal * height;
+                                gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+                            }
+                        `,
+                        fragmentShader: `
+                            precision lowp float;
+                            precision mediump int;
+
+                            uniform sampler2D textureMap;
+                            varying vec2 vUv;
+
+                            void main() {
+                                vec3 color = texture2D(textureMap, vUv).rgb;
+                                gl_FragColor = vec4(color, 1.0);
+                            }
+                        `,
+                        side: THREE.FrontSide
+                    });
+
+                    const mesh = new THREE.Mesh(geometry, material);
+                    // Position tile in world space
+                    const worldTileSize = TERRAIN_SIZE / totalTiles;
+                    const totalSize = worldTileSize * tilesPerSide; // == TERRAIN_SIZE, but explicit
+                    mesh.position.set(
+                        (x + 0.5) * worldTileSize - totalSize / 2,
+                        0,
+                        (y + 0.5) * worldTileSize - totalSize / 2
+                    );
+                    mesh.scale.set(worldTileSize, 1, worldTileSize);
+                    // mesh.matrixAutoUpdate = false;
+                    scene.add(mesh);
+
+                }
+            }
+                  
+            requestRenderIfNotRequested();
         }
     }
 
@@ -368,7 +431,8 @@ function sceneSetup(tiles){
     console.log("YOOO")
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
-    renderer = new THREE.WebGLRenderer();
+    renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false,powerPreference: "high-performance" });
+    renderer.shadowMap.enabled = false;
     renderer.setSize( window.innerWidth, window.innerHeight );
     renderer.setPixelRatio(window.devicePixelRatio * 0.75); // Half the normal pixel ratio
 
@@ -382,6 +446,7 @@ function sceneSetup(tiles){
     camera.lookAt(new THREE.Vector3(0,0,0))
     
     controls = new OrbitControls( camera, renderer.domElement );
+    controls.addEventListener( 'change', requestRenderIfNotRequested );
     
     let ambientLight = new THREE.AmbientLight(new THREE.Color('hsl(0, 100%, 100%)'), 3);
     scene.add(ambientLight);
@@ -409,18 +474,31 @@ function sceneSetup(tiles){
     // tileyay.addcubeInstance(5);
     // tileyay.addcubeInstance(6);
     // tileyay.addcubeInstance(7);
-
-
 }
 
+function render(){
+  renderRequested = false;
 
-function animate() {
-	// raycaster.setFromCamera( pointer, camera );
-	requestAnimationFrame( animate );
-	controls.update();
-    // renderer.clear();
-	renderer.render( scene, camera );
+  controls.update();
+  renderer.render(scene, camera);
 }
+
+function requestRenderIfNotRequested() {
+  if (!renderRequested) {
+    renderRequested = true;
+    requestAnimationFrame(render);
+  }
+}
+
+// function animate() {
+
+// 	requestAnimationFrame( animate );
+// 	// controls.update();
+//     // const start = performance.now();
+// 	renderer.render( scene, camera );
+//     // const end = performance.now();
+//     // console.log('Render took', (end - start), 'ms');
+// }
 
 window.onresize=function(){//resize the canvas
     renderer.setSize( window.innerWidth, window.innerHeight );
@@ -456,13 +534,13 @@ window.onload=function(){
 
 sceneSetup();
 // addTerrain();
-animate();
+// animate();
 
 
 function buttonpressed(event){
     // console.log("parameter of pressed button:", event.currentTarget.myParam)
     const dropdownElement=document.getElementById("Button_Dropdown")
-    if(dropdownElement.style.display=="none" && dropdownElement.style.visibility=="hidden"){
+    if(dropdownElement.style.display=="none"){
         dropdownElement.style.display="flex";
         dropdownElement.style.visibility="visible"
     }//if they want to close the dropdownElement there will be an X button in the element to do so
