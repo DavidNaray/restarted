@@ -73,7 +73,7 @@ html, body {
   /* margin-bottom: 0.5vw; */
   width: 100%;
   height: calc(100% - 0.5vw);
-  overflow-y: auto;  
+  overflow-y: scroll;  
   scrollbar-gutter: stable;
   scrollbar-color: black gray;
   scrollbar-width: thin;  

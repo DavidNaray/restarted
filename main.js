@@ -55,7 +55,7 @@ const tileSchema = new mongoose.Schema({
         userId: String,
         assetId: String, // building type
         instances:[{
-            position: [Number], // [x, y] on the tile
+            position: [Number], // [x, y, z] on the tile
             metaData: {
                 health: Number,
                 state: String,     // e.g., "under_construction", "built", etc.
@@ -599,6 +599,7 @@ const io = new Server(server);
 
 
 app.use(express.static("./staticResources"))
+
 // app.use(express.static('./Tiles/TextureMaps'));
 // app.use(express.static('./Tiles/HeightMaps'));
 // app.use('/Tiles/TextureMaps', express.static(path.join(__dirname, '/Tiles/TextureMaps')));
@@ -643,6 +644,17 @@ app.post('/Register-user', async (req, res) => {
     const defaultHeightmapURL = './Tiles/HeightMaps/00.png';
     const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
 
+    const B_TownHall={
+        "userId":user._id,
+        "assetId": "DATC",
+        "instances":[{
+            "position":[0,0,0],
+            "metaData":{
+                "health":100,
+                "state":"Built"
+            }
+        }]
+    }
     const tile = new TileScheme({
         x:0,
         y:0,
@@ -654,7 +666,7 @@ app.post('/Register-user', async (req, res) => {
             texturemapUrl: defaultTexturemapURL
         },
         units: [],
-        buildings: []
+        buildings: [B_TownHall]
     });
 
     await tile.save();
@@ -776,18 +788,16 @@ app.get('/Tiles/HeightMaps/{*any}', (req, res) => {
     // });
 });
 
-//get resources
-app.get("/heightmap.png",(req,res)=>{
-    //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
-    //any errors in the future, potentially use path.resolve
-    res.status(200).sendFile(path.join(__dirname,'./heightmap.png'))
-})
+app.get('/Assets/GLB_Exports/{*any}', (req, res) => {
+    const filePath = req.params; // captures everything after /Tiles/TextureMaps/
+    // console.log('Requested file:', filePath);
+    // res.status(200).sendFile(path.join(__dirname,'Tiles/HeightMaps',filePath.any[0]))
 
-app.get("/colourMap.png",(req,res)=>{
-    //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
-    //any errors in the future, potentially use path.resolve
-    res.status(200).sendFile(path.join(__dirname,'./colourMap.png'))
-})
+    res.sendFile(path.resolve(__dirname,'Assets/GLB_Exports',filePath.any[0]))
+
+});
+
+
 
 app.get('/{*any}',(req,res)=>{//handles urls not the explicitly defined, wanted ones
     res.status(200).send("pluh")

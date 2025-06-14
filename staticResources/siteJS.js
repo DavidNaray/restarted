@@ -1,5 +1,10 @@
 import * as THREE from "three";
 import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/loaders/GLTFLoader.js';
+
+// import { mergeGeometries  } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/utils/BufferGeometryUtils.js';
+// import * as BufferGeometryUtils from './node_modules/three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/utils/BufferGeometryUtils.js';
 
 const socket = io();
 
@@ -346,6 +351,89 @@ class Tile{
         this.instancePooling.removeInstance("cube",index);
     }
 
+    async addToScene(Obj_Identifier,instToAdd){
+        
+
+
+        const xyz=instToAdd.position
+        console.log("FIRING FIRING",xyz)
+        const transform = new THREE.Matrix4();
+        const position = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
+        const quaternion = new THREE.Quaternion();  // No rotation
+        const scale = new THREE.Vector3(1, 1, 1);
+        transform.compose(position, quaternion, scale);
+
+        this.instancePooling.GeneralAddInstance(Obj_Identifier,transform,instToAdd.metaData);
+    }
+
+    async objectLoad(OBJ_ENTRY){
+        const OBJ_Name=OBJ_ENTRY.assetId
+        const loader = new GLTFLoader();
+        loader.load(
+            // resource URL
+            'Assets/GLB_Exports/'+OBJ_Name+'.glb',
+            // called when the resource is loaded
+            (gltf) => {
+                const geometries = [];
+                // let material = null;
+                const materials = [];
+
+                gltf.scene.traverse((child) => {
+                    if (child.isMesh) {
+                        // Make sure the geometry is updated to world transform if needed:
+                        // const geom = child.geometry.clone();
+                        // geom.applyMatrix4(child.matrixWorld);
+                        // geometries.push(geom);
+                        geometries.push(child.geometry);
+
+                        // if (!material) {
+                        //     material = child.material;
+                        // }
+                        // Collect material(s)
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => {
+                                if (!materials.includes(mat)) materials.push(mat);
+                            });
+                        } else {
+                            if (!materials.includes(child.material)) materials.push(child.material);
+                        }
+                    }
+                });
+
+                if (geometries.length === 0) {
+                    console.error("No meshes found in gltf scene");
+                    return;
+                }
+
+                // Merge all geometries into one
+                const mergedGeometry = mergeGeometries(geometries, true);
+
+                // Create a single mesh with merged geometry and one material
+                const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
+
+                OBJECTS.set(OBJ_Name, mergedMesh);
+
+                OBJ_ENTRY.instances.forEach(inst => {
+                    this.addToScene(OBJ_Name, inst);
+                });
+                
+
+
+            },
+            // called while loading is progressing
+            function ( xhr ) {
+
+                console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+
+            },
+            // called when loading has errors
+            function ( error ) {
+
+                console.log( 'An error happened',error );
+
+            }
+        );
+    }
 }
 
 //track all tiles 
@@ -453,10 +541,26 @@ function sceneSetup(tiles){
     scene.add(ambientLight);
 
     const userData=tiles[0];
-    console.log(userData.textures.texturemapUrl,"THIS IS THE X")
+    console.log(userData.buildings,"THIS IS THE X")
     const globalmanager=new GlobalInstanceManager();
-    // const tileyay=new Tile(0,0,globalmanager,'../colourMap.png','../heightmap.png');
     const tileyay=new Tile(userData.x,userData.y,globalmanager,userData.textures.texturemapUrl,userData.textures.heightmapUrl);
+
+    // loop over the buildings
+    userData.buildings.forEach(buildingEntry =>{
+        // console.log("HMMMMMMMMMMMMMMMM",buildingEntry)
+        const has=OBJECTS.has(buildingEntry.assetId)
+        if(!has){
+            tileyay.objectLoad(buildingEntry)
+        }else{
+            // load conventionall;
+            console.log("exists in it")
+            // tileyay.addToScene(buildingEntry)
+            buildingEntry.instances.forEach(inst => {
+                this.addToScene(buildingEntry.assetId, inst);
+            });
+        }
+    })
+
 
     tileyay.addcubeInstance(1);
     tileyay.addcubeInstance(2);
@@ -465,17 +569,9 @@ function sceneSetup(tiles){
     console.log("DIVISION, NOW IN REMOVAL process")
     tileyay.removecubeInstance(0);
     tileyay.removecubeInstance(1);
-    // tileyay.removecubeInstance(2);
-    // tileyay.removecubeInstance(3);
 
     // tileyay.addcubeInstance(0);
-    // tileyay.addcubeInstance(1);
-    // tileyay.addcubeInstance(2);
-    // tileyay.addcubeInstance(3);
-    // tileyay.addcubeInstance(4);
-    // tileyay.addcubeInstance(5);
-    // tileyay.addcubeInstance(6);
-    // tileyay.addcubeInstance(7);
+
 }
 
 function render(){
@@ -497,6 +593,8 @@ window.onresize=function(){//resize the canvas
     renderer.setSize( window.innerWidth, window.innerHeight );
     camera.aspect = renderer.domElement.width/renderer.domElement.height;
     camera.updateProjectionMatrix();
+
+    requestRenderIfNotRequested();
 }
 
 window.onload=function(){
@@ -525,10 +623,109 @@ window.onload=function(){
     .catch(err => console.error('Error fetching tiles:', err));
 }
 
+function ConstructionElements(){
+    const contentBox=document.getElementById("Dropdown_Content_Box");
+    const ConstructioncontentBox=document.getElementById("ConstructioncontentBox");
+    if(!ConstructioncontentBox){
 
-// sceneSetup();
-// addTerrain();
-// animate();
+        const creatingCCB=document.createElement("div");
+        {
+            creatingCCB.style.width="100%";
+            creatingCCB.id="ConstructioncontentBox"
+        }
+        contentBox.appendChild(creatingCCB)
+
+        const BuildOptionsTitle=document.createElement("div");
+        {
+            BuildOptionsTitle.style.width="calc(100% - 1vw)";
+            BuildOptionsTitle.style.aspectRatio="11/1";
+            BuildOptionsTitle.style.margin="0 0.5vw 0 0.5vw";
+            BuildOptionsTitle.style.alignContent="center";
+            BuildOptionsTitle.innerText="Build Options";
+            BuildOptionsTitle.style.fontSize="max(1vw,1vh)";
+            BuildOptionsTitle.style.color="white"
+            BuildOptionsTitle.style.borderBottom="solid gray 0.25vw"
+            // BuildOptionsTitle.style.marginBottom="0.5vw"
+        }
+        creatingCCB.appendChild(BuildOptionsTitle)
+
+        const BuildOptionsBox=document.createElement("div");
+        {
+            BuildOptionsBox.style.width="100%";
+            // BuildOptionsTitle.style.aspectRatio="5/1";
+            // BuildOptionsTitle.style.backgroundColor="white"
+            BuildOptionsBox.style.display="grid";
+            BuildOptionsBox.style.gridTemplateColumns="1fr 1fr 1fr 1fr 1fr 1fr 1fr";
+        }
+        creatingCCB.appendChild(BuildOptionsBox)
+
+        const optionTags=["ArmsFactory","CivilianFactory","Mine","Farm","Storage","House"]
+        const ColouroptionTags=["red","pink","white","black","indigo","green","yellow"]
+        for(let i=0;i<7;i++){
+            const option=document.createElement("div");
+            {
+                // option.style.innerHTML=optionTags[i];
+                option.style.aspectRatio="1/1";
+                // option.style.backgroundColor=ColouroptionTags[i];
+                option.style.padding="0.75vw 0.75vw 0.75vw 0.75vw";
+            }  
+
+            const optionButton=document.createElement("div");
+            {
+                // option.style.innerHTML=optionTags[i];
+                optionButton.style.width="100%";
+                optionButton.style.height="100%";;
+                optionButton.style.backgroundColor=ColouroptionTags[i];
+                // option.style.padding="0.75vw";
+            } 
+
+
+            option.appendChild(optionButton)
+            BuildOptionsBox.appendChild(option)
+
+        };
+
+        const BuildQueueTitleBox=document.createElement("div");
+        {
+            BuildQueueTitleBox.style.width="calc(100% - 1vw)";
+            BuildQueueTitleBox.style.aspectRatio="13/1";
+            BuildQueueTitleBox.style.display="grid";
+            BuildQueueTitleBox.style.gridTemplateColumns="1.5fr 1fr ";
+            BuildQueueTitleBox.style.margin="0 0.5vw 0 0.5vw";
+            BuildQueueTitleBox.style.borderBottom="solid gray 0.25vw"
+            BuildQueueTitleBox.style.paddingBottom="0.5vw"
+            
+        }
+        creatingCCB.appendChild(BuildQueueTitleBox)
+
+        const BuildingTypeName=document.createElement("div");
+        {
+            BuildingTypeName.style.width="calc(100% - 1vw)";
+            BuildingTypeName.style.padding="0 0.5vw 0 0.5vw";
+            BuildingTypeName.style.alignContent="center";
+            BuildingTypeName.innerText="Building Type";
+            BuildingTypeName.style.fontSize="max(1vw,1vh)";
+            BuildingTypeName.style.color="white"
+            // BuildingTypeName.style.backgroundColor="red"
+            
+        }
+        BuildQueueTitleBox.appendChild(BuildingTypeName)
+
+        const ManpowerAllocation=document.createElement("div");
+        {
+            ManpowerAllocation.style.width="calc(100% - 1vw)";
+            ManpowerAllocation.style.padding="0 0.5vw 0 0.5vw";
+            ManpowerAllocation.style.alignContent="center";
+            ManpowerAllocation.innerText="Allocate Manpower";
+            ManpowerAllocation.style.fontSize="max(1vw,1vh)";
+            ManpowerAllocation.style.color="white"
+            // ManpowerAllocation.style.backgroundColor="brown"
+            
+        }
+        BuildQueueTitleBox.appendChild(ManpowerAllocation)
+        
+    }
+}
 
 
 function buttonpressed(event){
@@ -552,6 +749,7 @@ function buttonpressed(event){
             break;
         case "btn_Construction":
             Title="Construction"
+            ConstructionElements()
             break;
         case "btn_Production":
             Title="Production"
