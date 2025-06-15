@@ -942,4 +942,17 @@ io.on('connection', socket => {
     });
 
 
+    //resource sending
+
+    // socket.on('requestResources', () => {
+    //     console.log(`Resources requested by player: ${playerId}`);
+
+    //     // Here, calculate resources on-demand (mocked for now)
+    //     const resources = playerResources[playerId] || { gold: 0, wood: 0 };
+
+    //     // Send resource update back to client
+    //     socket.emit('resourceUpdate', resources);
+    // });
+
+
 });

@@ -123,6 +123,22 @@ html, body {
   border-radius: 4px;
 }
 
+.resource-tooltip {
+  position: absolute;
+  background: gray;  /* semi-transparent gray */
+  color: white;
+  padding: 0.4vw;
+  border-radius: 4px;
+  pointer-events: none; /* so it doesn't block mouse events */
+  white-space: nowrap;
+  z-index: 1000;
+  display: none; /* hidden by default */
+  font-size: max(1vw,1vh);
+  line-height: max(1.2vw,1.2vh);
+  /* width: 15vw; */
+  /* max-width: 15vw; */
+}
+
 #TopBarButtonHolder{
   display: grid;
   grid-template-columns: repeat(7, 1fr);

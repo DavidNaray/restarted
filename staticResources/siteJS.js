@@ -804,9 +804,6 @@ window.onresize=function(){//resize the canvas
 
 window.onload=function(){
 
-    
-
-
     const accessToken = localStorage.getItem('accessToken');
 
     fetch('/tiles', {
@@ -828,6 +825,216 @@ window.onload=function(){
         }
     })
     .catch(err => console.error('Error fetching tiles:', err));
+
+
+    // Find all resource blocks
+    const resourceBlocks = document.querySelectorAll('.ResourceBlock');
+
+    resourceBlocks.forEach(block => {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'resource-tooltip';
+        document.body.appendChild(tooltip);
+
+
+        block.addEventListener('mouseenter', (e) => {
+            // tooltip.innerHTML = (block.getAttribute('data-tooltip') || 'Resource info').split('|').join('<br>');
+            // Set the tooltip content — you can customize this per block if you want
+            // tooltip.textContent = block.getAttribute('data-tooltip') || 'Resource info';
+            
+            // Create one tooltip div 
+
+            switch(block.getAttribute('data-tooltip')){
+                case "Wood":
+                    if(!tooltip.hasChildNodes()){
+                        const WoodTitle = document.createElement('div');
+                        WoodTitle.innerHTML="Rate:"
+                        tooltip.appendChild(WoodTitle)
+
+                        const WoodRate = document.createElement('div');
+                        WoodRate.innerHTML="25/min"
+                        tooltip.appendChild(WoodRate)
+
+                        const WoodSurplus = document.createElement('div');
+                        WoodSurplus.innerHTML="Surplus:"
+                        tooltip.appendChild(WoodSurplus)
+
+                        const WoodSurplusAmount = document.createElement('div');
+                        WoodSurplusAmount.innerHTML="100"
+                        tooltip.appendChild(WoodSurplusAmount)
+                    }
+
+                    break;
+                case "Stone":
+                    if(!tooltip.hasChildNodes()){
+                        const StoneTitle = document.createElement('div');
+                        StoneTitle.innerHTML="Rate:"
+                        tooltip.appendChild(StoneTitle)
+
+                        const StoneRate = document.createElement('div');
+                        StoneRate.innerHTML="25/min"
+                        tooltip.appendChild(StoneRate)
+
+                        const StoneSurplus = document.createElement('div');
+                        StoneSurplus.innerHTML="Surplus:"
+                        tooltip.appendChild(StoneSurplus)
+
+                        const StoneSurplusAmount = document.createElement('div');
+                        StoneSurplusAmount.innerHTML="100"
+                        tooltip.appendChild(StoneSurplusAmount)
+                    }
+                    break;
+                case "Gold":
+                    if(!tooltip.hasChildNodes()){
+                        const GoldTitle = document.createElement('div');
+                        GoldTitle.innerHTML="Rate:"
+                        tooltip.appendChild(GoldTitle)
+
+                        const GoldRate = document.createElement('div');
+                        GoldRate.innerHTML="25/min"
+                        tooltip.appendChild(GoldRate)
+
+                        const GoldSurplus = document.createElement('div');
+                        GoldSurplus.innerHTML="Surplus:"
+                        tooltip.appendChild(GoldSurplus)
+
+                        const GoldSurplusAmount = document.createElement('div');
+                        GoldSurplusAmount.innerHTML="100"
+                        tooltip.appendChild(GoldSurplusAmount)
+                    }
+                    break;
+                case "ManPower":
+                    if(!tooltip.hasChildNodes()){
+                        const TotalManPowerTitle = document.createElement('div');
+                        TotalManPowerTitle.innerHTML="Total ManPower:"
+                        tooltip.appendChild(TotalManPowerTitle)
+
+                        const TotalManPower = document.createElement('div');
+                        TotalManPower.innerHTML="20"
+                        tooltip.appendChild(TotalManPower)
+
+                        const TotalPopTitle = document.createElement('div');
+                        TotalPopTitle.innerHTML="Total Population:"
+                        tooltip.appendChild(TotalPopTitle)
+
+                        const TotalPop = document.createElement('div');
+                        TotalPop.innerHTML="100"
+                        tooltip.appendChild(TotalPop)
+
+                        const PopGainTitle = document.createElement('div');
+                        PopGainTitle.innerHTML="Population Gain:"
+                        tooltip.appendChild(PopGainTitle)
+
+                        const MonthlyPopGain = document.createElement('div');
+                        MonthlyPopGain.innerHTML="10/month"
+                        tooltip.appendChild(MonthlyPopGain)
+
+                        const RecruitableFactor = document.createElement('div');
+                        RecruitableFactor.innerHTML="10% Recruitable Population/month"
+                        tooltip.appendChild(RecruitableFactor)
+
+                        const MaxPopTitle = document.createElement('div');
+                        MaxPopTitle.innerHTML="Population Limit (housing):"
+                        tooltip.appendChild(MaxPopTitle)
+
+                        const MaxPop = document.createElement('div');
+                        MaxPop.innerHTML="400"
+                        tooltip.appendChild(MaxPop)
+                    }
+                    break;
+                case "WarSupport":
+                    if(!tooltip.hasChildNodes()){
+                        const WarSupportTitle = document.createElement('div');
+                        WarSupportTitle.innerHTML="War Support:"
+                        tooltip.appendChild(WarSupportTitle)
+
+                        const WarSupport = document.createElement('div');
+                        WarSupport.innerHTML="50%"
+                        tooltip.appendChild(WarSupport)
+                    }
+                    break;
+                case "Stability":
+                    if(!tooltip.hasChildNodes()){
+                        const StabilityTitle = document.createElement('div');
+                        StabilityTitle.innerHTML="Stability:"
+                        tooltip.appendChild(StabilityTitle)
+
+                        const Stability = document.createElement('div');
+                        Stability.innerHTML="50%"
+                        tooltip.appendChild(Stability)
+                    }
+                    break;
+                case "PoliticalPower":
+                    if(!tooltip.hasChildNodes()){
+                        const PoliticalPowerTitle = document.createElement('div');
+                        PoliticalPowerTitle.innerHTML="Political Power:"
+                        tooltip.appendChild(PoliticalPowerTitle)
+
+                        const PoliticalPower = document.createElement('div');
+                        PoliticalPower.innerHTML="25"
+                        tooltip.appendChild(PoliticalPower)
+
+                        const PoliticalPowerRateTitle = document.createElement('div');
+                        PoliticalPowerRateTitle.innerHTML="Rate:"
+                        tooltip.appendChild(PoliticalPowerRateTitle)
+
+                        const PoliticalPowerRate = document.createElement('div');
+                        PoliticalPowerRate.innerHTML="0.1/day"
+                        tooltip.appendChild(PoliticalPowerRate)
+                    }                    
+                    break;
+                default:
+                    tooltip.innerHTML='Resource info';
+            }
+
+
+
+
+            // Show the tooltip
+            tooltip.style.display = 'block';
+
+            // Position tooltip to the right of the hovered element, offset by 8px
+            positionTooltip(block, tooltip);
+        });
+
+        block.addEventListener('mousemove', (e) => {
+            // Update position if needed (optional)
+            positionTooltip(block, tooltip);
+        });
+
+        block.addEventListener('mouseleave', (e) => {
+            // Hide tooltip on mouse leave
+            tooltip.style.display = 'none';
+        });
+    });
+
+    function positionTooltip(targetElem, tooltipElem) {
+        const rect = targetElem.getBoundingClientRect();
+
+        // Default position: right side, 8px offset, vertically aligned to top of element
+        let left = rect.right - (rect.right - rect.left)/2;//(tooltipElem.offsetWidth / 2) ;
+        let top = rect.top - (rect.top - rect.bottom)/2//(tooltipElem.offsetHeight / 4);
+
+        // Check viewport width to prevent clipping off right edge
+        const tooltipWidth = tooltipElem.offsetWidth;
+        const viewportWidth = window.innerWidth;
+
+        if (left + tooltipWidth > viewportWidth) {
+            // Not enough space on right, position to left instead
+            left = rect.left - (rect.right - rect.left)/2 ;
+        }
+
+        // Check bottom clipping (optional)
+        const tooltipHeight = tooltipElem.offsetHeight;
+        const viewportHeight = window.innerHeight;
+        if (top + tooltipHeight > viewportHeight) {
+            top = viewportHeight - tooltipHeight - 8; // Shift up if clipping bottom
+        }
+
+        // Apply position
+        tooltipElem.style.left = `${left}px`;
+        tooltipElem.style.top = `${top}px`;
+    }
+
 }
 
 function onPointerMove(event) {
