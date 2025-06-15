@@ -17,12 +17,13 @@ const pointer  = new THREE.Vector2();
 var isPlacingBuilding=false;
 var BuildingAssetName=null;
 
-const tileSize=10;
+const tileSize=1;
 
 
 //objects, stores all the assets like soldiers etc
 
 var OBJECTS=new Map(); 
+var OBJECTS_MASKS=new Map();
 
 class Template{
     constructor(name, structure = {}) {
@@ -221,15 +222,17 @@ class TileInstancePool {
 
 // responsible for generating the tile and holding the instancePools objects that track units and buildings
 class Tile{
-    constructor(x,y,GInstanceManager,texUrl,HeightUrl){
+    constructor(x,y,GInstanceManager,texUrl,HeightUrl,WalkMapUrl){
         this.instanceManager=GInstanceManager
         this.meshes=new Set();
         this.x=x;
         this.y=y;
         this.texUrl=texUrl;
         this.HeightUrl=HeightUrl;
+        this.WalkMapUrl=WalkMapUrl;
         this.texture;
         this.heightmap;
+        this.walkMap;//used for building placement confirmation and pathfinding
 
         this.instancePooling=new TileInstancePool(this);
         // this.instancePoolUnits = new TileInstancePool(this);     // Track units here
@@ -250,6 +253,25 @@ class Tile{
             this.texture = texture;
             this.BuildTileBase();
         });
+
+        // Load walkMap as a Promise so we can await it
+        await new Promise((resolve) => {
+            const imgWalk = new Image();
+            imgWalk.src = this.WalkMapUrl; // Make sure this is a valid URL to the PNG
+
+            imgWalk.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = imgWalk.width;
+                canvas.height = imgWalk.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(imgWalk, 0, 0);
+                
+                this.walkMap =canvas 
+                // ctx.getImageData(0, 0, canvas.width, canvas.height);
+                console.log("WHOOOPY LOADED WALKMAP");
+                resolve();
+            };
+        });
     }
     async BuildTileBase(){
         console.log("tried!!!")
@@ -263,7 +285,7 @@ class Tile{
 
             // ----
             const tilesPerSide = 4; // 4x4 grid => 16 tiles total
-            const tileSize = 1; // Each tile covers part of the 1x1 plane
+            // const tileSize = 1; // Each tile covers part of the 1x1 plane
             const segmentsPerTile = ((this.heightmap.image.width/2) / tilesPerSide) - 1; // 128 segments for 512px heightmap
 
             for (let y = 0; y < tilesPerSide; y++) {
@@ -359,8 +381,9 @@ class Tile{
         this.instancePooling.removeInstance("cube",index);
     }
 
-    //addToScene and objectLoad responsible for loading in initial data structure 
-    //should probably refactor to just make it one thing and have a seperate function for setup
+    //addToScene and objectLoad work as a pair, objectLoad checks if the object wanting to be added exists
+    //this means that objectLoad should always be called, not addToScene, that is a utlity function of objectLoad
+
     async addToScene(Obj_Identifier,instToAdd){
         
 
@@ -373,19 +396,19 @@ class Tile{
         const scale = new THREE.Vector3(1, 1, 1);
         transform.compose(position, quaternion, scale);
 
-        this.instancePooling.GeneralAddInstance(Obj_Identifier,transform,instToAdd.metaData);
+        this.instancePooling.GeneralAddInstance(Obj_Identifier,transform,instToAdd);//.metaData
     }
 
-    async objectLoad(OBJ_ENTRY){
-        const OBJ_Name=OBJ_ENTRY.assetId
+    async objectLoad(assetId,MetaData){
+        // const OBJ_Name=OBJ_ENTRY.assetId
         // console.log("OBJ ENTRY !!!!!!!!!!!!!",OBJ_Name)
-        const has=OBJECTS.has(OBJ_Name)
+        const has=OBJECTS.has(assetId)
 
         if(!has){
             const loader = new GLTFLoader();
             loader.load(
                 // resource URL
-                'Assets/GLB_Exports/'+OBJ_Name+'.glb',
+                'Assets/GLB_Exports/'+assetId+'.glb',
                 // called when the resource is loaded
                 (gltf) => {
                     const geometries = [];
@@ -425,12 +448,12 @@ class Tile{
                     // Create a single mesh with merged geometry and one material
                     const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
 
-                    OBJECTS.set(OBJ_Name, mergedMesh);
+                    OBJECTS.set(assetId, mergedMesh);
 
-                    OBJ_ENTRY.instances.forEach(inst => {
-                        this.addToScene(OBJ_Name, inst);
-                    });
-                    
+                    // OBJ_ENTRY.instances.forEach(inst => {
+                    //     this.addToScene(OBJ_Name, inst);
+                    // });
+                    this.addToScene(assetId, MetaData)
 
 
                 },
@@ -448,14 +471,153 @@ class Tile{
                 }
             );
         }else{
-            OBJ_ENTRY.instances.forEach(inst => {
-                this.addToScene(OBJ_Name, inst);
-            });
+            this.addToScene(assetId, MetaData)
+            // OBJ_ENTRY.instances.forEach(inst => {
+            //     // this.addToScene(OBJ_Name, inst);
+            //     this.addToScene(assetId, MetaData)
+            // });
         }
 
         
     }
 
+    async getPlacementMask(assetId){
+        if (OBJECTS_MASKS.has(assetId)) {
+            return OBJECTS_MASKS.get(assetId);
+        }
+
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.src = "Assets/Asset_Masks/" + assetId + "_Mask.png";
+
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+
+                const maskObject = {
+                    "canvas": canvas,
+                    "width": canvas.width,
+                    "height": canvas.height,
+                };
+
+                OBJECTS_MASKS.set(assetId, maskObject);
+                resolve(maskObject);
+            };
+
+            img.onerror = (err) => {
+                reject(new Error("Failed to load mask for assetId: " + assetId));
+            };
+        });
+
+    }
+
+    async checkValidityOfAssetPlacement(assetId,MetaData){
+        const worldPos = MetaData.position; // [x, y, z]
+        const rotation = MetaData.rotation || 0; // radians
+
+        const walkMapCanvas =this.walkMap; // the canvas you originally loaded the walkmap onto
+        // console.log(walkMapCanvas, "REALLY MAN")
+        const walkMapWidth = walkMapCanvas.width;
+        const walkMapHeight = walkMapCanvas.height;
+
+        // Use a temporary canvas for safe pixel reading
+        const walkTempCanvas = document.createElement('canvas');
+        walkTempCanvas.width = walkMapWidth;
+        walkTempCanvas.height = walkMapHeight;
+
+        const walkTempCtx = walkTempCanvas.getContext('2d');
+        walkTempCtx.drawImage(walkMapCanvas, 0, 0);
+
+        const walkMapData = walkTempCtx.getImageData(0, 0, walkMapWidth, walkMapHeight).data;
+
+        // Load the object mask
+        const objectMask = await this.getPlacementMask(assetId);
+        const maskCanvas = objectMask.canvas;
+        const maskWidth = maskCanvas.width;
+        const maskHeight = maskCanvas.height;
+
+        const maskCtx = maskCanvas.getContext('2d');
+        const maskData = maskCtx.getImageData(0, 0, maskWidth, maskHeight).data;
+
+        // Scale and position setup
+        const worldTileSize = 7.5;//7.5; // world units → corresponds to full width/height of walkMap
+        const pixelsPerUnit = walkMapWidth / worldTileSize;
+
+        // Convert world coordinates to pixel coordinates on walkMap
+        const imgX = Math.round(walkMapWidth / 2 + worldPos[0] * pixelsPerUnit);
+        const imgY = Math.round(walkMapHeight / 2 + worldPos[2] * pixelsPerUnit);
+
+        console.log(imgX,imgY, "THINKS I AM SELECTING THESE")
+
+
+        const cos = Math.cos(rotation);
+        const sin = Math.sin(rotation);
+
+        // // Bounds check
+        // if (imgX < 0 || imgY < 0 || imgX >= walkMapWidth || imgY >= walkMapHeight) {
+        //     console.log("Out of bounds.");
+        //     return false;
+        // }
+
+        // const walkData = walkTempCtx.getImageData(imgX, imgY, 1, 1).data;
+        // const [r, g, b, a] = walkData;
+
+        // const isWhite = (r === 255 && g === 255 && b === 255 && a === 255);
+        // if(!isWhite){
+        //     console.log("YOU CANNOT!!!!!! PLACE A BUILDING HERE MY DAMN")
+        // }else{
+        //     console.log("YOU CAN PLACE A BUILDING HERE MY DAMN")
+        // }
+
+        // // Validation loop
+        for (let y = 0; y < maskHeight; y++) {
+            for (let x = 0; x < maskWidth; x++) {
+                const maskIndex = (y * maskWidth + x) * 4;
+                const maskR = maskData[maskIndex];
+                const maskG = maskData[maskIndex + 1];
+                const maskB = maskData[maskIndex + 2];
+                const maskA = maskData[maskIndex + 3];
+
+                // Only check fully white parts of the mask
+                if (maskR === 255 && maskG === 255 && maskB === 255 && maskA === 255) {
+                    // Centered offset in *pixels*
+                    const offsetX = x - maskWidth / 2;
+                    const offsetY = y - maskHeight / 2;
+
+                    // Apply rotation (still in pixels)
+                    const rotatedX = offsetX * cos - offsetY * sin;
+                    const rotatedY = offsetX * sin + offsetY * cos;
+
+                    const mapX = Math.round(imgX + rotatedX);
+                    const mapY = Math.round(imgY + rotatedY);
+
+                    // Check bounds
+                    if (mapX < 0 || mapY < 0 || mapX >= walkMapWidth || mapY >= walkMapHeight) {
+                        return false; // Mask pixel rotated outside walkMap → invalid
+                    }
+
+                    const walkIndex = (mapY * walkMapWidth + mapX) * 4;
+                    const wr = walkMapData[walkIndex];
+                    const wg = walkMapData[walkIndex + 1];
+                    const wb = walkMapData[walkIndex + 2];
+                    const wa = walkMapData[walkIndex + 3];
+
+                    const walkable = (wr === 255 && wg === 255 && wb === 255 && wa === 255);
+                    if (!walkable) {
+                        console.log("CANNOT PLACE HERE MAN");
+                        return false;
+                    }
+                }
+            }
+        }
+        console.log("YOU CAN PLACE HERE MAN");
+        this.objectLoad(assetId,MetaData)
+        return true;
+    
+    }
 
 }
 
@@ -567,9 +729,9 @@ function sceneSetup(tiles){
     scene.add(ambientLight);
 
     const userData=tiles[0];
-    console.log(userData.buildings,"THIS IS THE X")
+    console.log(userData,"THIS IS THE X")
     
-    const tileyay=new Tile(userData.x,userData.y,globalmanager,userData.textures.texturemapUrl,userData.textures.heightmapUrl);
+    const tileyay=new Tile(userData.x,userData.y,globalmanager,userData.textures.texturemapUrl,userData.textures.heightmapUrl,userData.textures.WalkMapURL);
 
     // loop over the buildings
     userData.buildings.forEach(buildingEntry =>{
@@ -585,9 +747,22 @@ function sceneSetup(tiles){
             //         }
             //     }]
             // }
+        const assetID=buildingEntry.assetId;
+        const userID=buildingEntry.userId;
+        buildingEntry.instances.forEach(instanceEntry =>{
+        
+            const newMetaData={
+                "position":instanceEntry.position,
+                "userId":userID,
+                "health":instanceEntry.health,
+                "state":instanceEntry.state,
+            }
 
+            tileyay.objectLoad(assetID,newMetaData);
 
-        tileyay.objectLoad(buildingEntry)
+        });
+
+        // tileyay.objectLoad(buildingEntry)
 
     })
 
@@ -679,21 +854,27 @@ function onclickBuilding(event){
             //create an asset_dictionary to use as a parameter for the tile.objectLoad(asset_dictionary)
 
             const IntersectPoint=intersects[0].point
-            const instances=[{
+            const instanceMetaData={
                 "position":[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z],
-                "metaData":{
-                    "health":100,
-                    "state":"Built"
-                }
-            }]
-
-            const asset_dictionary={
                 "userId":ThisUser._id,
-                "assetId":BuildingAssetName,
-                "instances":instances,
+                "health":100,
+                "state":"Built"
             }
 
-            foundTile.objectLoad(asset_dictionary)
+            // const asset_dictionary={
+            //     "userId":ThisUser._id,
+            //     "assetId":BuildingAssetName,
+            //     "instances":instances,
+            // }
+
+            foundTile.checkValidityOfAssetPlacement(BuildingAssetName,instanceMetaData)
+            // console.log("BUILDING GRANTED?", canPlace)
+            // foundTile.objectLoad(BuildingAssetName,instanceMetaData)
+            // if(canPlace){
+            //     foundTile.objectLoad(BuildingAssetName,instanceMetaData)
+            // }else{
+            //     console.log("CANNOT PLACE DOOFUS")
+            // }
         }
     }
 

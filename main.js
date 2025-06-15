@@ -48,7 +48,8 @@ const tileSchema = new mongoose.Schema({
 
     textures: {
         heightmapUrl: String,
-        texturemapUrl: String
+        texturemapUrl: String,
+        WalkMapURL: String,
     },
 
     buildings: [{
@@ -643,6 +644,7 @@ app.post('/Register-user', async (req, res) => {
     // === Create Tile ===
     const defaultHeightmapURL = './Tiles/HeightMaps/00.png';
     const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
+    const defaultWalkmapURL = './Tiles/WalkMaps/00.png';
 
     const B_TownHall={
         "userId":user._id,
@@ -663,14 +665,15 @@ app.post('/Register-user', async (req, res) => {
         involvedUsers: [],
         textures:{
             heightmapUrl: defaultHeightmapURL,
-            texturemapUrl: defaultTexturemapURL
+            texturemapUrl: defaultTexturemapURL,
+            WalkMapURL: defaultWalkmapURL,
         },
         units: [],
         buildings: [B_TownHall]
     });
 
     await tile.save();
-
+    console.log("ITS ON REGISTER MAN!!")
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
     res.json({ accessToken,user, success: true, message: 'User recognised'});
     // res.status(201).json({ success: true, message: 'User created' });
@@ -701,7 +704,7 @@ app.post('/Login-user', async (req, res) => {
     user.refreshTokens.push(refreshToken);
     await user.save();
     // res.status(201).json({ success: true, message: 'User recognised',user,token });
-
+    console.log("WE LOGGIN IN  MAN!!")
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
     res.json({ accessToken,user, success: true, message: 'User recognised'});
   } catch (err) {
@@ -778,6 +781,34 @@ app.get('/Tiles/HeightMaps/{*any}', (req, res) => {
     const filePath = req.params; // captures everything after /Tiles/TextureMaps/
     // console.log('Requested file:', filePath);
     res.status(200).sendFile(path.join(__dirname,'Tiles/HeightMaps',filePath.any[0]))
+    // const fullPath = path.join(__dirname, 'Tiles/TextureMaps', filePath);
+
+    // res.sendFile(fullPath, err => {
+    //     if (err) {
+    //         console.error(err);
+    //         res.status(404).send('File not found');
+    //     }
+    // });
+});
+
+app.get('/Tiles/WalkMaps/{*any}', (req, res) => {
+    const filePath = req.params; // captures everything after /Tiles/TextureMaps/
+    // console.log('Requested file:', filePath);
+    res.status(200).sendFile(path.join(__dirname,'Tiles/WalkMaps',filePath.any[0]))
+    // const fullPath = path.join(__dirname, 'Tiles/TextureMaps', filePath);
+
+    // res.sendFile(fullPath, err => {
+    //     if (err) {
+    //         console.error(err);
+    //         res.status(404).send('File not found');
+    //     }
+    // });
+});
+
+app.get('/Assets/Asset_Masks/{*any}', (req, res) => {
+    const filePath = req.params; // captures everything after /Tiles/TextureMaps/
+    // console.log('Requested file:', filePath);
+    res.status(200).sendFile(path.join(__dirname,'Assets/Asset_Masks',filePath.any[0]))
     // const fullPath = path.join(__dirname, 'Tiles/TextureMaps', filePath);
 
     // res.sendFile(fullPath, err => {
