@@ -752,7 +752,7 @@ app.get('/tiles', authenticateToken, async (req, res) => {
     if (!user) return res.status(404).json({ message: "User not found" });
 
     const tiles = await TileScheme.find({ owner: user._id });
-    res.json({ success: true, tiles });
+    res.json({ success: true, tiles,user:user });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch tiles' });
   }

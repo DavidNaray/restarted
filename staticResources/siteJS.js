@@ -7,13 +7,16 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/
 import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/utils/BufferGeometryUtils.js';
 
 const socket = io();
-
+let ThisUser;
 var controls,renderer,camera,renderRequested;
 const scene = new THREE.Scene();
 const loader = new THREE.TextureLoader();
+const raycaster = new THREE.Raycaster();
+const pointer  = new THREE.Vector2();
 
-let heightTexture = null;
-let colourTexture = null;
+var isPlacingBuilding=false;
+var BuildingAssetName=null;
+
 const tileSize=10;
 
 
@@ -100,7 +103,7 @@ class TileInstancePool {
         }
         console.log(mesh.freeIndices)
         
-
+        requestRenderIfNotRequested();
     }
 
 
@@ -169,6 +172,7 @@ class TileInstancePool {
             console.log("trigger compact")
             this.compactInstanceObject(objectType, mesh);
         }
+        requestRenderIfNotRequested();
         return true;
     }
 
@@ -219,7 +223,7 @@ class TileInstancePool {
 class Tile{
     constructor(x,y,GInstanceManager,texUrl,HeightUrl){
         this.instanceManager=GInstanceManager
-
+        this.meshes=new Set();
         this.x=x;
         this.y=y;
         this.texUrl=texUrl;
@@ -250,8 +254,8 @@ class Tile{
     async BuildTileBase(){
         console.log("tried!!!")
         if (this.heightmap && this.texture) {
-            const width = this.heightmap.image.width;
-            const height = this.heightmap.image.height;
+            // const width = this.heightmap.image.width;
+            // const height = this.heightmap.image.height;
 
             const TERRAIN_SIZE = 30; // World size for scaling
             const HEIGHT_SCALE = 0.6;
@@ -322,6 +326,10 @@ class Tile{
                     );
                     mesh.scale.set(worldTileSize, 1, worldTileSize);
                     // mesh.matrixAutoUpdate = false;
+
+                    this.meshes.add(mesh);
+                    this.instanceManager.meshToTiles.set(mesh,this)
+                    this.instanceManager.allTileMeshes.push(mesh)
                     scene.add(mesh);
 
                 }
@@ -351,6 +359,8 @@ class Tile{
         this.instancePooling.removeInstance("cube",index);
     }
 
+    //addToScene and objectLoad responsible for loading in initial data structure 
+    //should probably refactor to just make it one thing and have a seperate function for setup
     async addToScene(Obj_Identifier,instToAdd){
         
 
@@ -368,78 +378,93 @@ class Tile{
 
     async objectLoad(OBJ_ENTRY){
         const OBJ_Name=OBJ_ENTRY.assetId
-        const loader = new GLTFLoader();
-        loader.load(
-            // resource URL
-            'Assets/GLB_Exports/'+OBJ_Name+'.glb',
-            // called when the resource is loaded
-            (gltf) => {
-                const geometries = [];
-                // let material = null;
-                const materials = [];
+        // console.log("OBJ ENTRY !!!!!!!!!!!!!",OBJ_Name)
+        const has=OBJECTS.has(OBJ_Name)
 
-                gltf.scene.traverse((child) => {
-                    if (child.isMesh) {
-                        // Make sure the geometry is updated to world transform if needed:
-                        // const geom = child.geometry.clone();
-                        // geom.applyMatrix4(child.matrixWorld);
-                        // geometries.push(geom);
-                        geometries.push(child.geometry);
+        if(!has){
+            const loader = new GLTFLoader();
+            loader.load(
+                // resource URL
+                'Assets/GLB_Exports/'+OBJ_Name+'.glb',
+                // called when the resource is loaded
+                (gltf) => {
+                    const geometries = [];
+                    // let material = null;
+                    const materials = [];
 
-                        // if (!material) {
-                        //     material = child.material;
-                        // }
-                        // Collect material(s)
-                        if (Array.isArray(child.material)) {
-                            child.material.forEach(mat => {
-                                if (!materials.includes(mat)) materials.push(mat);
-                            });
-                        } else {
-                            if (!materials.includes(child.material)) materials.push(child.material);
+                    gltf.scene.traverse((child) => {
+                        if (child.isMesh) {
+                            // Make sure the geometry is updated to world transform if needed:
+                            // const geom = child.geometry.clone();
+                            // geom.applyMatrix4(child.matrixWorld);
+                            // geometries.push(geom);
+                            geometries.push(child.geometry);
+
+                            // if (!material) {
+                            //     material = child.material;
+                            // }
+                            // Collect material(s)
+                            if (Array.isArray(child.material)) {
+                                child.material.forEach(mat => {
+                                    if (!materials.includes(mat)) materials.push(mat);
+                                });
+                            } else {
+                                if (!materials.includes(child.material)) materials.push(child.material);
+                            }
                         }
+                    });
+
+                    if (geometries.length === 0) {
+                        console.error("No meshes found in gltf scene");
+                        return;
                     }
-                });
 
-                if (geometries.length === 0) {
-                    console.error("No meshes found in gltf scene");
-                    return;
+                    // Merge all geometries into one
+                    const mergedGeometry = mergeGeometries(geometries, true);
+
+                    // Create a single mesh with merged geometry and one material
+                    const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
+
+                    OBJECTS.set(OBJ_Name, mergedMesh);
+
+                    OBJ_ENTRY.instances.forEach(inst => {
+                        this.addToScene(OBJ_Name, inst);
+                    });
+                    
+
+
+                },
+                // called while loading is progressing
+                function ( xhr ) {
+
+                    console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
+
+                },
+                // called when loading has errors
+                function ( error ) {
+
+                    console.log( 'An error happened',error );
+
                 }
+            );
+        }else{
+            OBJ_ENTRY.instances.forEach(inst => {
+                this.addToScene(OBJ_Name, inst);
+            });
+        }
 
-                // Merge all geometries into one
-                const mergedGeometry = mergeGeometries(geometries, true);
-
-                // Create a single mesh with merged geometry and one material
-                const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
-
-                OBJECTS.set(OBJ_Name, mergedMesh);
-
-                OBJ_ENTRY.instances.forEach(inst => {
-                    this.addToScene(OBJ_Name, inst);
-                });
-                
-
-
-            },
-            // called while loading is progressing
-            function ( xhr ) {
-
-                console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-
-            },
-            // called when loading has errors
-            function ( error ) {
-
-                console.log( 'An error happened',error );
-
-            }
-        );
+        
     }
+
+
 }
 
 //track all tiles 
 class GlobalInstanceManager {
     constructor() {
-        this.tiles = new Map();         // tileCoord => TileInstancePool
+        this.tiles = new Map();//tiles have utility
+        this.meshToTiles=new WeakMap();      //for mesh -> tile lookup
+        this.allTileMeshes=[];          //for raycast intersects
         this.divisions = new Map();     // divisionName → DivisionInfo (only *unassigned* divisions here)
         this.armies = new Map();        // armyName => Map<divisionName, DivisionInfo>
     }
@@ -515,6 +540,7 @@ class GlobalInstanceManager {
 
 }
 
+const globalmanager=new GlobalInstanceManager();
 
 function sceneSetup(tiles){
     // console.log("YOOO",tiles)
@@ -542,23 +568,27 @@ function sceneSetup(tiles){
 
     const userData=tiles[0];
     console.log(userData.buildings,"THIS IS THE X")
-    const globalmanager=new GlobalInstanceManager();
+    
     const tileyay=new Tile(userData.x,userData.y,globalmanager,userData.textures.texturemapUrl,userData.textures.heightmapUrl);
 
     // loop over the buildings
     userData.buildings.forEach(buildingEntry =>{
-        // console.log("HMMMMMMMMMMMMMMMM",buildingEntry)
-        const has=OBJECTS.has(buildingEntry.assetId)
-        if(!has){
-            tileyay.objectLoad(buildingEntry)
-        }else{
-            // load conventionall;
-            console.log("exists in it")
-            // tileyay.addToScene(buildingEntry)
-            buildingEntry.instances.forEach(inst => {
-                this.addToScene(buildingEntry.assetId, inst);
-            });
-        }
+        //buildingEntry is of form:
+            // const B_TownHall={
+            //     "userId":user._id,
+            //     "assetId": "DATC",
+            //     "instances":[{
+            //         "position":[0,0,0],
+            //         "metaData":{
+            //             "health":100,
+            //             "state":"Built"
+            //         }
+            //     }]
+            // }
+
+
+        tileyay.objectLoad(buildingEntry)
+
     })
 
 
@@ -571,14 +601,14 @@ function sceneSetup(tiles){
     tileyay.removecubeInstance(1);
 
     // tileyay.addcubeInstance(0);
-
+    // window.addEventListener( 'pointermove', onPointerMove );
 }
 
 function render(){
-  renderRequested = false;
-
-  controls.update();
-  renderer.render(scene, camera);
+    renderRequested = false;
+    // raycaster.setFromCamera( pointer, camera );
+    controls.update();
+    renderer.render(scene, camera);
 }
 
 function requestRenderIfNotRequested() {
@@ -613,21 +643,90 @@ window.onload=function(){
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-        // console.log('Tiles:', data.tiles);
-        // Call your Three.js scene setup with the tile data here
-        sceneSetup(data.tiles)
+            // console.log('Tiles:', data.tiles);
+            // Call your Three.js scene setup with the tile data here
+            // console.log("PLEASE BE USER DATA",data.user)
+            ThisUser=data.user;
+            sceneSetup(data.tiles)
         } else {
-        console.error(data.message);
+            console.error(data.message);
         }
     })
     .catch(err => console.error('Error fetching tiles:', err));
 }
 
+function onPointerMove(event) {
+    pointer .x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer .y = -(event.clientY / window.innerHeight) * 2 + 1;
+    
+    raycaster.setFromCamera( pointer, camera );
+    console.log("MOVING MOUSE")
+}
+
+function onclickBuilding(event){
+    console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+    const intersects = raycaster.intersectObjects(globalmanager.allTileMeshes, true);
+
+    if (intersects.length > 0) {
+        const intersectedMesh = intersects[0].object;
+        const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
+
+        if (foundTile) {
+            console.log("Clicked tile:", foundTile.x, foundTile.y);
+
+            //found the tile, add the building
+            //create an asset_dictionary to use as a parameter for the tile.objectLoad(asset_dictionary)
+
+            const IntersectPoint=intersects[0].point
+            const instances=[{
+                "position":[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z],
+                "metaData":{
+                    "health":100,
+                    "state":"Built"
+                }
+            }]
+
+            const asset_dictionary={
+                "userId":ThisUser._id,
+                "assetId":BuildingAssetName,
+                "instances":instances,
+            }
+
+            foundTile.objectLoad(asset_dictionary)
+        }
+    }
+
+    //the user clicked, the building has been placed, remove eventListeners
+    renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+    renderer.domElement.removeEventListener( 'click', onclickBuilding );
+}
+
+function PlaceBuilding(event){
+
+    //on renderer.domElement so that placement doesnt follow when users mouse is over the overlay
+    renderer.domElement.addEventListener( 'pointermove', onPointerMove );
+    renderer.domElement.addEventListener( 'click', onclickBuilding );
+
+    BuildingAssetName=event.currentTarget.myParam
+
+    // console.log("CLICKED TO BUILD", assetName)
+    //identify which tile the building is being placed on via raycast and then traversal of global-manager
+    
+
+    
+    isPlacingBuilding=true;
+
+
+
+}
+
+
 function ConstructionElements(){
     const contentBox=document.getElementById("Dropdown_Content_Box");
     const ConstructioncontentBox=document.getElementById("ConstructioncontentBox");
     if(!ConstructioncontentBox){
-
+        
         const creatingCCB=document.createElement("div");
         {
             creatingCCB.style.width="100%";
@@ -659,8 +758,17 @@ function ConstructionElements(){
         }
         creatingCCB.appendChild(BuildOptionsBox)
 
-        const optionTags=["ArmsFactory","CivilianFactory","Mine","Farm","Storage","House"]
-        const ColouroptionTags=["red","pink","white","black","indigo","green","yellow"]
+        //important to keep up to date with asset names/ will change depending on research level to get the up-to-date assets
+        const optionObjNames=["ArmsFactory","CivilianFactory","Mine","Farm","Storage","House"]
+
+        const ColouroptionTags=[
+            "url('Icons/arms-factory.png')","url('Icons/civilian-factory.png')",
+            "url('Icons/quarry.png')","url('Icons/Sawmill.png')",
+            "url('Icons/Farm.png')","url('Icons/Warehouse.png')",
+            "url('Icons/House.png')",
+            
+        ]
+
         for(let i=0;i<7;i++){
             const option=document.createElement("div");
             {
@@ -673,10 +781,14 @@ function ConstructionElements(){
             const optionButton=document.createElement("div");
             {
                 // option.style.innerHTML=optionTags[i];
+                optionButton.className="IconGeneral"
                 optionButton.style.width="100%";
-                optionButton.style.height="100%";;
-                optionButton.style.backgroundColor=ColouroptionTags[i];
-                // option.style.padding="0.75vw";
+                optionButton.style.height="100%";
+                optionButton.style.backgroundImage=ColouroptionTags[i];
+                optionButton.style.backgroundColor="gray";//ColouroptionTags[i];
+                
+                optionButton.myParam="Mill";
+                optionButton.addEventListener("click",PlaceBuilding)
             } 
 
 
