@@ -22,6 +22,49 @@ const userSchema = new mongoose.Schema({
   username: { type: String, unique: true },
   passwordHash: String,  // store hashed password here
   refreshTokens: [String],  // Store issued refresh tokens (optional)
+  Resources:{
+    Gold:{
+        Total:{ type: Number, default: 0 },
+        Rate:{type: Number, default: 0}, 
+    },
+    
+    Stone:{
+        Total:{ type: Number, default: 0 },
+        Rate:{type: Number, default: 0}, 
+    },
+
+    Wood:{
+        Total:{ type: Number, default: 0 },
+        Rate:{type: Number, default: 0}, 
+    },
+    
+    Political:{
+        Total:{ type: Number, default: 0 },
+        Rate:{type: Number, default: 0}, 
+    },
+    
+
+    Stability:{
+        Total:{ type: Number, default: 50 },
+        Influence:{type: String, default: "Base: 50%"}, 
+    },
+
+    WarSupport:{
+        Total:{ type: Number, default: 50 },
+        Influence:{type: String, default: "Base: 50%"}, 
+    },
+
+    ManPower:{
+        TotalManPower:{type: Number, default: 0},
+        TotalPopulation:{type: Number, default: 0},
+        PopulationRate:{type: Number, default: 0},
+        RecruitableFactor:{type: Number, default: 0},
+        MaxPopulation:{type: Number, default: 0},
+    },
+
+    
+
+  }
 });
 
 const templateSchema = new mongoose.Schema({
@@ -590,7 +633,7 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
     });
 
 }
-generateHeightmap();
+// generateHeightmap();
 
 
 
@@ -859,6 +902,11 @@ server.listen(PORT,()=>{
 const socketToRooms  = new Map();//{}; // roomId -> array of sockets
 
 io.on('connection', socket => {
+    const playerId = socket.handshake.query.playerId;
+    socket.playerId = playerId;  // Store it on the socket object for easy access
+    
+    console.log("YOHOHOHO, playerID!",socket.playerId)
+
     // console.log('a user connected');
     socket.on('join', roomId => {
         console.log(`user connected ${roomId}`)
@@ -944,15 +992,108 @@ io.on('connection', socket => {
 
     //resource sending
 
-    // socket.on('requestResources', () => {
-    //     console.log(`Resources requested by player: ${playerId}`);
+    socket.on('requestWoodUpdate', () => {
+        // console.log(`Resources requested by player: ${playerId}`);
 
-    //     // Here, calculate resources on-demand (mocked for now)
-    //     const resources = playerResources[playerId] || { gold: 0, wood: 0 };
+        User.findOne({ _id: playerId }).then(user => {
+            if (!user) {
+                console.log(`No user found for playerId: ${playerId}`);
+                return;
+            }
+            console.log(user, ".....");
+            socket.emit('resourceWoodUpdate', user.Resources.Wood);
+        }).catch(err => {
+            console.error("Error fetching user:", err);
+        });
+    });
 
-    //     // Send resource update back to client
-    //     socket.emit('resourceUpdate', resources);
-    // });
+    socket.on('requestStoneUpdate', () => {
+        // console.log(`Resources requested by player: ${playerId}`);
 
+        User.findOne({ _id: playerId }).then(user => {
+            if (!user) {
+                console.log(`No user found for playerId: ${playerId}`);
+                return;
+            }
+            console.log(user, ".....");
+            socket.emit('resourceStoneUpdate', user.Resources.Stone);
+        }).catch(err => {
+            console.error("Error fetching user:", err);
+        });
+    });
 
+    socket.on('requestGoldUpdate', () => {
+        // console.log(`Resources requested by player: ${playerId}`);
+
+        User.findOne({ _id: playerId }).then(user => {
+            if (!user) {
+                console.log(`No user found for playerId: ${playerId}`);
+                return;
+            }
+            console.log(user, ".....");
+            socket.emit('resourceGoldUpdate', user.Resources.Gold);
+        }).catch(err => {
+            console.error("Error fetching user:", err);
+        });
+    });
+
+    socket.on('requestPoliticalPowerUpdate', () => {
+        // console.log(`Resources requested by player: ${playerId}`);
+
+        User.findOne({ _id: playerId }).then(user => {
+            if (!user) {
+                console.log(`No user found for playerId: ${playerId}`);
+                return;
+            }
+            console.log(user, ".....");
+            socket.emit('resourcePoliticalPowerUpdate', user.Resources.Political);
+        }).catch(err => {
+            console.error("Error fetching user:", err);
+        });
+    });
+
+    socket.on('requestStabilityUpdate', () => {
+        // console.log(`Resources requested by player: ${playerId}`);
+
+        User.findOne({ _id: playerId }).then(user => {
+            if (!user) {
+                console.log(`No user found for playerId: ${playerId}`);
+                return;
+            }
+            console.log(user, ".....");
+            socket.emit('resourceStabilityUpdate', user.Resources.Stability);
+        }).catch(err => {
+            console.error("Error fetching user:", err);
+        });
+    });
+
+    socket.on('requestWarSupportUpdate', () => {
+        // console.log(`Resources requested by player: ${playerId}`);
+
+        User.findOne({ _id: playerId }).then(user => {
+            if (!user) {
+                console.log(`No user found for playerId: ${playerId}`);
+                return;
+            }
+            console.log(user, ".....");
+            socket.emit('resourceWarSupportUpdate', user.Resources.WarSupport);
+        }).catch(err => {
+            console.error("Error fetching user:", err);
+        });
+    });
+
+    socket.on('requestManPowerUpdate', () => {
+        // console.log(`Resources requested by player: ${playerId}`);
+
+        User.findOne({ _id: playerId }).then(user => {
+            if (!user) {
+                console.log(`No user found for playerId: ${playerId}`);
+                return;
+            }
+            console.log(user, ".....");
+            socket.emit('resourceManPowerUpdate', user.Resources.ManPower);
+        }).catch(err => {
+            console.error("Error fetching user:", err);
+        });
+    });
 });
