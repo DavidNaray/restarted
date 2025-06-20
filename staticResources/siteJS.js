@@ -25,6 +25,61 @@ const tileSize=1;
 var OBJECTS=new Map(); 
 var OBJECTS_MASKS=new Map();
 
+class MinHeap {
+    constructor(compare) {
+        this.heap = [];
+        this.compare = compare; // (a, b) => number, like (a, b) => a.f - b.f
+    }
+
+    push(value) {
+        this.heap.push(value);
+        this._heapifyUp();
+    }
+
+    pop() {
+        if (this.heap.length === 1) return this.heap.pop();
+        const top = this.heap[0];
+        this.heap[0] = this.heap.pop();
+        this._heapifyDown();
+        return top;
+    }
+
+    isEmpty() {
+        return this.heap.length === 0;
+    }
+
+    _heapifyUp() {
+        let index = this.heap.length - 1;
+        const element = this.heap[index];
+        while (index > 0) {
+            const parentIndex = Math.floor((index - 1) / 2);
+            const parent = this.heap[parentIndex];
+            if (this.compare(element, parent) >= 0) break;
+            this.heap[index] = parent;
+            index = parentIndex;
+        }
+        this.heap[index] = element;
+    }
+
+    _heapifyDown() {
+        let index = 0;
+        const length = this.heap.length;
+        const element = this.heap[0];
+        while (true) {
+            let leftIndex = 2 * index + 1;
+            let rightIndex = 2 * index + 2;
+            let smallest = index;
+            if (leftIndex < length && this.compare(this.heap[leftIndex], this.heap[smallest]) < 0) smallest = leftIndex;
+            if (rightIndex < length && this.compare(this.heap[rightIndex], this.heap[smallest]) < 0) smallest = rightIndex;
+            if (smallest === index) break;
+            this.heap[index] = this.heap[smallest];
+            index = smallest;
+        }
+        this.heap[index] = element;
+    }
+}
+
+
 class Template{
     constructor(name, structure = {}) {
         this.id = generateUniqueId();
@@ -224,9 +279,13 @@ class TileInstancePool {
 class Tile{
     constructor(x,y,GInstanceManager,texUrl,HeightUrl,WalkMapUrl){
         this.instanceManager=GInstanceManager
-        this.meshes=new Set();
+        
+        this.instancePooling=new TileInstancePool(this);
+        this.meshes=new Set();//what makes up the terrain tile, to allow frustrum cull
+
         this.x=x;
         this.y=y;
+
         this.texUrl=texUrl;
         this.HeightUrl=HeightUrl;
         this.WalkMapUrl=WalkMapUrl;
@@ -234,10 +293,9 @@ class Tile{
         this.heightmap;
         this.walkMap;//used for building placement confirmation and pathfinding
 
-        this.instancePooling=new TileInstancePool(this);
-        // this.instancePoolUnits = new TileInstancePool(this);     // Track units here
-        // this.instancePoolBuildings = new TileInstancePool(this); // Track buildings here
-
+        
+        this.PortalMap;
+        this.abstractMap=new Map();
 
         this.loadtextures();
     }
@@ -269,6 +327,13 @@ class Tile{
                 this.walkMap =canvas 
                 // ctx.getImageData(0, 0, canvas.width, canvas.height);
                 console.log("WHOOOPY LOADED WALKMAP");
+
+                const startpixel={x:40,y:40}
+                const goalpixel={x:80,y:80}
+                this.AstarPathCost(startpixel,goalpixel,startpixel,80,80)
+                
+                this.PortalConnectivity()
+                
                 resolve();
             };
         });
@@ -617,6 +682,363 @@ class Tile{
         this.objectLoad(assetId,MetaData)
         return true;
     
+    }
+
+
+    //Pathfinding functionality
+
+    async DetermineSubgrid(MetaData){//determine which subgrid a unit belongs to
+        //walkmap is 1536, if we make subgrids 32 pixels in size, thats 48x48 subgrids 
+
+        const worldPos = MetaData.position; // [x, y, z]
+
+        const walkMapCanvas =this.walkMap; // the canvas you originally loaded the walkmap onto
+        const walkMapWidth = walkMapCanvas.width;
+        const walkMapHeight = walkMapCanvas.height;
+
+        // Scale and position setup
+        const worldTileSize = 7.5;//7.5; // world units → corresponds to full width/height of walkMap
+        const pixelsPerUnit = walkMapWidth / worldTileSize;
+
+        // Convert world coordinates to pixel coordinates on walkMap
+        const imgX = Math.round(walkMapWidth / 2 + worldPos[0] * pixelsPerUnit);
+        const imgY = Math.round(walkMapHeight / 2 + worldPos[2] * pixelsPerUnit);
+
+
+        //first grid would be [0,0] last grid would be [47,47]
+        const gridAlong=Math.floor(imgX/32)
+        const gridDown=Math.floor(imgY/32)
+
+    }
+
+    async generatePortalMap() {//generate the portals of the subgrids for the abstract map
+        const subgridSize = 32;
+        const walkMapCanvas=this.walkMap;
+
+        const ctx = walkMapCanvas.getContext('2d');
+        const imgData = ctx.getImageData(0, 0, walkMapCanvas.width, walkMapCanvas.height);
+        const data = imgData.data; // RGBA array
+
+        const gridCols = Math.ceil(walkMapCanvas.width / subgridSize);
+        const gridRows = Math.ceil(walkMapCanvas.height / subgridSize);
+
+        const portalMap = new Map(); // or use a plain object if you prefer
+
+        // Use your updated isWalkable inside here
+        
+        function isWalkable(x, y) {
+            const index = (y * walkMapCanvas.width + x) * 4;
+            const r = data[index];
+            const g = data[index + 1];
+            const b = data[index + 2];
+            return (r === 255 && g === 255 && (b === 255 || b === 0)); // white or yellow
+        }
+
+        function detectPortalsForSubgrid(subgridX, subgridY) {
+            const startX = subgridX * subgridSize;
+            const startY = subgridY * subgridSize;
+
+            const portals = [];
+
+            function scanEdge(edge) {
+                let lastWasWalkable = false;
+                let walkableStart = -1;
+                const edgePixels = [];
+
+                for (let i = 0; i < subgridSize; i++) {
+                    let x, y;
+
+                    switch (edge) {
+                        case 'top':    x = startX + i; y = startY; break;
+                        case 'bottom': x = startX + i; y = startY + subgridSize - 1; break;
+                        case 'left':   x = startX; y = startY + i; break;
+                        case 'right':  x = startX + subgridSize - 1; y = startY + i; break;
+                    }
+
+                    if (x >= walkMapCanvas.width || y >= walkMapCanvas.height) continue; // out of bounds
+
+                    if (isWalkable(x, y)) {
+                        if (!lastWasWalkable) walkableStart = i;
+                        lastWasWalkable = true;
+                    } else {
+                        if (lastWasWalkable && walkableStart !== -1) {
+                            const portalMid = walkableStart + Math.floor((i - walkableStart) / 2);
+                            edgePixels.push(portalMid);
+                        }
+                        lastWasWalkable = false;
+                        walkableStart = -1;
+                    }
+                }
+
+                if (lastWasWalkable && walkableStart !== -1) {
+                    const portalMid = walkableStart + Math.floor((subgridSize - walkableStart) / 2);
+                    edgePixels.push(portalMid);
+                }
+
+                for (const i of edgePixels) {
+                    let portalX, portalY;
+                    switch (edge) {
+                        case 'top':    portalX = startX + i; portalY = startY; break;
+                        case 'bottom': portalX = startX + i; portalY = startY + subgridSize - 1; break;
+                        case 'left':   portalX = startX; portalY = startY + i; break;
+                        case 'right':  portalX = startX + subgridSize - 1; portalY = startY + i; break;
+                    }
+                    portals.push({ x: portalX, y: portalY, edge });
+                }
+            }
+
+            ['top', 'right', 'bottom', 'left'].forEach(scanEdge);
+
+            return portals;
+        }
+
+        for (let gridY = 0; gridY < gridRows; gridY++) {
+            for (let gridX = 0; gridX < gridCols; gridX++) {
+                const portals = detectPortalsForSubgrid(gridX, gridY);
+                // if (portals.length > 0) {
+                //     portalMap.set(`${gridX},${gridY}`, portals);
+                // }
+                portalMap.set(`${gridX},${gridY}`, portals);
+            }
+        }
+
+        this.PortalMap=portalMap;
+        // this.PortalConnectivity();
+        console.log(this.PortalMap, "THESE ARE THE PORTALs!!!!")
+        // return portalMap; // Map with keys like "0,0" → [{x, y, edge}, ...]
+    }
+
+    //used to calculate the cost from start to goal within a segment of the walkMap
+    //used for calculating costs between portals
+    async AstarPathCost(startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight) {
+        const walkMapCanvas=this.walkMap;
+        const ctx = walkMapCanvas.getContext('2d');
+        const imgData = ctx.getImageData(segmentOrigin.x, segmentOrigin.y, segmentWidth, segmentHeight);
+        const data = imgData.data;
+
+        function getTerrainCost(localX, localY) {
+            if (localX < 0 || localX >= segmentWidth || localY < 0 || localY >= segmentHeight) return Infinity;
+            const index = (localY * segmentWidth + localX) * 4;
+            const r = data[index], g = data[index + 1], b = data[index + 2];
+
+            if (r === 255 && g === 255 && b === 255) return 1;     // White → Normal
+            if (r === 255 && g === 255 && b === 0)   return 1.5;   // Yellow → Shallow water
+            return Infinity;                                      // Red/Black or anything else → Impassable
+        }
+
+        function heuristic(x1, y1, x2, y2) {
+            const dx = x2 - x1, dy = y2 - y1;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        const start = {
+            x: startPixel.x - segmentOrigin.x,
+            y: startPixel.y - segmentOrigin.y
+        };
+        const goal = {
+            x: goalPixel.x - segmentOrigin.x,
+            y: goalPixel.y - segmentOrigin.y
+        };
+
+        const openSet = new MinHeap((a, b) => a.f - b.f);
+        const cameFrom = new Map();
+
+        const gScore = Array.from({ length: segmentHeight }, () => Array(segmentWidth).fill(Infinity));
+        const fScore = Array.from({ length: segmentHeight }, () => Array(segmentWidth).fill(Infinity));
+
+        gScore[start.y][start.x] = 0;
+        fScore[start.y][start.x] = heuristic(start.x, start.y, goal.x, goal.y);
+
+        openSet.push({ x: start.x, y: start.y, f: fScore[start.y][start.x] });
+
+        const directions = [
+            [0, -1], [1, 0], [0, 1], [-1, 0], // 4-way
+            [1, -1], [1, 1], [-1, 1], [-1, -1] // 8-way
+        ];
+
+        while (!openSet.isEmpty()) {
+            const current = openSet.pop();
+            if (current.x === goal.x && current.y === goal.y) {
+                // console.log("THIS IS THE COST!!!!!!!!",gScore[current.y][current.x])
+                return gScore[current.y][current.x]; // Return total cost to reach goal
+            }
+
+            for (const [dx, dy] of directions) {
+                const nx = current.x + dx, ny = current.y + dy;
+                if (nx < 0 || nx >= segmentWidth || ny < 0 || ny >= segmentHeight) continue;
+
+                const cost = getTerrainCost(nx, ny);
+                if (cost === Infinity) continue;
+
+                const tentativeG = gScore[current.y][current.x] + cost;
+                if (tentativeG < gScore[ny][nx]) {
+                    cameFrom.set(`${nx},${ny}`, `${current.x},${current.y}`);
+                    gScore[ny][nx] = tentativeG;
+                    fScore[ny][nx] = tentativeG + heuristic(nx, ny, goal.x, goal.y);
+                    openSet.push({ x: nx, y: ny, f: fScore[ny][nx] });
+                }
+            }
+        }
+
+        return Infinity; // No path found
+    }
+
+    //now to build the connectivity of portals within a subsection
+    async PortalConnectivity(){
+        // For subgrid (X,Y)
+        this.generatePortalMap();
+        
+        const waitForCompletion = async () => {
+            while (!this.PortalMap.has("47,47")) {
+                await new Promise(r => setTimeout(r, 10));  // wait 10ms
+            }
+
+            for (const [key, portals] of this.PortalMap.entries()) {
+                // console.log(portals,key)
+                const XY=key.split(',');
+                // console.log(portals)
+                const X=Number(XY[0])
+                const Y=Number(XY[1])
+                // console.log(X*32,Y*32)
+                for (let i = 0; i < portals.length; i++) {
+                    const startPortal = portals[i];
+                    const starty=startPortal.x +","+startPortal.y
+                    //this loop makes sure each portal node in a subgrid has its cost measured to each other node in the subgrid
+                    for (let j = i + 1; j < portals.length; j++) {
+                        
+                        const goalPortal = portals[j];
+                        let cost = await this.AstarPathCost(startPortal, goalPortal, {x:X*32,y:Y*32},32,32);
+                        // console.log (cost )
+                        if (cost !== Infinity) {
+                            
+                            const goaly=goalPortal.x +","+goalPortal.y
+                            //adds edge relationship with other portals in the subgrid
+                            this.addEdgeToAbstractGraph(starty, goaly, cost);
+                            this.addEdgeToAbstractGraph(goaly, starty, cost);
+                        }
+                        
+                    }
+                    // deal with connectivity to nodes in the adjacent grid
+                    switch(startPortal.edge){
+                        case "top":
+                            //for now, if Y is 0 then it skips but otherwise this means it has to check the next tile
+                            if(Y==0){break};
+
+                            // console.log(X+","+(Y-1), "SHOULD BE above")
+                            const aboveSubgrid=this.PortalMap.get(X+","+(Y-1))
+                            if(aboveSubgrid){
+                                for (const goalPortalAbove of aboveSubgrid) {
+                                    // console.log(goalPortalAbove)
+                                    if(goalPortalAbove.edge=="bottom"){
+                                        // console.log(value)
+                                        let cost = await this.AstarPathCost(startPortal, goalPortalAbove, {x:X*32,y:(Y-1)*32},32,64);//32*2
+                                        // console.log(cost)
+                                        const goalPAbove=goalPortalAbove.x +","+goalPortalAbove.y
+                                        if (cost !== Infinity) {
+                                            this.addEdgeToAbstractGraph(starty, goalPAbove, cost);
+                                        }
+                                    }
+                                }
+                            }
+
+                            break;
+                        case "bottom":
+                            // console.log(key)
+                            //for now, if Y is 47 then it skips but otherwise this means it has to check the next tile
+                            
+                            if(Y==47){break};
+                            // const YNext=Y+1 
+
+                            const BelowSubgrid=this.PortalMap.get(X+","+(Y+1))
+                            if(BelowSubgrid){//subgrid locations with no portals dont actually exist in PortalMap
+                                for (const goalPortalBelow of BelowSubgrid) {
+                                    if(goalPortalBelow.edge=="top"){
+                                        //{x:X*32,y:(Y)*32} because the startPortal is the top subgrid matching topedge of below
+                                        let cost = await this.AstarPathCost(startPortal, goalPortalBelow, {x:X*32,y:(Y)*32},32,64);//32*2
+                                        const goalPBelow=goalPortalBelow.x +","+goalPortalBelow.y//+","+goalPortalBelow.edge
+                                        if (cost !== Infinity) {
+                                            this.addEdgeToAbstractGraph(starty, goalPBelow, cost);
+                                        }
+                                    }
+                                }
+                            }
+
+                            break;
+                        case "left":
+                            //that means the startPortal is the "right" subgrid
+                                //origin is that of the (X-1)*32
+                            if(X==0){break};
+
+                            const LeftSubgrid=this.PortalMap.get((X-1)+","+Y);
+                            if(LeftSubgrid){
+                                for (const goalPortalLeft of LeftSubgrid) {
+                                    // console.log(goalPortalAbove)
+                                    if(goalPortalLeft.edge=="right"){
+                                        // console.log(value)
+                                        let cost = await this.AstarPathCost(startPortal, goalPortalLeft, {x:(X-1)*32,y:Y*32},64,32);//32*2
+                                        const goalPLeft=goalPortalLeft.x +","+goalPortalLeft.y//+","+goalPortalLeft.edge
+                                        if (cost !== Infinity) {
+                                            this.addEdgeToAbstractGraph(starty, goalPLeft, cost);
+                                        }
+                                    }
+                                }  
+                            }
+
+
+                            break;
+                        case "right":
+                            if(X==47){break};
+
+                            const RightSubgrid=this.PortalMap.get((X+1)+","+Y);
+                            if(RightSubgrid){
+                                for (const goalPortalRight of RightSubgrid) {
+                                    // console.log(goalPortalAbove)
+                                    if(goalPortalRight.edge=="left"){
+                                        // console.log(value)
+                                        let cost = await this.AstarPathCost(startPortal, goalPortalRight, {x:X*32,y:Y*32},64,32);//32*2
+                                        const goalPRight=goalPortalRight.x +","+goalPortalRight.y//+","+goalPortalRight.edge
+                                        if (cost !== Infinity) {
+                                            this.addEdgeToAbstractGraph(starty, goalPRight, cost);
+                                        }
+                                    }
+                                }
+                            }
+
+                            break;
+                        default:
+                            console.log("hmm, this shouldnt be running")
+                            // break;
+                    }
+
+                }
+            }
+
+            console.log(this.abstractMap)
+        };
+        
+        waitForCompletion();
+        
+
+    }
+
+
+    async addEdgeToAbstractGraph(start, end, cost){
+
+        const exists=this.abstractMap.has(start)
+
+        if(exists){
+            //then check if end already in it
+            const target=this.abstractMap.get(start)
+            // console.log(target, "TARGET TARGET COME ON")
+            if(!target.has(end)){
+                target.set(end,cost)
+            }
+        }else{
+            const valueSet=new Map();
+            valueSet.set(end,cost)
+            this.abstractMap.set(start,valueSet)
+        }
+
     }
 
 }
@@ -1173,7 +1595,7 @@ function setupSocketConnection(){
             document.getElementById("ToolTipTotalManPower").innerText=TotalManpower;
             document.getElementById("ToolTipTotalPop").innerText=TotalPopulation;
             document.getElementById("ToolTipMonthlyPopGain").innerText=PopulationRate;
-            document.getElementById("ToolTipRecrtuitableFac").innerText=RecruitableFactor;
+            document.getElementById("ToolTipRecrtuitableFac").innerText="Recruitable: "+RecruitableFactor+"%";
             document.getElementById("ToolTipMaxPop").innerText=MaxPopulation;
         }catch(e){}
     });
