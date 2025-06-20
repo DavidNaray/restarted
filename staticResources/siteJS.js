@@ -2172,6 +2172,279 @@ function PlaceBuilding(event){
 
 }
 
+function createUnitRegime(event){
+    const whichUnit=event.currentTarget.myParam
+    console.log(whichUnit, "THIS UNIT!!!!")
+
+    //add to PieceRegimen
+    const component=document.getElementById("PieceRegimen");
+
+    const regimenEnvelope=document.createElement("div");
+    {
+        regimenEnvelope.style.width="100%";
+        regimenEnvelope.style.aspectRatio="10/1"
+        regimenEnvelope.style.marginTop="4px";
+        regimenEnvelope.style.marginBottom="max(2vw,2vh)";
+        regimenEnvelope.style.backgroundColor="gray";
+        regimenEnvelope.style.borderBottom="solid 4px black"
+    }
+    component.appendChild(regimenEnvelope)
+
+    const TopInfo=document.createElement("div");
+    {
+        TopInfo.style.display="grid"
+        TopInfo.style.gridTemplateColumns="1fr 4fr 2fr"
+        TopInfo.style.columnGap="4px";
+        TopInfo.style.borderBottom="solid 4px black"
+        // TopInfo.style.borderTop="solid 4px black"
+    }
+    regimenEnvelope.appendChild(TopInfo)
+    const ImageHolder=document.createElement("div");
+    {
+        ImageHolder.style.width="calc(100% - 4px)";
+        ImageHolder.style.aspectRatio="1/1";
+        ImageHolder.style.padding="4px"
+        ImageHolder.style.paddingRight="0"
+    }
+    TopInfo.appendChild(ImageHolder)
+    const ImageIcon=document.createElement("div");
+    {
+        ImageIcon.style.backgroundColor="white";
+        ImageIcon.className="IconGeneral"
+        ImageIcon.style.backgroundImage="url('Icons/"+whichUnit +"Icon.png')"
+        ImageIcon.style.width="100%"
+        ImageIcon.style.height="100%"
+    }
+    ImageHolder.appendChild(ImageIcon)
+
+    const midTopSection=document.createElement("div");
+    {
+        midTopSection.style.display="grid"
+        midTopSection.style.gridTemplateRows="1fr 1fr"
+        midTopSection.style.width="100%"
+    }
+    TopInfo.appendChild(midTopSection)
+
+    const UnitType=document.createElement("div");
+    {
+        // midTopSection.style.gridTemplateRows="1fr 1fr"
+        UnitType.style.width="calc(100%)"
+        UnitType.style.backgroundColor="white"
+        UnitType.style.color="black"
+        UnitType.style.margin="4px 0 2px 0px"
+        UnitType.style.overflow="hidden"
+        UnitType.style.whiteSpace="nowrap"
+        UnitType.innerText=whichUnit
+        UnitType.style.textAlign="center"
+        UnitType.style.alignContent="center"
+        UnitType.style.fontSize="max(1.5vw,1.5vh)"
+    }
+    midTopSection.appendChild(UnitType)
+
+    const DeployPoint=document.createElement("div");
+    {
+        // midTopSection.style.gridTemplateRows="1fr 1fr"
+        DeployPoint.style.width="100%"
+        DeployPoint.style.backgroundColor="white"
+        DeployPoint.style.margin="2px 0 4px 0px"
+        DeployPoint.innerText="Select A Position"
+        DeployPoint.style.overflow="hidden"
+        DeployPoint.style.whiteSpace="nowrap"
+        DeployPoint.style.textAlign="center"
+        DeployPoint.style.alignContent="center"
+        DeployPoint.style.fontSize="max(1.5vw,1.5vh)"
+    }
+    midTopSection.appendChild(DeployPoint)
+
+    const RightTopSection=document.createElement("div");
+    {
+        RightTopSection.style.display="grid"
+        RightTopSection.style.gridTemplateRows="1fr 1fr"
+        RightTopSection.style.width="100%"
+    }
+    TopInfo.appendChild(RightTopSection)
+    
+    const AddSubSection=document.createElement("div");
+    {
+        AddSubSection.style.width="calc(100% - 4px)"
+        // AddSubSection.style.backgroundColor="white"
+        AddSubSection.style.margin="4px 4px 2px 0px"
+        // AddSubSection.style.alignContent="center"
+        AddSubSection.style.display="flex"
+        AddSubSection.style.flexDirection="row"
+    }
+    RightTopSection.appendChild(AddSubSection)
+
+    const SubtractBut=document.createElement("div");
+    {
+        // SubtractBut.style.height="100%"
+        SubtractBut.style.aspectRatio="1/1"
+        // SubtractBut.style.left="0"
+        SubtractBut.style.backgroundColor="white"
+        SubtractBut.style.backgroundImage="url('Icons/Subtract.png')"
+        SubtractBut.className="IconGeneral"
+    }
+    AddSubSection.appendChild(SubtractBut)
+
+    const middle = document.createElement("div");
+    {
+        // middle.style.flex = "1";
+        middle.style.aspectRatio="1/2"
+        middle.style.minWidth = "0"; // important to allow shrinking
+        middle.style.background = "rgb(98, 98, 98)";
+        middle.style.overflow="hidden"
+    }
+
+    AddSubSection.appendChild(middle)
+    const AddBut=document.createElement("div");
+    {
+        // SubtractBut.style.height="100%"
+        AddBut.style.aspectRatio="1/1"
+        // AddBut.style.right="0"
+        AddBut.style.backgroundColor="white"
+        AddBut.style.backgroundImage="url('Icons/Add.png')"
+        AddBut.className="IconGeneral"
+    }
+    AddSubSection.appendChild(AddBut)
+
+
+    const AddDeploySection=document.createElement("div");
+    {
+        AddDeploySection.style.width="calc(100% - 4px)"
+        // AddDeploySection.style.backgroundColor="white"
+        AddDeploySection.style.margin="2px 4px 4px 0px"
+        // AddDeploySection.style.alignContent="center"
+        AddDeploySection.style.display="flex"
+        AddDeploySection.style.flexDirection="row"
+    }
+    RightTopSection.appendChild(AddDeploySection)
+
+    const countHolder = document.createElement("div");
+    {
+        countHolder.style.flex = "1";
+        // countHolder.style.aspectRatio="1/2"
+        countHolder.style.minWidth = "0"; // important to allow shrinking
+        countHolder.style.background = "white";
+        countHolder.style.overflow="hidden"
+        countHolder.style.whiteSpace="nowrap"
+        countHolder.innerText="1"
+        countHolder.style.textAlign="center"
+        countHolder.style.alignContent="center"
+        countHolder.style.fontSize="max(1.5vw,1.5vh)"
+    }
+    AddDeploySection.appendChild(countHolder)
+
+    const DeployBut=document.createElement("div");
+    {
+        // SubtractBut.style.height="100%"
+        DeployBut.style.aspectRatio="1/1"
+        // AddBut.style.right="0"
+        DeployBut.style.backgroundColor="white"
+        DeployBut.style.backgroundImage="url('Icons/Deploy.png')"
+        DeployBut.className="IconGeneral"
+        DeployBut.style.marginLeft="4px"
+    }
+    AddDeploySection.appendChild(DeployBut)
+    
+    //adding the section for the specific units within the regimen
+    const soldierTrack=document.createElement("div");
+    {
+        soldierTrack.style.width="calc(100% - 8px)"
+        soldierTrack.style.aspectRatio="10/1"
+        soldierTrack.style.backgroundColor="gray"
+        soldierTrack.style.padding="4px"
+        
+        soldierTrack.style.display="flex"
+        soldierTrack.style.flexDirection="row"
+        soldierTrack.style.columnGap="4px"
+    }
+    regimenEnvelope.appendChild(soldierTrack)
+
+    const SoldierSpecifics=document.createElement("div");
+    {
+        // DeploySpecific.style.aspectRatio="1/1"
+        SoldierSpecifics.style.backgroundColor="white"
+        SoldierSpecifics.style.flex = "1";
+        SoldierSpecifics.style.minWidth = "0";
+    }
+    soldierTrack.appendChild(SoldierSpecifics)
+
+    const DeploySpecific=document.createElement("div");
+    {
+        DeploySpecific.style.aspectRatio="1/1"
+        DeploySpecific.style.backgroundColor="white"
+    }
+    soldierTrack.appendChild(DeploySpecific)
+
+    const cancelTrain=document.createElement("div");
+    {
+        cancelTrain.style.aspectRatio="1/1"
+        cancelTrain.style.backgroundColor="white"
+    }
+    soldierTrack.appendChild(cancelTrain)
+
+
+
+
+
+
+
+    AddBut.addEventListener("click",function(e){
+        try{
+            const val=Number(countHolder.innerText)
+            countHolder.innerText=val+1
+            // console.log(, "THIS IS THE PARENT")
+            // const rootRegimen=e.target.parentElement.parentElement.parentElement.parentElement
+            const soldierTrack=document.createElement("div");
+            {
+                soldierTrack.style.width="calc(100% - 8px)"
+                soldierTrack.style.aspectRatio="10/1"
+                soldierTrack.style.backgroundColor="gray"
+                soldierTrack.style.padding="4px"
+                
+                soldierTrack.style.display="flex"
+                soldierTrack.style.flexDirection="row"
+                soldierTrack.style.columnGap="4px"
+            }
+            regimenEnvelope.appendChild(soldierTrack)
+
+            const SoldierSpecifics=document.createElement("div");
+            {
+                // DeploySpecific.style.aspectRatio="1/1"
+                SoldierSpecifics.style.backgroundColor="white"
+                SoldierSpecifics.style.flex = "1";
+                SoldierSpecifics.style.minWidth = "0";
+            }
+            soldierTrack.appendChild(SoldierSpecifics)
+
+            const DeploySpecific=document.createElement("div");
+            {
+                DeploySpecific.style.aspectRatio="1/1"
+                DeploySpecific.style.backgroundColor="white"
+            }
+            soldierTrack.appendChild(DeploySpecific)
+
+            const cancelTrain=document.createElement("div");
+            {
+                cancelTrain.style.aspectRatio="1/1"
+                cancelTrain.style.backgroundColor="white"
+            }
+            soldierTrack.appendChild(cancelTrain)
+        }catch(p){}
+        
+    });
+    SubtractBut.addEventListener("click",function(){
+        try{
+            const val=Number(countHolder.innerText)
+            if(val > 1){
+                countHolder.innerText=val-1
+                regimenEnvelope.removeChild(regimenEnvelope.lastChild)
+            }
+            
+        }catch(p){}
+    });
+}
+
 function MilTrainingElements(){
     const contentBox=document.getElementById("Dropdown_Content_Box");
     const MilTraincontentBox=document.getElementById("MilTraincontentBox");
@@ -2270,14 +2543,9 @@ function MilTrainingElements(){
             const unitHolder=document.createElement("div");
             {
                 unitHolder.style.width="calc(100% - 1vw)"
-                // unit.style.height="calc(100% - 1vw)"
-                // unit.myParam=param[0]
+
                 unitHolder.style.aspectRatio="1/1"
-                // unit.style.backgroundImage=param[1]||"";
-                // unit.style.backgroundColor="gray";
                 unitHolder.style.padding="0.5vw"
-                // unit.className="IconGeneral"
-                // soldier.style.
             }
             IndiOptionHolder.appendChild(unitHolder)
             const unit=document.createElement("div");
@@ -2290,8 +2558,8 @@ function MilTrainingElements(){
                 unit.style.backgroundImage=param[1]||"";
                 unit.style.backgroundColor="gray";
                 unit.className="IconGeneral"
-                // soldier.style.
             }
+            unit.addEventListener("click",createUnitRegime)
             unitHolder.appendChild(unit)
         })
 
@@ -2319,8 +2587,47 @@ function MilTrainingElements(){
             TemplateOptionHolder.appendChild(Template)
         })
 
+
+        //section that displays the training regimens
+
+        const titlePieceRegimen=document.createElement("div");
+        {
+            titlePieceRegimen.style.maxWidth="calc(100% - 8px)";
+            titlePieceRegimen.style.height="100%";
+            titlePieceRegimen.style.display="inline-block"
+            // IndiTemplateOptionHolder.style.backgroundColor="pink"
+            titlePieceRegimen.style.margin="4px"
+            titlePieceRegimen.style.marginTop="1vw"
+            titlePieceRegimen.style.borderBottom="solid 0.25vw gray"
+            titlePieceRegimen.innerText="Training Regimens"
+            titlePieceRegimen.style.color="white"
+            titlePieceRegimen.style.fontSize="max(1.5vw,1.5vh)"
+            titlePieceRegimen.style.alignContent="center"
+            titlePieceRegimen.style.textAlign="left"
+        }
+        creatingMTCB.appendChild(titlePieceRegimen)
+
+        const PieceRegimen=document.createElement("div");
+        {
+            PieceRegimen.id="PieceRegimen"
+            PieceRegimen.style.width="calc(100% - 8px)";
+            // PieceRegimen.style.minHeight="20px"
+            // PieceRegimen.style.height="100%";
+            PieceRegimen.style.display="block"
+            // PieceRegimen.style.backgroundColor="pink"
+            PieceRegimen.style.margin="4px"
+            // titlePieceRegimen.style.marginTop="1vw"
+            // titlePieceRegimen.style.borderBottom="solid 0.25vw gray"
+            // titlePieceRegimen.innerText="Training Regimens"
+            // titlePieceRegimen.style.color="white"
+            // titlePieceRegimen.style.fontSize="max(1.5vw,1.5vh)"
+            // titlePieceRegimen.style.alignContent="center"
+            // titlePieceRegimen.style.textAlign="left"
+        }
+        creatingMTCB.appendChild(PieceRegimen)
+
         IndepBut.addEventListener('click',function(){
-            console.log("MMMM, yesss")
+            // console.log("MMMM, yesss")
             TemplateOptionHolder.style.display="none"
             IndiOptionHolder.style.display="grid"
         })
