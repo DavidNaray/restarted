@@ -79,6 +79,24 @@ class MinHeap {
     }
 }
 
+class PriorityQueue {
+  constructor() {
+    this.heap = new MinHeap((a, b) => a.priority - b.priority);
+  }
+
+  enqueue(node, priority) {
+    this.heap.push({ node, priority });
+  }
+
+  dequeue() {
+    if (this.heap.isEmpty()) return null;
+    return this.heap.pop().node;
+  }
+
+  isEmpty() {
+    return this.heap.isEmpty();
+  }
+}
 
 class Template{
     constructor(name, structure = {}) {
@@ -709,6 +727,8 @@ class Tile{
         const gridAlong=Math.floor(imgX/32)
         const gridDown=Math.floor(imgY/32)
 
+        return gridAlong+","+gridDown
+
     }
 
     async generatePortalMap() {//generate the portals of the subgrids for the abstract map
@@ -1041,6 +1061,62 @@ class Tile{
 
     }
 
+    async abstractMapAstar(start, goal) {//start, goal must be pixels that are in the abstractMap
+        function reconstructPath(cameFrom, current) {
+            const path = [current];
+            while (cameFrom.has(current)) {
+                current = cameFrom.get(current);
+                path.push(current);
+            }
+            path.reverse();
+            return path;
+        }
+        function heuristic(nodeA, nodeB) {
+            // For example, Euclidean distance ignoring edge types
+            const [xA, yA] = nodeA.split(',').map(Number);
+            const [xB, yB] = nodeB.split(',').map(Number);
+            return Math.hypot(xA - xB, yA - yB);
+        }
+        const graph=this.abstractMap;
+
+        const openSet = new PriorityQueue(); // Min-heap keyed by f(n)
+        const cameFrom = new Map();
+        const gScore = new Map();
+
+        gScore.set(start, 0);
+        openSet.enqueue(start, heuristic(start, goal));
+
+        while (!openSet.isEmpty()) {
+            const current = openSet.dequeue();
+
+            if (current === goal) {
+                return reconstructPath(cameFrom, current);
+            }
+
+            const neighbors = graph.get(current) || new Map();
+
+            for (const [neighbor, cost] of neighbors.entries()) {
+            const tentativeG = gScore.get(current) + cost;
+
+            if (!gScore.has(neighbor) || tentativeG < gScore.get(neighbor)) {
+                cameFrom.set(neighbor, current);
+                gScore.set(neighbor, tentativeG);
+                const fScore = tentativeG + heuristic(neighbor, goal);
+                openSet.enqueue(neighbor, fScore);
+            }
+            }
+        }
+
+        return null; // No path found
+    }
+
+    async pathfindingSetup(){
+        //assuming abstract map is setup, which means costs etc between nodes have been made....
+
+        //loop over selected units
+    }
+
+
 }
 
 //track all tiles 
@@ -1215,12 +1291,22 @@ function requestRenderIfNotRequested() {
   }
 }
 
-
+function updateGridColumns() {
+    try{
+        // console.log("RAHHHHHHHHHHHHHHHHHHHHHHHHHH")
+        const IndiOrTemplateButtons=document.getElementById("IndiOrTemplateButtons");
+        if (window.innerWidth < 800) {
+            IndiOrTemplateButtons.style.gridTemplateColumns = "auto auto 0";
+        } else {
+            IndiOrTemplateButtons.style.gridTemplateColumns = "auto auto 30%";
+        }
+    }catch(m){}
+}
 window.onresize=function(){//resize the canvas
     renderer.setSize( window.innerWidth, window.innerHeight );
     camera.aspect = renderer.domElement.width/renderer.domElement.height;
     camera.updateProjectionMatrix();
-
+    updateGridColumns();
     requestRenderIfNotRequested();
 }
 
@@ -2086,6 +2172,168 @@ function PlaceBuilding(event){
 
 }
 
+function MilTrainingElements(){
+    const contentBox=document.getElementById("Dropdown_Content_Box");
+    const MilTraincontentBox=document.getElementById("MilTraincontentBox");
+    if(!MilTraincontentBox){
+        const creatingMTCB=document.createElement("div");
+        {
+            creatingMTCB.style.width="100%";
+            creatingMTCB.id="MilTraincontentBox"
+        }
+        contentBox.appendChild(creatingMTCB)
+
+        const TrainingOptionsBox=document.createElement("div");
+        {
+            TrainingOptionsBox.style.width="100%";
+            TrainingOptionsBox.style.display="grid";
+            TrainingOptionsBox.style.gridTemplateRows="auto auto"
+        }
+        creatingMTCB.appendChild(TrainingOptionsBox)
+
+        const IndiOrTemplateButtons=document.createElement("div");
+        {
+            // IndiOrTemplateButtons.style.backgroundColor="red";
+            IndiOrTemplateButtons.id="IndiOrTemplateButtons"
+            IndiOrTemplateButtons.style.width="calc(100% - 8px)"
+            IndiOrTemplateButtons.style.aspectRatio="12/1"
+            IndiOrTemplateButtons.style.display="grid";
+            IndiOrTemplateButtons.style.gridTemplateColumns="auto auto 0"
+            IndiOrTemplateButtons.style.columnGap="4px"
+            IndiOrTemplateButtons.style.marginLeft="4px"
+            IndiOrTemplateButtons.style.marginRight="4px"
+            // IndiOrTemplateButtons.style.maxWidth="calc(100% - 8px)"
+            IndiOrTemplateButtons.style.minWidth = "0"; // ⚠️ Important for shrinking
+            IndiOrTemplateButtons.style.borderBottom="solid 0.25vw gray"
+        }
+        TrainingOptionsBox.appendChild(IndiOrTemplateButtons)
+
+        const TemplateBut=document.createElement("div");
+        {
+            TemplateBut.style.backgroundColor="red";
+            // TemplateBut.style.width="calc(100% - 8px)"
+            TemplateBut.style.height="calc(100% - 8px)"
+            TemplateBut.style.margin="4px"
+            TemplateBut.style.marginRight="0"
+            TemplateBut.style.marginLeft="0"
+
+            TemplateBut.innerText="Template"
+            TemplateBut.style.fontSize="max(1.5vw,1.5vh)"
+            TemplateBut.style.alignContent="center"
+            TemplateBut.style.textAlign="center"
+        }
+        IndiOrTemplateButtons.appendChild(TemplateBut)
+
+        const IndepBut=document.createElement("div");
+        {
+            IndepBut.style.backgroundColor="red";
+            // IndepBut.style.width="calc(100% - 8px)"
+            IndepBut.style.height="calc(100% - 8px)"
+            IndepBut.style.margin="4px"
+            IndepBut.style.marginLeft="0"
+            IndepBut.style.marginRight="0px"
+            IndepBut.innerText="Individual"
+            IndepBut.style.fontSize="max(1.5vw,1.5vh)"
+            IndepBut.style.alignContent="center"
+            IndepBut.style.textAlign="center"
+        }
+        IndiOrTemplateButtons.appendChild(IndepBut)
+
+
+        
+        //create the box that houses these options
+        const IndiTemplateOptionHolder=document.createElement("div");
+        {
+            IndiTemplateOptionHolder.style.width="calc(100% - 8px)";
+            IndiTemplateOptionHolder.style.height="calc(100% - 8px)";
+            // IndiTemplateOptionHolder.style.backgroundColor="pink"
+            IndiTemplateOptionHolder.style.margin="4px"
+            IndiTemplateOptionHolder.style.borderBottom="solid 0.25vw gray"
+        }
+        TrainingOptionsBox.appendChild(IndiTemplateOptionHolder)
+        
+        const IndiOptionHolder=document.createElement("div");
+        {
+            IndiOptionHolder.style.width="100%";
+            IndiOptionHolder.id="IndiOptionHolder"
+            IndiOptionHolder.style.display="grid";
+            IndiOptionHolder.style.gridTemplateColumns="1fr 1fr 1fr 1fr 1fr 1fr 1fr"
+            // IndiOptionHolder.style.backgroundColor="pink"
+            IndiOptionHolder.style.columnGap="4px"
+            IndiOptionHolder.style.rowGap="4px"
+        }
+        IndiTemplateOptionHolder.appendChild(IndiOptionHolder)
+        
+        // create the options for individual units
+        const indiUnits=[["archer","url('Icons/ArcherIcon.png')"],["spearman","url('Icons/SpearManIcon.png')"],]
+        indiUnits.forEach((param)=>{
+            const unitHolder=document.createElement("div");
+            {
+                unitHolder.style.width="calc(100% - 1vw)"
+                // unit.style.height="calc(100% - 1vw)"
+                // unit.myParam=param[0]
+                unitHolder.style.aspectRatio="1/1"
+                // unit.style.backgroundImage=param[1]||"";
+                // unit.style.backgroundColor="gray";
+                unitHolder.style.padding="0.5vw"
+                // unit.className="IconGeneral"
+                // soldier.style.
+            }
+            IndiOptionHolder.appendChild(unitHolder)
+            const unit=document.createElement("div");
+            {
+                unit.style.width="100%"
+                unit.style.height="100%"
+                // unit.style.height="calc(100% - 1vw)"
+                unit.myParam=param[0]
+                unit.style.aspectRatio="1/1"
+                unit.style.backgroundImage=param[1]||"";
+                unit.style.backgroundColor="gray";
+                unit.className="IconGeneral"
+                // soldier.style.
+            }
+            unitHolder.appendChild(unit)
+        })
+
+        const TemplateOptionHolder=document.createElement("div");
+        {
+            TemplateOptionHolder.style.width="100%";
+            TemplateOptionHolder.id="TemplateOptionHolder"
+            TemplateOptionHolder.style.display="none";
+            TemplateOptionHolder.style.gridTemplateColumns="1fr 1fr 1fr 1fr 1fr 1fr 1fr"
+            // TemplateOptionHolder.style
+            TemplateOptionHolder.style.columnGap="4px"
+            TemplateOptionHolder.style.rowGap="4px"
+        }
+        IndiTemplateOptionHolder.appendChild(TemplateOptionHolder)
+        
+        indiUnits.forEach((param)=>{//placeholder purposes
+            const Template=document.createElement("div");
+            {
+                Template.style.width="100%"
+                Template.myParam=param
+                Template.style.aspectRatio="1/1"
+                Template.style.backgroundColor="green"
+                // soldier.style.
+            }
+            TemplateOptionHolder.appendChild(Template)
+        })
+
+        IndepBut.addEventListener('click',function(){
+            console.log("MMMM, yesss")
+            TemplateOptionHolder.style.display="none"
+            IndiOptionHolder.style.display="grid"
+        })
+        TemplateBut.addEventListener('click',function(){
+            // console.log("MMMM, yesss")
+            IndiOptionHolder.style.display="none"
+            TemplateOptionHolder.style.display="grid"
+        })
+    }else{
+        MilTraincontentBox.style.display="block"
+    }
+    updateGridColumns();
+}
 
 function ConstructionElements(){
     const contentBox=document.getElementById("Dropdown_Content_Box");
@@ -2201,6 +2449,8 @@ function ConstructionElements(){
         }
         BuildQueueTitleBox.appendChild(ManpowerAllocation)
         
+    }else{
+        ConstructioncontentBox.style.display="block"
     }
 }
 
@@ -2212,6 +2462,13 @@ function buttonpressed(event){
         dropdownElement.style.display="flex";
         dropdownElement.style.visibility="visible"
     }//if they want to close the dropdownElement there will be an X button in the element to do so
+
+    //if any, make the children of dropdownElement invisible
+    const contentBox=document.getElementById("Dropdown_Content_Box");
+    for (const childDiv of contentBox.children){
+        // console.log(childDiv, "THESE ARE THE CHILDREN OF THE DROPDOWN MAN")
+        childDiv.style.display="none"
+    }
 
     let Title;
     switch(event.currentTarget.myParam){
@@ -2233,6 +2490,7 @@ function buttonpressed(event){
             break;
         case "btn_Train":
             Title="Military Training"
+            MilTrainingElements()
             break;
         case "btn_Security":
             Title="Security"
