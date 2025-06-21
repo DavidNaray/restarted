@@ -135,7 +135,7 @@ class TileInstancePool {
             mesh=this.createInstanceObjectOfCount(objectType,3);
             mesh.metadata=new Map();
             mesh.freeIndices=new Set([0,1,2])//every index is free 
-            
+            // mesh.scale.set(0.2,0.2,0.2)
             this.instanceGroups.set(objectType,mesh)
             scene.add(mesh);
         }else{//exists, 
@@ -263,6 +263,7 @@ class TileInstancePool {
     
         //creating newMesh, not updating hence no oldMesh 3rd param into this, have to define freeIndices here, empty cus full
         const newMesh = this.createInstanceObjectOfCount(objectType, usedIndices.size);
+        // newMesh.scale.set(0.2,0.2,0.2)
         newMesh.metadata=new Map();
         newMesh.freeIndices = new Set();
         
@@ -299,6 +300,7 @@ class Tile{
         this.instanceManager=GInstanceManager
         
         this.instancePooling=new TileInstancePool(this);
+        // this.UnitInstancePooling=new TileInstancePool(this);
         this.meshes=new Set();//what makes up the terrain tile, to allow frustrum cull
 
         this.x=x;
@@ -311,6 +313,7 @@ class Tile{
         this.heightmap;
         this.walkMap;//used for building placement confirmation and pathfinding
 
+        this.heightMapCanvas;
         
         this.PortalMap;
         this.abstractMap=new Map();
@@ -329,6 +332,25 @@ class Tile{
             this.texture = texture;
             this.BuildTileBase();
         });
+
+        // Load walkMap as a Promise so we can await it
+        await new Promise((resolve) => {
+            const imgHeight = new Image();
+            imgHeight.src = this.HeightUrl; // Make sure this is a valid URL to the PNG
+
+            imgHeight.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = imgHeight.width;
+                canvas.height = imgHeight.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(imgHeight, 0, 0);
+                
+                this.heightMapCanvas =canvas 
+                
+                resolve();
+            };
+        });
+
 
         // Load walkMap as a Promise so we can await it
         await new Promise((resolve) => {
@@ -467,19 +489,19 @@ class Tile{
     //addToScene and objectLoad work as a pair, objectLoad checks if the object wanting to be added exists
     //this means that objectLoad should always be called, not addToScene, that is a utlity function of objectLoad
 
-    async addToScene(Obj_Identifier,instToAdd){
+    async addToScene(Obj_Identifier,MetaData){
         
 
 
-        const xyz=instToAdd.position
+        const xyz=MetaData.position
         console.log("FIRING FIRING",xyz)
         const transform = new THREE.Matrix4();
         const position = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
         const quaternion = new THREE.Quaternion();  // No rotation
-        const scale = new THREE.Vector3(1, 1, 1);
+        const scale = new THREE.Vector3(0.2, 0.2, 0.2);
         transform.compose(position, quaternion, scale);
 
-        this.instancePooling.GeneralAddInstance(Obj_Identifier,transform,instToAdd);//.metaData
+        this.instancePooling.GeneralAddInstance(Obj_Identifier,transform,MetaData);//.metaData
     }
 
     async objectLoad(assetId,MetaData){
@@ -497,7 +519,7 @@ class Tile{
                     const geometries = [];
                     // let material = null;
                     const materials = [];
-
+                    // gltf.scene.scale.set(0.00002, 0.00002, 0.00002);
                     gltf.scene.traverse((child) => {
                         if (child.isMesh) {
                             // Make sure the geometry is updated to world transform if needed:
@@ -530,7 +552,8 @@ class Tile{
 
                     // Create a single mesh with merged geometry and one material
                     const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
-
+                    mergedMesh.scale.set(2,2, 2);
+                    mergedMesh.updateMatrix();
                     OBJECTS.set(assetId, mergedMesh);
 
                     // OBJ_ENTRY.instances.forEach(inst => {
@@ -597,6 +620,7 @@ class Tile{
 
     }
 
+    //used for placing buildings, since check validity, then call objectLoad etc
     async checkValidityOfAssetPlacement(assetId,MetaData){
         const worldPos = MetaData.position; // [x, y, z]
         const rotation = MetaData.rotation || 0; // radians
@@ -702,7 +726,82 @@ class Tile{
     
     }
 
+    async isPointValid(selectedPoint){//selectedPoint is the raycast point
+        // console.log(selectedPoint, "the selected point tbh")
+        const worldPos = selectedPoint//[selectedPoint.x,selectedPoint.y,selectedPoint.z]; // [x, y, z]
+        
+        const walkMapCanvas =this.walkMap; // the canvas you originally loaded the walkmap onto
+        // console.log(walkMapCanvas, "REALLY MAN")
+        const walkMapWidth = walkMapCanvas.width;
+        const walkMapHeight = walkMapCanvas.height;
 
+        // Use a temporary canvas for safe pixel reading
+        const walkTempCanvas = document.createElement('canvas');
+        walkTempCanvas.width = walkMapWidth;
+        walkTempCanvas.height = walkMapHeight;
+
+        const walkTempCtx = walkTempCanvas.getContext('2d');
+        walkTempCtx.drawImage(walkMapCanvas, 0, 0);
+
+        // const walkMapData = walkTempCtx.getImageData(0, 0, walkMapWidth, walkMapHeight).data;
+
+        // Scale and position setup
+        const worldTileSize = 7.5;//7.5; // world units → corresponds to full width/height of walkMap
+        const pixelsPerUnit = walkMapWidth / worldTileSize;
+
+        // Convert world coordinates to pixel coordinates on walkMap
+        const imgX = Math.round(walkMapWidth / 2 + worldPos[0] * pixelsPerUnit);
+        const imgY = Math.round(walkMapHeight / 2 + worldPos[2] * pixelsPerUnit);
+
+        const walkData = walkTempCtx.getImageData(imgX, imgY, 1, 1).data;
+        const [r, g, b, a] = walkData;
+
+        const isWhite = (r === 255 && g === 255 && b === 255 && a === 255);
+        if(!isWhite){
+            return false;
+            console.log("YOU CANNOT!!!!!! PLACE A BUILDING HERE MY DAMN")
+        }else{
+            return true;
+            console.log("YOU CAN PLACE A BUILDING HERE MY DAMN")
+        }
+    }
+
+    async getPosWithHeight(selectedPoint){
+        const worldPos = selectedPoint//[selectedPoint.x,selectedPoint.y,selectedPoint.z]; // [x, y, z]
+
+
+        const HeightMapcanvas = this.heightMapCanvas
+        const HeightMapWidth = HeightMapcanvas.width;
+        const HeightMapHeight = HeightMapcanvas.height;
+
+        const HeightMapTempCanvas = document.createElement('canvas');
+        HeightMapTempCanvas.width = HeightMapWidth;
+        HeightMapTempCanvas.height = HeightMapHeight;
+        
+        // console.log(this.heightmap, "bro this gotta be valid")
+        const ctx = HeightMapTempCanvas.getContext('2d');
+        ctx.drawImage(HeightMapcanvas, 0, 0);
+
+        // Scale and position setup
+        const worldTileSize = 7.5;//7.5; // world units → corresponds to full width/height of walkMap
+        const pixelsPerUnit = HeightMapWidth / worldTileSize;
+
+        // Convert world coordinates to pixel coordinates on walkMap
+        const imgX = Math.round(HeightMapWidth / 2 + worldPos[0] * pixelsPerUnit);
+        const imgY = Math.round(HeightMapHeight / 2 + worldPos[2] * pixelsPerUnit);
+
+        const HeightData = ctx.getImageData(imgX, imgY, 1, 1).data;
+        const [r, g, b, a] = HeightData;
+
+        const Heightscale=0.6; //from tile terrain builder material
+        //secondly, only the R value so basically its
+        const height=(r*Heightscale)/(30*7.5)
+
+        console.log(height, "muaahahahahahahaha")
+        return [selectedPoint[0],height,selectedPoint[2]];
+
+         
+    }
     //Pathfinding functionality
 
     async DetermineSubgrid(MetaData){//determine which subgrid a unit belongs to
@@ -2105,7 +2204,7 @@ function onPointerMove(event) {
     pointer .y = -(event.clientY / window.innerHeight) * 2 + 1;
     
     raycaster.setFromCamera( pointer, camera );
-    console.log("MOVING MOUSE")
+    // console.log("MOVING MOUSE")
 }
 
 function onclickBuilding(event){
@@ -2170,6 +2269,69 @@ function PlaceBuilding(event){
 
 
 
+}
+
+function deploymentPoint(divToChangevalue){
+    renderer.domElement.addEventListener( 'pointermove', onPointerMove );
+    renderer.domElement.addEventListener( 'click', onTileClick );
+    function onTileClick(ev){
+        const intersects = raycaster.intersectObjects(globalmanager.allTileMeshes, true);
+
+        if (intersects.length > 0) {
+            const intersectedMesh = intersects[0].object;
+            const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
+
+            if (foundTile) {
+                // console.log("Clicked tile:", foundTile.x, foundTile.y);
+
+                const IntersectPoint=intersects[0].point
+                const convertPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
+                foundTile.isPointValid(convertPoint).then(isvalid=>{
+                    // console.log(isvalid, "SELECT POint deployment???")
+                    if(isvalid){
+                        divToChangevalue.innerText=convertPoint[0].toFixed(2)+","+convertPoint[0].toFixed(1)+","+convertPoint[2].toFixed(2)
+                        divToChangevalue.myParam=[convertPoint,foundTile]
+                    }
+                })
+                
+            }
+        }
+        //the user clicked, the building has been placed, remove eventListeners
+        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        renderer.domElement.removeEventListener( 'click',  onTileClick);
+    }
+    // renderer.domElement.addEventListener( 'click', )
+        
+}
+
+function IterateOverDeploy(regimenEnvelope,DeployPoint,Obj_Identifier){
+    // console.log(regimenEnvelope.children.length)
+    //loop for deploying all units in regimen
+    try{
+        if(DeployPoint.myParam[0]==undefined){return}
+    }catch(plu){return}
+    
+    //because the terrain is gpu drawn, need to get the height from the heightmap at the a,y position!
+
+    for(let i=1;i<regimenEnvelope.children.length;i++){
+        regimenEnvelope.removeChild(regimenEnvelope.children[i])
+        // const IntersectPoint=intersects[0].point
+        DeployPoint.myParam[1].getPosWithHeight(DeployPoint.myParam[0]).then(val=>{
+            console.log(val, "should be the point.....")
+            const instanceMetaData={
+                "position":val,
+                "userId":ThisUser._id,
+                "health":100,
+                // "state":"Built"
+            }
+            DeployPoint.myParam[1].objectLoad(Obj_Identifier,instanceMetaData)
+        
+        })
+
+    }
+    // console.log(regimenEnvelope.parentElement)
+    regimenEnvelope.parentElement.removeChild(regimenEnvelope)
+    console.log(DeployPoint.myParam,"yes param")
 }
 
 function createUnitRegime(event){
@@ -2254,6 +2416,9 @@ function createUnitRegime(event){
         DeployPoint.style.alignContent="center"
         DeployPoint.style.fontSize="max(1.5vw,1.5vh)"
     }
+    DeployPoint.addEventListener("click",function(ev){
+        deploymentPoint(DeployPoint)
+    })
     midTopSection.appendChild(DeployPoint)
 
     const RightTopSection=document.createElement("div");
@@ -2344,6 +2509,9 @@ function createUnitRegime(event){
         DeployBut.className="IconGeneral"
         DeployBut.style.marginLeft="4px"
     }
+    DeployBut.addEventListener("click",function(){
+        IterateOverDeploy(regimenEnvelope,DeployPoint,whichUnit);
+    })
     AddDeploySection.appendChild(DeployBut)
     
     //adding the section for the specific units within the regimen
