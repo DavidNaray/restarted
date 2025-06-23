@@ -7,10 +7,14 @@ import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/
 import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/utils/BufferGeometryUtils.js';
 
 let socket;
-let ThisUser;
 var controls,renderer,camera,renderRequested;
 const scene = new THREE.Scene();
-const loader = new THREE.TextureLoader();
+
+const loader = new GLTFLoader();//new THREE.TextureLoader();
+const fileLoader = new THREE.FileLoader(loader.manager);
+fileLoader.setResponseType('arraybuffer'); // GLB is binary
+fileLoader.setRequestHeader({'Authorization': `Bearer ${localStorage.getItem('accessToken')}`});
+
 const raycaster = new THREE.Raycaster();
 const pointer  = new THREE.Vector2();
 
@@ -311,9 +315,11 @@ class Tile{
         this.WalkMapUrl=WalkMapUrl;
         this.texture;
         this.heightmap;
-        this.walkMap;//used for building placement confirmation and pathfinding
+        this.walkMap;//used for building placement confirmation and pathfinding (its a canvas)
 
         this.heightMapCanvas;
+        // this.walkMapCanvas;
+        this.TextureMapCanvas;
         
         this.PortalMap;
         this.abstractMap=new Map();
@@ -323,59 +329,91 @@ class Tile{
 
     async loadtextures(){
         console.log("REQUEST THESE FILES",this.HeightUrl,this.texUrl)
-        loader.load(this.HeightUrl, (texture) => {//'../heightmap.png'
-            this.heightmap = texture;
+         
+        async function loadTextureWithAuth(url, token) {
+            const response = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load texture: ${response.statusText}`);
+            }
+
+            const blob = await response.blob();
+            const imageBitmap = await createImageBitmap(blob);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = imageBitmap.width;
+            canvas.height = imageBitmap.height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imageBitmap, 0, 0);
+
+
+
+            const texture = new THREE.Texture(canvas )//imageBitmap);
+            // texture.flipY = true;
+            texture.needsUpdate = true;
+            return [texture,canvas];
+        }
+        async function loadWalkMapWithAuth(url, token) {
+            const response = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load texture: ${response.statusText}`);
+            }
+
+            const blob = await response.blob();
+            const imageBitmap = await createImageBitmap(blob);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = imageBitmap.width;
+            canvas.height = imageBitmap.height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imageBitmap, 0, 0);
+            // ctx.rotate((-90 * Math.PI) / 180);
+            // ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+            return canvas;
+        }
+
+        // Usage:
+        loadTextureWithAuth(this.HeightUrl, localStorage.getItem('accessToken'))
+        .then(texCanv => {
+            this.heightmap = texCanv[0];
+            this.heightMapCanvas =texCanv[1] 
             this.BuildTileBase();
+        })
+        .catch(err => {
+            console.error('Texture load error:', err);
         });
-          
-        loader.load(this.texUrl, (texture) => {//'../colourMap.png'
-            this.texture = texture;
+
+        // -------------------------------//
+        loadTextureWithAuth(this.texUrl, localStorage.getItem('accessToken'))
+        .then(texture => {
+            this.texture = texture[0];
+            this.TextureMapCanvas=texture[1];
             this.BuildTileBase();
+        })
+        .catch(err => {
+            console.error('Texture load error:', err);
         });
 
-        // Load walkMap as a Promise so we can await it
-        await new Promise((resolve) => {
-            const imgHeight = new Image();
-            imgHeight.src = this.HeightUrl; // Make sure this is a valid URL to the PNG
+        // -------------------------------//
+        loadWalkMapWithAuth(this.WalkMapUrl, localStorage.getItem('accessToken'))
+        .then(texture => {
+            this.walkMap=texture;
+            // const startpixel={x:40,y:40}
+            // const goalpixel={x:80,y:80}
 
-            imgHeight.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = imgHeight.width;
-                canvas.height = imgHeight.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(imgHeight, 0, 0);
-                
-                this.heightMapCanvas =canvas 
-                
-                resolve();
-            };
-        });
-
-
-        // Load walkMap as a Promise so we can await it
-        await new Promise((resolve) => {
-            const imgWalk = new Image();
-            imgWalk.src = this.WalkMapUrl; // Make sure this is a valid URL to the PNG
-
-            imgWalk.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = imgWalk.width;
-                canvas.height = imgWalk.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(imgWalk, 0, 0);
-                
-                this.walkMap =canvas 
-                // ctx.getImageData(0, 0, canvas.width, canvas.height);
-                console.log("WHOOOPY LOADED WALKMAP");
-
-                const startpixel={x:40,y:40}
-                const goalpixel={x:80,y:80}
-                this.AstarPathCost(startpixel,goalpixel,startpixel,80,80)
-                
-                this.PortalConnectivity()
-                
-                resolve();
-            };
+            // this.AstarPathCost(startpixel,goalpixel,startpixel,80,80)
+            this.PortalConnectivity()
+        })
+        .catch(err => {
+            console.error('Texture load error:', err);
         });
     }
     async BuildTileBase(){
@@ -510,67 +548,73 @@ class Tile{
         const has=OBJECTS.has(assetId)
 
         if(!has){
-            const loader = new GLTFLoader();
-            loader.load(
+            // const loader = new GLTFLoader();
+            fileLoader.load(
                 // resource URL
                 'Assets/GLB_Exports/'+assetId+'.glb',
                 // called when the resource is loaded
-                (gltf) => {
-                    const geometries = [];
-                    // let material = null;
-                    const materials = [];
-                    // gltf.scene.scale.set(0.00002, 0.00002, 0.00002);
-                    gltf.scene.traverse((child) => {
-                        if (child.isMesh) {
-                            // Make sure the geometry is updated to world transform if needed:
-                            // const geom = child.geometry.clone();
-                            // geom.applyMatrix4(child.matrixWorld);
-                            // geometries.push(geom);
-                            geometries.push(child.geometry);
+                (data) => {
+                    loader.parse(
+                        data,
+                        '', // path to resolve external resources, '' is okay for embedded
+                        (gltf) => {
+                            const geometries = [];
+                            // let material = null;
+                            const materials = [];
+                            // gltf.scene.scale.set(0.00002, 0.00002, 0.00002);
+                            gltf.scene.traverse((child) => {
+                                if (child.isMesh) {
+                                    // Make sure the geometry is updated to world transform if needed:
+                                    // const geom = child.geometry.clone();
+                                    // geom.applyMatrix4(child.matrixWorld);
+                                    // geometries.push(geom);
+                                    geometries.push(child.geometry);
 
-                            // if (!material) {
-                            //     material = child.material;
-                            // }
-                            // Collect material(s)
-                            if (Array.isArray(child.material)) {
-                                child.material.forEach(mat => {
-                                    if (!materials.includes(mat)) materials.push(mat);
-                                });
-                            } else {
-                                if (!materials.includes(child.material)) materials.push(child.material);
+                                    // if (!material) {
+                                    //     material = child.material;
+                                    // }
+                                    // Collect material(s)
+                                    if (Array.isArray(child.material)) {
+                                        child.material.forEach(mat => {
+                                            if (!materials.includes(mat)) materials.push(mat);
+                                        });
+                                    } else {
+                                        if (!materials.includes(child.material)) materials.push(child.material);
+                                    }
+                                }
+                            });
+
+                            if (geometries.length === 0) {
+                                console.error("No meshes found in gltf scene");
+                                return;
                             }
-                        }
-                    });
 
-                    if (geometries.length === 0) {
-                        console.error("No meshes found in gltf scene");
-                        return;
-                    }
+                            // Merge all geometries into one
+                            const mergedGeometry = mergeGeometries(geometries, true);
 
-                    // Merge all geometries into one
-                    const mergedGeometry = mergeGeometries(geometries, true);
+                            // Create a single mesh with merged geometry and one material
+                            const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
+                            mergedMesh.scale.set(2,2, 2);
+                            mergedMesh.updateMatrix();
+                            OBJECTS.set(assetId, mergedMesh);
 
-                    // Create a single mesh with merged geometry and one material
-                    const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
-                    mergedMesh.scale.set(2,2, 2);
-                    mergedMesh.updateMatrix();
-                    OBJECTS.set(assetId, mergedMesh);
-
-                    // OBJ_ENTRY.instances.forEach(inst => {
-                    //     this.addToScene(OBJ_Name, inst);
-                    // });
-                    this.addToScene(assetId, MetaData)
+                            // OBJ_ENTRY.instances.forEach(inst => {
+                            //     this.addToScene(OBJ_Name, inst);
+                            // });
+                            this.addToScene(assetId, MetaData)
 
 
+                        },
+                    );
                 },
                 // called while loading is progressing
-                function ( xhr ) {
+                ( xhr ) =>{
 
                     console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
 
                 },
                 // called when loading has errors
-                function ( error ) {
+                ( error ) =>{
 
                     console.log( 'An error happened',error );
 
@@ -591,31 +635,50 @@ class Tile{
         if (OBJECTS_MASKS.has(assetId)) {
             return OBJECTS_MASKS.get(assetId);
         }
+        async function loadPlacementMasksWithAuth(url, token) {
+            const response = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load texture: ${response.statusText}`);
+            }
+
+            const blob = await response.blob();
+            const imageBitmap = await createImageBitmap(blob);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = imageBitmap.width;
+            canvas.height = imageBitmap.height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imageBitmap, 0, 0);
+
+            return canvas;
+        }
 
         return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.src = "Assets/Asset_Masks/" + assetId + "_Mask.png";
-
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0);
-
+            loadPlacementMasksWithAuth("Assets/Asset_Masks/" + assetId + "_Mask.png", localStorage.getItem('accessToken'))
+            .then(texture => {
+                // this.walkMap=texture;
+                // const startpixel={x:40,y:40}
+                // const goalpixel={x:80,y:80}
                 const maskObject = {
-                    "canvas": canvas,
-                    "width": canvas.width,
-                    "height": canvas.height,
+                    "canvas": texture,
+                    "width": texture.width,
+                    "height": texture.height,
                 };
-
                 OBJECTS_MASKS.set(assetId, maskObject);
+                // return maskObject;//OBJECTS_MASKS.get(assetId);
                 resolve(maskObject);
-            };
-
-            img.onerror = (err) => {
+                // this.AstarPathCost(startpixel,goalpixel,startpixel,80,80)
+                // this.PortalConnectivity()
+            })
+            .catch(err => {
+                console.error('Texture load error:', err);
                 reject(new Error("Failed to load mask for assetId: " + assetId));
-            };
+            });
+        
         });
 
     }
@@ -642,6 +705,7 @@ class Tile{
 
         // Load the object mask
         const objectMask = await this.getPlacementMask(assetId);
+        console.log(objectMask, "OBJ MASK NEW SYSTEM")
         const maskCanvas = objectMask.canvas;
         const maskWidth = maskCanvas.width;
         const maskHeight = maskCanvas.height;
@@ -742,6 +806,7 @@ class Tile{
 
         const walkTempCtx = walkTempCanvas.getContext('2d');
         walkTempCtx.drawImage(walkMapCanvas, 0, 0);
+        // walkTempCtx.scale(-1,1)
 
         // const walkMapData = walkTempCtx.getImageData(0, 0, walkMapWidth, walkMapHeight).data;
 
@@ -751,7 +816,8 @@ class Tile{
 
         // Convert world coordinates to pixel coordinates on walkMap
         const imgX = Math.round(walkMapWidth / 2 + worldPos[0] * pixelsPerUnit);
-        const imgY = Math.round(walkMapHeight / 2 + worldPos[2] * pixelsPerUnit);
+        const imgY =   Math.round(walkMapHeight / 2 + worldPos[2] * pixelsPerUnit);
+        console.log(imgX,imgY, "THINK IM CLICKING HERE")
 
         const walkData = walkTempCtx.getImageData(imgX, imgY, 1, 1).data;
         const [r, g, b, a] = walkData;
@@ -771,6 +837,7 @@ class Tile{
 
 
         const HeightMapcanvas = this.heightMapCanvas
+        console.log(HeightMapcanvas, "COME ON BABYYYYYY, HEIGTH CANVASSS");
         const HeightMapWidth = HeightMapcanvas.width;
         const HeightMapHeight = HeightMapcanvas.height;
 
@@ -779,8 +846,8 @@ class Tile{
         HeightMapTempCanvas.height = HeightMapHeight;
         
         // console.log(this.heightmap, "bro this gotta be valid")
-        const ctx = HeightMapTempCanvas.getContext('2d');
-        ctx.drawImage(HeightMapcanvas, 0, 0);
+        const ctx = HeightMapcanvas.getContext('2d');
+        // ctx.drawImage(HeightMapcanvas, 0, 0);
 
         // Scale and position setup
         const worldTileSize = 7.5;//7.5; // world units → corresponds to full width/height of walkMap
@@ -1409,9 +1476,26 @@ window.onresize=function(){//resize the canvas
     requestRenderIfNotRequested();
 }
 
-window.onload=function(){
+window.onload=async function(){
 
     const accessToken = localStorage.getItem('accessToken');
+    async function  startAutoRefresh() {
+        const res = await fetch('/token', { method: 'POST', credentials: 'include' });
+        if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('accessToken', data.accessToken);
+            console.log("Access token refreshed.");
+        }
+        setInterval(async () => {
+            const res = await fetch('/token', { method: 'POST', credentials: 'include' });
+            if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem('accessToken', data.accessToken);
+            console.log("Access token refreshed.");
+            }
+        }, 14 * 60 * 1000); // Every 14 minutes (if access token expires in 15m)
+    }
+    await startAutoRefresh()
 
     fetch('/tiles', {
         method: 'GET',
@@ -1422,14 +1506,9 @@ window.onload=function(){
     .then(res => res.json())
     .then(data => {
         if (data.success) {
-            // console.log('Tiles:', data.tiles);
-            // Call your Three.js scene setup with the tile data here
-            // console.log("PLEASE BE USER DATA",data.user)
-            ThisUser=data.user;
-            console.log("THIS IS THE USER",ThisUser)
             sceneSetup(data.tiles)
-            // console.log(ThisUser._id, "BRUH THIS IS THE USER")
-            socket = io({query: { playerId: ThisUser._id }});  // Pass userId from fetched user info
+
+            socket = io({auth:{token:accessToken}});
             setupSocketConnection();
 
             //to load the current resources values up on the bar since html sets them as N.A, otherwise would only update on hover
@@ -1683,6 +1762,8 @@ window.onload=function(){
         tooltipElem.style.left = `${left}px`;
         tooltipElem.style.top = `${top}px`;
     }
+
+
 }
 
 function setupSocketConnection(){
@@ -1784,418 +1865,6 @@ function setupSocketConnection(){
             document.getElementById("ToolTipMaxPop").innerText=MaxPopulation;
         }catch(e){}
     });
-
-
-    const config = {
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    };
-
-
-    //webRTC socket connects
-
-    const peers = {};  // roomId -> { pc, dc }
-    const pendingCandidates = {}; // e.g., { roomId1: [candidate1, candidate2], roomId2: [...] }
-    const retryCounts = {};       // roomId -> attempt count
-    const MAX_RETRIES = 5;        // ✅ you can tune this
-    const manuallyLeft = {};  // roomId -> boolean
-    const isReconnecting = {};
-    const retryTimeout={};
-
-    socket.on('joined', roomId => {
-        console.log(`Joined room ${roomId}`);
-        // Save to localStorage
-        const saved = JSON.parse(localStorage.getItem('joinedRooms') || '[]');
-        if (!saved.includes(roomId)) {
-            saved.push(roomId);
-            localStorage.setItem('joinedRooms', JSON.stringify(saved));
-        }
-
-    });
-    
-
-
-    socket.on('ready', ({ roomId, initiator }) => {
-        console.log(`I AM THE INITIATOR ${initiator}`)
-        start(roomId, initiator);
-    });
-
-    socket.on('room-full', roomId => {
-        console.warn(`Room ${roomId} is full`);
-    });
-
-
-    socket.on('offer', async ({roomId,offer}) => {
-        // await start(roomId, false);  // isInitiator = false
-        const { pc } = peers[roomId];
-
-        try {
-            
-            try {
-                await pc.setRemoteDescription(new RTCSessionDescription(offer));
-                console.log(`[${roomId}] Remote offer set`);
-            } catch (err) {
-                console.error(`[${roomId}] Failed to set remote offer:`, err);
-                return;
-            }
-            // ✅ Flush buffered ICE candidates now
-            if (pendingCandidates[roomId]) {
-                for (const candidate of pendingCandidates[roomId]) {
-                    try {
-                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                        console.log(`[${roomId}] Flushed buffered ICE candidate`);
-                    } catch (err) {
-                        console.error(`[${roomId}] Error flushing candidate:`, err);
-                    }
-                }
-                delete pendingCandidates[roomId];
-            }
-
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.emit('answer', { roomId, answer });
-
-
-        }catch (err) {
-            // Detect glare errors (OperationError is common, but check your browser's error message)
-            if (err.name === 'OperationError' && err.message && err.message.toLowerCase().includes('glare')) {
-            console.warn(`[${roomId}] Glare detected. Starting recovery.`);
-
-            // Cleanup old peer connection and related data
-            cleanupConnection(roomId);
-
-            // Wait a random delay before retrying to avoid collision
-            const delay = 500 + Math.random() * 1000;
-            setTimeout(() => {
-                console.log(`[${roomId}] Retrying connection after glare.`);
-                // Restart connection as non-initiator to avoid glare loops
-                start(roomId, false);
-            }, delay);
-
-            } else {
-            console.error(`[${roomId}] Failed to set remote offer:`, err);
-            }
-        }
-    });
-
-    socket.on('answer', async ({answer,roomId}) => {
-        const { pc } = peers[roomId];
-        try {
-            await pc.setRemoteDescription(new RTCSessionDescription(answer));
-            console.log(`[${roomId}] Remote answer set`);
-        } catch (err) {
-            if (err.name === 'OperationError' && err.message && err.message.toLowerCase().includes('glare')) {
-                console.warn(`[${roomId}] Glare detected during answer. Starting recovery.`);
-
-                // Cleanup and reconnect as non-initiator
-                cleanupConnection(roomId);
-
-                const delay = 500 + Math.random() * 1000;
-                setTimeout(() => {
-                console.log(`[${roomId}] Retrying connection after glare on answer.`);
-                start(roomId, false);
-                }, delay);
-            } else {
-                console.error(`[${roomId}] Failed to set remote answer:`, err);
-            }
-        }
-    });
-
-    socket.on('ice-candidate', async ({ roomId, candidate }) => {
-        const pc = peers[roomId]?.pc;
-        if (!pc || !candidate) return;
-
-        if (pc.remoteDescription && pc.remoteDescription.type) {
-            try {
-                await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                console.log(`[${roomId}] ICE candidate added immediately`);
-            } catch (err) {
-                console.error(`[${roomId}] Failed to add ICE candidate:`, err);
-            }
-        } else {
-            // Buffer for later
-            if (!pendingCandidates[roomId]) pendingCandidates[roomId] = [];
-            pendingCandidates[roomId].push(candidate);
-            console.log(`[${roomId}] ICE candidate buffered`);
-        }
-
-    });
-
-    function removeRoomFromStorage(roomId) {
-        const saved = JSON.parse(localStorage.getItem('joinedRooms') || '[]');
-        const updated = saved.filter(id => id !== roomId);
-        localStorage.setItem('joinedRooms', JSON.stringify(updated));
-    }
-
-    socket.on('room-closed', (roomId) => {
-        console.log(`[${roomId}] Room closed by server`);
-    
-        cleanupConnection(roomId);
-        removeRoomFromStorage(roomId);
-        // Optionally update UI to reflect the closed room
-    
-        // Also prevent reconnect attempts for this room:
-        manuallyLeft[roomId] = true;
-        retryCounts[roomId] = 0;
-    });
-
-    socket.on('peer-left', (roomId) => {
-        console.log(`[${roomId}] Peer left, cleaning up and stopping reconnect attempts.`);
-        // manuallyLeft[roomId] = true;  // flag to stop reconnects
-        // cleanupConnection(roomId);    // close pc, data channels, timers, etc
-    });
-
-    socket.on('connect', () => {
-        // This runs whenever the socket connects or reconnects
-        console.log('Socket connected, joining rooms...or perhaps reconnecting to room');
-
-        // setTimeout(() => {
-        //     const rooms = JSON.parse(localStorage.getItem('rooms')) || [];
-        //     rooms.forEach(roomId => {
-        //         console.log(`Rejoining room ${roomId}`);
-        //         socket.emit('join', roomId);
-        //     });
-        // }, 500); // 500ms is usually enough
-
-        const rooms = JSON.parse(localStorage.getItem('rooms')) || [];
-        rooms.forEach(roomId => socket.emit('join', roomId));
-    });
-
-    // // Debounce logic in iceconnectionstatechange:
-    const iceDisconnectTimeout=new Set();;
-    // Start connection (caller)  
-    const startedRooms = new Set(); // roomId -> true/false
-    async function start(roomId, isInitiator) {
-
-
-        console.log(`ran start ${isInitiator}`)
-        if (peers[roomId] || startedRooms.has(roomId)){ return};
-        startedRooms.add(roomId);
-
-
-        const pc = new RTCPeerConnection(config);
-        peers[roomId] = { pc }; // Store early
-
-        pc.oniceconnectionstatechange = () => {
-            const state = pc.iceConnectionState;
-            console.log(`[${roomId}] ICE state: ${state}`);
-        
-            if (state === 'failed') {
-                console.log(`[${roomId}] ICE failed detected, reconnecting immediately.`);
-                // reconnectToRoom(roomId);
-                (async () => {
-                    try {
-                        const offer = await pc.createOffer({ iceRestart: true });
-                        await pc.setLocalDescription(offer);
-                        socket.emit('offer', { roomId, offer });
-                        console.log(`[${roomId}] ICE restart offer sent`);
-                    } catch (err) {
-                        console.warn(`[${roomId}] ICE restart failed, falling back to full reconnect`);
-                        reconnectToRoom(roomId);
-                    }
-                })();
-            }else if(state === 'disconnected'){
-                if (iceDisconnectTimeout[roomId]) {
-                    console.log(`[${roomId}] Debounce timer already running, skipping new one.`);
-                    return;
-                }
-
-                // clearTimeout(iceDisconnectTimeout);
-                console.log(`[${roomId}] ICE disconnected detected, starting debounce timer.`);
-                iceDisconnectTimeout[roomId] = setTimeout(() => {
-                    console.log(`[${roomId}] Debounce timeout fired, checking ICE state again.`);
-                    if (pc.iceConnectionState === 'disconnected') {
-                        reconnectToRoom(roomId);
-                    }else {
-                        console.log(`[${roomId}] ICE state changed before debounce finished, no reconnect.`);
-                    }
-                    clearTimeout(iceDisconnectTimeout[roomId]);
-                    delete iceDisconnectTimeout[roomId];
-                }, 5000);
-            }else{
-                if (iceDisconnectTimeout[roomId]) {
-                    clearTimeout(iceDisconnectTimeout[roomId]);
-                    delete iceDisconnectTimeout[roomId];
-                    console.log(`[${roomId}] ICE state changed, cleared debounce timer.`);
-                }
-            }
-        };
-
-        
-
-        pc.onicecandidate = event => {
-            if (event.candidate) {
-                socket.emit('ice-candidate', { roomId, candidate: event.candidate });
-            }
-        };
-
-
-
-        pc.ondatachannel = (event) => {
-            const dc = event.channel;
-            peers[roomId].dc = dc;
-            // sendJson(1)
-            dc.onopen = () => {
-                console.log(`[${roomId}] DataChannel opened (non-initiator)`);
-                // sendJson(roomId)
-            }
-            dc.onmessage = (e) => console.log(`[${roomId}] Received:`, e.data);
-        };
-
-        if (isInitiator) {
-            const dc = pc.createDataChannel("json");
-            peers[roomId].dc = dc;
-
-            dc.onopen = () => {
-                console.log(`[${roomId}] DataChannel opened (is initiator)`)
-                retryCounts[roomId] = 0; // ✅ Reset retries
-                sendJson(roomId)
-            };
-            dc.onmessage = (e) => console.log(`[${roomId}] Received:`, e.data);
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            socket.emit("offer", { roomId, offer });
-        }
-        startedRooms.delete(roomId);
-    }
-
-    function cleanupConnection(roomId) {
-        const conn = peers[roomId];
-        if (!conn) return;
-
-        try {
-            conn.pc?.close();
-            conn.dc?.close?.();
-        }catch (err) {
-            console.warn(`[${roomId}] Cleanup error:`, err);
-        }
-
-        // Clear pending ICE candidates buffer
-        if (pendingCandidates[roomId]) {
-            delete pendingCandidates[roomId];
-        }
-
-        // Clear any ICE disconnect debounce timer
-        if (iceDisconnectTimeout[roomId]) {
-            clearTimeout(iceDisconnectTimeout[roomId]);
-            delete iceDisconnectTimeout[roomId];
-        }
-
-        // Clear any retry timer
-        if (retryTimeout[roomId]) {
-            clearTimeout(retryTimeout[roomId]);
-            delete retryTimeout[roomId];
-        }
-
-
-        // delete peers[roomId];
-        delete startedRooms[roomId];
-        delete peers[roomId];
-    }
-
-    function reconnectToRoom(roomId) {//not sure how to test this...
-        if (manuallyLeft[roomId]) {
-            console.log(`[${roomId}] Not reconnecting: user left manually.`);
-            return;  // Skip reconnecting
-        }
-        if (isReconnecting[roomId]) return; // Avoid concurrent reconnects
-
-
-        retryCounts[roomId] = (retryCounts[roomId] || 0) + 1;
-        if (retryCounts[roomId] > MAX_RETRIES) {
-            console.warn(`[${roomId}] Reconnect aborted: too many attempts`);
-            cleanupConnection(roomId);
-            delete retryCounts[roomId]; // Clean up
-            isReconnecting[roomId] = false;
-            return;
-        }
-        
-        const delay = Math.min(1000 * Math.pow(2, retryCounts[roomId]), 10000); // caps at 10s
-        // const delay = 1000 * retryCounts[roomId]; // Exponential-ish backoff (1s, 2s, 3s...)
-        console.log(`[${roomId}] Retry #${retryCounts[roomId]} in ${delay}ms...`);
-
-        isReconnecting[roomId] = true;
-
-        // Clear previous timer if any
-        if (retryTimeout[roomId]) {
-            clearTimeout(retryTimeout[roomId]);
-        }
-
-        // cleanupConnection(roomId);
-
-        retryTimeout[roomId] = setTimeout(() => {
-            // Clean up before trying to join again
-            cleanupConnection(roomId);
-            console.log("retrying")
-            socket.emit('join', roomId); // Server will reassign initiator
-            isReconnecting[roomId] = false;
-        }, delay);
-    }
-
-    function waitForDataChannelOpen(roomId) {
-        return new Promise((resolve, reject) => {
-            const peer = peers[roomId];
-            if (peer?.dc?.readyState === 'open') {
-                return resolve();  // ✅ Already open — resolve immediately
-            }
-
-            const checkInterval = 100;
-            const maxWait = 5000;
-            let waited = 0;
-
-            const interval = setInterval(() => {
-                const peer = peers[roomId];
-                if (peer && peer.dc && peer.dc.readyState === 'open') {
-                    clearInterval(interval);
-                    resolve();
-                }
-
-                waited += checkInterval;
-                if (waited >= maxWait) {
-                    clearInterval(interval);
-                    reject(new Error(`Timed out waiting for DataChannel in room ${roomId}`));
-                }
-            }, checkInterval);
-        });
-    }
-
-    async function sendJson(roomId) {
-
-        try {
-            await waitForDataChannelOpen(roomId);
-
-            const peer = peers[roomId];
-
-            const jsonData = { 
-                message: 'Hello from peer!', 
-                timestamp: Date.now() 
-            };
-
-            peer.dc.send(JSON.stringify(jsonData));
-            console.log(`Sent to room ${roomId}:`, jsonData);
-        }catch (err) {
-            console.error(`Failed to send to ${roomId}:`, err.message);
-        }
-    }
-
-    window.addEventListener('beforeunload', () => {//if the user closes the browser
-        socket.emit('leave-all');  // Notify server user is leaving all rooms
-    });
-
-    //joins room
-    // var roomId=1;
-    // socket.emit('join', roomId);
-    // roomId=2;
-    // socket.emit('join', roomId);
-
-
-    //set up rooms in storage, if user refreshes they will attempt to connect to these
-    document.addEventListener('DOMContentLoaded', () => {
-        if (!localStorage.getItem('rooms')) {
-            localStorage.setItem('rooms', JSON.stringify(['1', '2']));
-        }
-    });
-
 }
 
 
@@ -2223,12 +1892,17 @@ function onclickBuilding(event){
             //create an asset_dictionary to use as a parameter for the tile.objectLoad(asset_dictionary)
 
             const IntersectPoint=intersects[0].point
-            const instanceMetaData={
-                "position":[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z],
-                "userId":ThisUser._id,
-                "health":100,
-                "state":"Built"
-            }
+            const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
+            foundTile.getPosWithHeight(processedPoint).then(val=>{
+                const instanceMetaData={
+                    "position":val,
+                    "userOwner":localStorage.getItem('accessToken').id,//ThisUser._id,
+                    "health":100,
+                    "state":"Built"
+                }
+                foundTile.checkValidityOfAssetPlacement(BuildingAssetName,instanceMetaData)
+            });
+
 
             // const asset_dictionary={
             //     "userId":ThisUser._id,
@@ -2236,7 +1910,7 @@ function onclickBuilding(event){
             //     "instances":instances,
             // }
 
-            foundTile.checkValidityOfAssetPlacement(BuildingAssetName,instanceMetaData)
+            
             // console.log("BUILDING GRANTED?", canPlace)
             // foundTile.objectLoad(BuildingAssetName,instanceMetaData)
             // if(canPlace){
@@ -2320,7 +1994,7 @@ function IterateOverDeploy(regimenEnvelope,DeployPoint,Obj_Identifier){
             console.log(val, "should be the point.....")
             const instanceMetaData={
                 "position":val,
-                "userId":ThisUser._id,
+                "userId":localStorage.getItem('accessToken').id,//ThisUser._id,
                 "health":100,
                 // "state":"Built"
             }
@@ -2847,7 +2521,7 @@ function ConstructionElements(){
         creatingCCB.appendChild(BuildOptionsBox)
 
         //important to keep up to date with asset names/ will change depending on research level to get the up-to-date assets
-        const optionObjNames=["ArmsFactory","CivilianFactory","Mine","Farm","Storage","House"]
+        const optionObjNames=["ArmsFactory","CivilianFactory","Mine","SawMill","Mill","Storage","House"]
 
         const ColouroptionTags=[
             "url('Icons/arms-factory.png')","url('Icons/civilian-factory.png')",
@@ -2875,7 +2549,7 @@ function ConstructionElements(){
                 optionButton.style.backgroundImage=ColouroptionTags[i];
                 optionButton.style.backgroundColor="gray";//ColouroptionTags[i];
                 
-                optionButton.myParam="Mill";
+                optionButton.myParam=optionObjNames[i];//"Mill";
                 optionButton.addEventListener("click",PlaceBuilding)
             } 
 
