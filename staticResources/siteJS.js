@@ -1,12 +1,11 @@
 import * as THREE from "three";
 import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/loaders/GLTFLoader.js';
-
-// import { mergeGeometries  } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/utils/BufferGeometryUtils.js';
-// import * as BufferGeometryUtils from './node_modules/three/examples/jsm/utils/BufferGeometryUtils.js';
 import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/utils/BufferGeometryUtils.js';
 
-let socket;
+import {getUserTileData,setupSocketConnection} from "./JS_Externals/SceneInitiation.js"
+import {MakeToolTips} from "./JS_Externals/ResourceTips.js"
+
 var controls,renderer,camera,renderRequested;
 const scene = new THREE.Scene();
 
@@ -1477,8 +1476,6 @@ window.onresize=function(){//resize the canvas
 }
 
 window.onload=async function(){
-
-    const accessToken = localStorage.getItem('accessToken');
     async function  startAutoRefresh() {
         const res = await fetch('/token', { method: 'POST', credentials: 'include' });
         if (res.ok) {
@@ -1489,382 +1486,30 @@ window.onload=async function(){
         setInterval(async () => {
             const res = await fetch('/token', { method: 'POST', credentials: 'include' });
             if (res.ok) {
-            const data = await res.json();
-            localStorage.setItem('accessToken', data.accessToken);
-            console.log("Access token refreshed.");
+                const data = await res.json();
+                localStorage.setItem('accessToken', data.accessToken);
+                console.log("Access token refreshed.");
+            }else {
+                console.error("Failed to refresh token", await res.text());
             }
         }, 14 * 60 * 1000); // Every 14 minutes (if access token expires in 15m)
     }
+    //if you refresh it asks to check the accesstoken, restart that timer so the user should be set
     await startAutoRefresh()
 
-    fetch('/tiles', {
-        method: 'GET',
-        headers: {
-        'Authorization': `Bearer ${accessToken}`
-        }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) {
-            sceneSetup(data.tiles)
-
-            socket = io({auth:{token:accessToken}});
-            setupSocketConnection();
-
-            //to load the current resources values up on the bar since html sets them as N.A, otherwise would only update on hover
-            socket.emit('requestWoodUpdate');
-            socket.emit('requestStoneUpdate');
-            socket.emit('requestGoldUpdate');
-            socket.emit('requestManPowerUpdate');
-            socket.emit('requestWarSupportUpdate');
-            socket.emit('requestStabilityUpdate');
-            socket.emit('requestPoliticalPowerUpdate');
-        } else {
-            console.error(data.message);
-        }
-    })
-    .catch(err => console.error('Error fetching tiles:', err));
-
+    //UserTileData is the world information for their account
+    const UserTileData=await getUserTileData(localStorage.getItem('accessToken'));
     
-    // Find all resource blocks
-    const resourceBlocks = document.querySelectorAll('.ResourceBlock');
+    //setupSocketConnection allows for resource value updates & world change updates 
+    setupSocketConnection();
+    
+    //run the function that sets up the three.js scene, traverses the UserTileData and populates the scene with it
+    sceneSetup(UserTileData)
+    
+    //the resource bar needs an overlay with some functionality, calling an emit for whichever resource
+    //  and creating a display box for the user to see details about that resource
+    MakeToolTips()
 
-    resourceBlocks.forEach(block => {
-        const tooltip = document.createElement('div');
-        tooltip.className = 'resource-tooltip';
-        document.body.appendChild(tooltip);
-
-
-        block.addEventListener('mouseenter', (e) => {
-            // tooltip.innerHTML = (block.getAttribute('data-tooltip') || 'Resource info').split('|').join('<br>');
-            // Set the tooltip content — you can customize this per block if you want
-            // tooltip.textContent = block.getAttribute('data-tooltip') || 'Resource info';
-            
-            // Create one tooltip div 
-
-            //request from the server for the resource
-
-
-            switch(block.getAttribute('data-tooltip')){
-                case "Wood":
-                    socket.emit('requestWoodUpdate');
-
-                    if(!tooltip.hasChildNodes()){
-                        const WoodTitle = document.createElement('div');
-                        WoodTitle.innerHTML="Rate:"
-                        tooltip.appendChild(WoodTitle)
-
-                        const WoodRate = document.createElement('div');
-                        WoodRate.id="ToolTipWoodRate"
-                        WoodRate.innerHTML="25/min"
-                        tooltip.appendChild(WoodRate)
-
-                        const WoodSurplus = document.createElement('div');
-                        WoodSurplus.innerHTML="Surplus:"
-                        tooltip.appendChild(WoodSurplus)
-
-                        const WoodSurplusAmount = document.createElement('div');
-                        WoodSurplusAmount.id="ToolTipWoodSurplus"
-                        WoodSurplusAmount.innerHTML="100"
-                        tooltip.appendChild(WoodSurplusAmount)
-                    }
-
-                    break;
-                case "Stone":
-                    socket.emit('requestStoneUpdate');
-                    if(!tooltip.hasChildNodes()){
-                        const StoneTitle = document.createElement('div');
-                        StoneTitle.innerHTML="Rate:"
-                        tooltip.appendChild(StoneTitle)
-
-                        const StoneRate = document.createElement('div');
-                        StoneRate.id="ToolTipStoneRate"
-                        StoneRate.innerHTML="N.A"
-                        tooltip.appendChild(StoneRate)
-
-                        const StoneSurplus = document.createElement('div');
-                        StoneSurplus.innerHTML="Surplus:"
-                        tooltip.appendChild(StoneSurplus)
-
-                        const StoneSurplusAmount = document.createElement('div');
-                        StoneSurplusAmount.id="ToolTipStoneSurplus"
-                        StoneSurplusAmount.innerHTML="100"
-                        tooltip.appendChild(StoneSurplusAmount)
-                    }
-
-                    break;
-                case "Gold":
-                    socket.emit('requestGoldUpdate');
-                    if(!tooltip.hasChildNodes()){
-                        const GoldTitle = document.createElement('div');
-                        GoldTitle.innerHTML="Rate:"
-                        tooltip.appendChild(GoldTitle)
-
-                        const GoldRate = document.createElement('div');
-                        GoldRate.id="ToolTipGoldRate"
-                        GoldRate.innerHTML="25/min"
-                        tooltip.appendChild(GoldRate)
-
-                        const GoldSurplus = document.createElement('div');
-                        GoldSurplus.innerHTML="Surplus:"
-                        tooltip.appendChild(GoldSurplus)
-
-                        const GoldSurplusAmount = document.createElement('div');
-                        GoldSurplusAmount.id="ToolTipGoldSurplus"
-                        GoldSurplusAmount.innerHTML="100"
-                        tooltip.appendChild(GoldSurplusAmount)
-                    }
-
-                    break;
-                case "ManPower":
-                    socket.emit('requestManPowerUpdate');
-                    if(!tooltip.hasChildNodes()){
-                        const TotalManPowerTitle = document.createElement('div');
-                        TotalManPowerTitle.innerHTML="Total ManPower:"
-                        tooltip.appendChild(TotalManPowerTitle)
-
-                        const TotalManPower = document.createElement('div');
-                        TotalManPower.id="ToolTipTotalManPower"
-                        TotalManPower.innerHTML="N.A"
-                        tooltip.appendChild(TotalManPower)
-
-                        const TotalPopTitle = document.createElement('div');
-                        TotalPopTitle.innerHTML="Total Population:"
-                        tooltip.appendChild(TotalPopTitle)
-
-                        const TotalPop = document.createElement('div');
-                        TotalPop.id="ToolTipTotalPop"
-                        TotalPop.innerHTML="N.A"
-                        tooltip.appendChild(TotalPop)
-
-                        const PopGainTitle = document.createElement('div');
-                        PopGainTitle.innerHTML="Population Gain:"
-                        tooltip.appendChild(PopGainTitle)
-
-                        const MonthlyPopGain = document.createElement('div');
-                        MonthlyPopGain.id="ToolTipMonthlyPopGain"
-                        MonthlyPopGain.innerHTML="N.A"
-                        tooltip.appendChild(MonthlyPopGain)
-
-                        const RecruitableFactor = document.createElement('div');
-                        RecruitableFactor.id="ToolTipRecrtuitableFac"
-                        RecruitableFactor.innerHTML="N.A"
-                        tooltip.appendChild(RecruitableFactor)
-
-                        const MaxPopTitle = document.createElement('div');
-                        MaxPopTitle.innerHTML="Population Limit (housing):"
-                        tooltip.appendChild(MaxPopTitle)
-
-                        const MaxPop = document.createElement('div');
-                        MaxPop.id="ToolTipMaxPop"
-                        MaxPop.innerHTML="N.A"
-                        tooltip.appendChild(MaxPop)
-                    }
-                    break;
-                case "WarSupport":
-                    socket.emit('requestWarSupportUpdate');
-                    if(!tooltip.hasChildNodes()){
-                        const WarSupportTitle = document.createElement('div');
-                        WarSupportTitle.innerHTML="War Support:"
-                        tooltip.appendChild(WarSupportTitle)
-
-                        const WarSupport = document.createElement('div');
-                        WarSupport.id="ToolTipWarSupport"
-                        WarSupport.innerHTML="50%"
-                        tooltip.appendChild(WarSupport)
-                    }
-                    break;
-                case "Stability":
-                    socket.emit('requestStabilityUpdate');
-                    if(!tooltip.hasChildNodes()){
-                        const StabilityTitle = document.createElement('div');
-                        StabilityTitle.innerHTML="Stability:"
-                        tooltip.appendChild(StabilityTitle)
-
-                        const Stability = document.createElement('div');
-                        Stability.id="ToolTipStability"
-                        Stability.innerHTML="N.A"
-                        tooltip.appendChild(Stability)
-                    }
-                    break;
-                case "PoliticalPower":
-                    socket.emit('requestPoliticalPowerUpdate');
-                    if(!tooltip.hasChildNodes()){
-                        const PoliticalPowerTitle = document.createElement('div');
-                        PoliticalPowerTitle.innerHTML="Political Power:"
-                        tooltip.appendChild(PoliticalPowerTitle)
-
-                        const PoliticalPower = document.createElement('div');
-                        PoliticalPower.id="ToolTipPPRate"
-                        PoliticalPower.innerHTML="N.A"
-                        tooltip.appendChild(PoliticalPower)
-
-                        const PoliticalPowerRateTitle = document.createElement('div');
-                        PoliticalPowerRateTitle.innerHTML="Rate:"
-                        tooltip.appendChild(PoliticalPowerRateTitle)
-
-                        const PoliticalPowerRate = document.createElement('div');
-                        PoliticalPowerRate.id="ToolTipPPSurplus"
-                        PoliticalPowerRate.innerHTML="N.A"
-                        tooltip.appendChild(PoliticalPowerRate)
-                    }  
-
-                    break;
-                default:
-                    tooltip.innerHTML='Resource info';
-            }
-
-
-
-
-            // Show the tooltip
-            tooltip.style.display = 'block';
-
-            // Position tooltip to the right of the hovered element, offset by 8px
-            positionTooltip(block, tooltip);
-        });
-
-        block.addEventListener('mousemove', (e) => {
-            // Update position if needed (optional)
-            positionTooltip(block, tooltip);
-        });
-
-        block.addEventListener('mouseleave', (e) => {
-            // Hide tooltip on mouse leave
-            tooltip.style.display = 'none';
-        });
-    });
-
-    function positionTooltip(targetElem, tooltipElem) {
-        const rect = targetElem.getBoundingClientRect();
-
-        // Default position: right side, 8px offset, vertically aligned to top of element
-        let left = rect.right - (rect.right - rect.left)/2;//(tooltipElem.offsetWidth / 2) ;
-        let top = rect.top - (rect.top - rect.bottom)/2//(tooltipElem.offsetHeight / 4);
-
-        // Check viewport width to prevent clipping off right edge
-        const tooltipWidth = tooltipElem.offsetWidth;
-        const viewportWidth = window.innerWidth;
-
-        if (left + tooltipWidth > viewportWidth) {
-            // Not enough space on right, position to left instead
-            left = rect.left - (rect.right - rect.left)/2 ;
-        }
-
-        // Check bottom clipping (optional)
-        const tooltipHeight = tooltipElem.offsetHeight;
-        const viewportHeight = window.innerHeight;
-        if (top + tooltipHeight > viewportHeight) {
-            top = viewportHeight - tooltipHeight - 8; // Shift up if clipping bottom
-        }
-
-        // Apply position
-        tooltipElem.style.left = `${left}px`;
-        tooltipElem.style.top = `${top}px`;
-    }
-
-
-}
-
-function setupSocketConnection(){
-    //PoliticalPower
-    socket.on('resourcePoliticalPowerUpdate', (resources) => {
-        
-        const PoliticalPowerRateTT=resources.Rate;
-        const PoliticalPowerSurplusTT=resources.Total;
-        // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
-        document.getElementById("PPRTxt").innerText=PoliticalPowerSurplusTT
-
-        try{
-            document.getElementById("ToolTipPPRate").innerText=PoliticalPowerRateTT;
-            document.getElementById("ToolTipPPSurplus").innerText=PoliticalPowerSurplusTT;    
-        }catch(e){}
-
-        // start(roomId, initiator);
-    });
-    // Gold
-    socket.on('resourceGoldUpdate', (resources) => {
-        
-        const GoldRateTT=resources.Rate;
-        const GoldSurplusTT=resources.Total;
-        // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
-        document.getElementById("GoldRTxt").innerText=GoldSurplusTT
-
-        try{
-            document.getElementById("ToolTipGoldRate").innerText=GoldRateTT;
-            document.getElementById("ToolTipGoldSurplus").innerText=GoldSurplusTT;
-        }catch(e){}
-        // start(roomId, initiator);
-    });
-    //Stone
-    socket.on('resourceStoneUpdate', (resources) => {
-        
-
-        const StoneRateTT=resources.Rate;
-        const StoneSurplusTT=resources.Total;
-        // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
-        document.getElementById("StoneRTxt").innerText=StoneSurplusTT
-
-        try{
-            document.getElementById("ToolTipStoneRate").innerText=StoneRateTT;
-            document.getElementById("ToolTipStoneSurplus").innerText=StoneSurplusTT;
-        }catch(e){}
-            // start(roomId, initiator);
-    });
-    //Wood
-    socket.on('resourceWoodUpdate', (resources) => {
-        
-
-        const WoodRateTT=resources.Rate;
-        const WoodSurplusTT=resources.Total;
-        // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
-        document.getElementById("WoodRTxt").innerText=WoodSurplusTT
-
-        try{
-            document.getElementById("ToolTipWoodRate").innerText=WoodRateTT;
-            document.getElementById("ToolTipWoodSurplus").innerText=WoodSurplusTT;
-        }catch(e){}
-                // start(roomId, initiator);
-    });
-    //Stability
-    socket.on('resourceStabilityUpdate', (resources) => {
-        const StabilityTotalTT=resources.Total;
-        // console.log("I AM THE WOOD REQUESTER RAHH",StabilityTotalTT)
-        document.getElementById("StabilityRTxt").innerText=StabilityTotalTT
-
-        try{
-            document.getElementById("ToolTipStability").innerText=StabilityTotalTT;
-        }catch(e){}
-        // start(roomId, initiator);
-    });
-
-    socket.on('resourceWarSupportUpdate', (resources) => {
-        const WarSupportTotalTT=resources.Total;
-        // console.log("I AM THE WOOD REQUESTER RAHH",StabilityTotalTT)
-        document.getElementById("WarSupportRTxt").innerText=WarSupportTotalTT
-        try{
-            document.getElementById("ToolTipWarSupport").innerText=WarSupportTotalTT;
-        }catch(e){}// start(roomId, initiator);
-    });
-
-    socket.on('resourceManPowerUpdate', (resources) => {
-        const TotalManpower=resources.TotalManPower;
-        const TotalPopulation=resources.TotalPopulation;
-        const PopulationRate=resources.TotalPopulation;
-        const RecruitableFactor=resources.TotalPopulation;
-        const MaxPopulation=resources.TotalPopulation;
-
-        // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
-        document.getElementById("ManPowerRTxt").innerText=TotalManpower
-        
-        try{
-            document.getElementById("ToolTipTotalManPower").innerText=TotalManpower;
-            document.getElementById("ToolTipTotalPop").innerText=TotalPopulation;
-            document.getElementById("ToolTipMonthlyPopGain").innerText=PopulationRate;
-            document.getElementById("ToolTipRecrtuitableFac").innerText="Recruitable: "+RecruitableFactor+"%";
-            document.getElementById("ToolTipMaxPop").innerText=MaxPopulation;
-        }catch(e){}
-    });
 }
 
 

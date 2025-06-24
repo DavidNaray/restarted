@@ -41,6 +41,7 @@ server.listen(PORT,()=>{
 })
 
 app.use(express.static("./staticResources"))
+app.use(express.static("./staticResources/JS_Externals"))
 app.use(cookieParser());
 app.use(express.json()); // <-- This must come BEFORE your POST route handlers
 
