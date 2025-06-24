@@ -47,19 +47,19 @@ let state = {
   stepsTaken: 0,
   stepLength: 1,
   turnCount: 0,
+  firstCall: true,
 };
 
-// // Generate next 10 spiral positions
-// for (let i = 0; i < 10; i++) {
-//   const result = nextSpiralPos(state);
-//   console.log(result.pos);
-//   state = result.state;  // Update state for next call
-// }
 
 function GiveMeNextCoordAndSetState(){
+    if (state.firstCall) {
+        state.firstCall = false;
+        return state.pos;  // return (0,0) first without advancing
+    }
+
     const result = nextSpiralPos(state);
     state = result.state;
-    return result.pos
+    return result.pos;  // return the newly advanced position
 }
 
 module.exports={GiveMeNextCoordAndSetState}

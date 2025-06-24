@@ -25,9 +25,6 @@ const User = mongoose.model('User', userSchemaImport)
 const TemplateScheme = mongoose.model('Templates', TemplateSchemaImport)
 const TileScheme = mongoose.model('Tiles', TileSchemaImport)
 
-
-// genTerrain.generateHeightmap()//function that creates terrain
-
 const PORT= 5000
 const app=express()//creates server
 const server = http.createServer(app);
@@ -85,10 +82,17 @@ app.post('/Register-user', async (req, res) => {
 
     // === Create Tile ===
 
-    console.log(Coordfinder.GiveMeNextCoordAndSetState(), "COORDS BABAY")
+    // console.log(Coordfinder.GiveMeNextCoordAndSetState(), "COORDS BABAY")
     const defaultHeightmapURL = './Tiles/HeightMaps/00.png';
     const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
     const defaultWalkmapURL = './Tiles/WalkMaps/00.png';
+
+    //run the terrain generation function with the coords
+    const pos=Coordfinder.GiveMeNextCoordAndSetState()
+    const chunkX=pos[0];
+    const chunkY=pos[1];
+    // console.log(chunkX,chunkY, "HOPEFULLY STILL CHANGES")
+    genTerrain.generateHeightmap(chunkX,chunkY)//function that creates terrain
 
     const B_TownHall={
         "userId":user._id,
@@ -102,15 +106,15 @@ app.post('/Register-user', async (req, res) => {
         }]
     }
     const tile = new TileScheme({
-        x:0,
-        y:0,
+        x:chunkX,
+        y:chunkY,
         owner: user._id,
         allies: [],
         involvedUsers: [],
         textures:{
-            heightmapUrl: defaultHeightmapURL,
-            texturemapUrl: defaultTexturemapURL,
-            WalkMapURL: defaultWalkmapURL,
+            heightmapUrl: './Tiles/HeightMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultHeightmapURL,
+            texturemapUrl: './Tiles/TextureMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultTexturemapURL,
+            WalkMapURL: './Tiles/WalkMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultWalkmapURL,
         },
         units: [],
         buildings: [B_TownHall]
