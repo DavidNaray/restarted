@@ -5,6 +5,8 @@ import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/exam
 
 import {getUserTileData,setupSocketConnection} from "./JS_Externals/SceneInitiation.js"
 import {MakeToolTips} from "./JS_Externals/ResourceTips.js"
+import {addEventListenersToButtons} from "./JS_Externals/DropDownUI.js"
+import {updateGridColumns} from "./JS_Externals/Utils.js"
 
 var controls,renderer,camera,renderRequested;
 const scene = new THREE.Scene();
@@ -1368,7 +1370,6 @@ class GlobalInstanceManager {
 const globalmanager=new GlobalInstanceManager();
 
 function sceneSetup(tiles){
-    // console.log("YOOO",tiles)
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false,powerPreference: "high-performance" });
@@ -1377,8 +1378,7 @@ function sceneSetup(tiles){
     renderer.setPixelRatio(window.devicePixelRatio * 0.75); // Half the normal pixel ratio
 
     document.getElementById("ThreeBlock").appendChild(renderer.domElement)
-    // insertBefore(renderer.domElement, document.getElementById("ThreeBlock").firstChild)
-    // document.getElementById("container").insertBefore(renderer.domElement, document.getElementById("container").firstChild)
+
     
     camera = new THREE.PerspectiveCamera( 75, renderer.domElement.width / renderer.domElement.height, 0.1, 10000 );//window.innerWidth / window.innerHeight
     camera.position.z = 5;
@@ -1430,13 +1430,13 @@ function sceneSetup(tiles){
     })
 
 
-    tileyay.addcubeInstance(1);
-    tileyay.addcubeInstance(2);
-    tileyay.addcubeInstance(3);
-    tileyay.addcubeInstance(4);
-    console.log("DIVISION, NOW IN REMOVAL process")
-    tileyay.removecubeInstance(0);
-    tileyay.removecubeInstance(1);
+    // tileyay.addcubeInstance(1);
+    // tileyay.addcubeInstance(2);
+    // tileyay.addcubeInstance(3);
+    // tileyay.addcubeInstance(4);
+    // console.log("DIVISION, NOW IN REMOVAL process")
+    // tileyay.removecubeInstance(0);
+    // tileyay.removecubeInstance(1);
 
     // tileyay.addcubeInstance(0);
     // window.addEventListener( 'pointermove', onPointerMove );
@@ -1456,17 +1456,18 @@ function requestRenderIfNotRequested() {
   }
 }
 
-function updateGridColumns() {
-    try{
-        // console.log("RAHHHHHHHHHHHHHHHHHHHHHHHHHH")
-        const IndiOrTemplateButtons=document.getElementById("IndiOrTemplateButtons");
-        if (window.innerWidth < 800) {
-            IndiOrTemplateButtons.style.gridTemplateColumns = "auto auto 0";
-        } else {
-            IndiOrTemplateButtons.style.gridTemplateColumns = "auto auto 30%";
-        }
-    }catch(m){}
-}
+// function updateGridColumns() {
+//     try{
+//         // console.log("RAHHHHHHHHHHHHHHHHHHHHHHHHHH")
+//         const IndiOrTemplateButtons=document.getElementById("IndiOrTemplateButtons");
+//         if (window.innerWidth < 800) {
+//             IndiOrTemplateButtons.style.gridTemplateColumns = "auto auto 0";
+//         } else {
+//             IndiOrTemplateButtons.style.gridTemplateColumns = "auto auto 30%";
+//         }
+//     }catch(m){}
+// }
+
 window.onresize=function(){//resize the canvas
     renderer.setSize( window.innerWidth, window.innerHeight );
     camera.aspect = renderer.domElement.width/renderer.domElement.height;
@@ -1513,6 +1514,8 @@ window.onload=async function(){
 }
 
 
+
+
 function onPointerMove(event) {
     pointer .x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer .y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -1547,22 +1550,6 @@ function onclickBuilding(event){
                 }
                 foundTile.checkValidityOfAssetPlacement(BuildingAssetName,instanceMetaData)
             });
-
-
-            // const asset_dictionary={
-            //     "userId":ThisUser._id,
-            //     "assetId":BuildingAssetName,
-            //     "instances":instances,
-            // }
-
-            
-            // console.log("BUILDING GRANTED?", canPlace)
-            // foundTile.objectLoad(BuildingAssetName,instanceMetaData)
-            // if(canPlace){
-            //     foundTile.objectLoad(BuildingAssetName,instanceMetaData)
-            // }else{
-            //     console.log("CANNOT PLACE DOOFUS")
-            // }
         }
     }
 
@@ -2249,72 +2236,7 @@ function ConstructionElements(){
 }
 
 
-function buttonpressed(event){
-    // console.log("parameter of pressed button:", event.currentTarget.myParam)
-    const dropdownElement=document.getElementById("Button_Dropdown")
-    if(dropdownElement.style.display=="none"){
-        dropdownElement.style.display="flex";
-        dropdownElement.style.visibility="visible"
-    }//if they want to close the dropdownElement there will be an X button in the element to do so
-
-    //if any, make the children of dropdownElement invisible
-    const contentBox=document.getElementById("Dropdown_Content_Box");
-    for (const childDiv of contentBox.children){
-        // console.log(childDiv, "THESE ARE THE CHILDREN OF THE DROPDOWN MAN")
-        childDiv.style.display="none"
-    }
-
-    let Title;
-    switch(event.currentTarget.myParam){
-        case "btn_Decisions":
-            Title="Events & Decisions"
-            break;
-        case "btn_Research":
-            Title="Research"
-            break;
-        case "btn_Finance":
-            Title="Trade & Cooperation"
-            break;
-        case "btn_Construction":
-            Title="Construction"
-            ConstructionElements()
-            break;
-        case "btn_Production":
-            Title="Production"
-            break;
-        case "btn_Train":
-            Title="Military Training"
-            MilTrainingElements()
-            break;
-        case "btn_Security":
-            Title="Security"
-            break;
-        default:
-            console.log("something has gone wrong with button press")
-
-    }
-    console.log(Title, "bruh")
-    document.getElementById("Title").innerHTML=Title
-
-}
-const addEventsToButtons=   ["btn_Decisions","btn_Research","btn_Finance",
-                            "btn_Construction","btn_Production","btn_Train",
-"btn_Security"]
-addEventsToButtons.forEach(function (item, index) {
-//   console.log(item, index);
-    const target= document.getElementById(item)
-    target.addEventListener("click", buttonpressed)
-    target.myParam=item
-
-});
-
-function closeDropdown(){
-    const dropdownElement=document.getElementById("Button_Dropdown")
-    dropdownElement.style.display="none";
-    dropdownElement.style.visibility="hidden"
-}
-
-document.getElementById("close_Dropdown").addEventListener("click",closeDropdown)
+addEventListenersToButtons();
 
 
 

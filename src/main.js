@@ -6,6 +6,8 @@ const { Server } = require('socket.io');
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
 
+
+const Coordfinder=require("./modules/NextChunkCoord")
 const genTerrain=require("./modules/TerrainGeneration")
 const userSchemaImport=require("./Schemas/User")
 const TileSchemaImport=require("./Schemas/Tile")
@@ -15,6 +17,7 @@ const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport
 
 
 const mongoose = require('mongoose');
+const { Console } = require('console');
 const mongoDB="mongodb://localhost:27017/firstEver"
 mongoose.connect(mongoDB).then(()=>{console.log("successfully connected to mongoDB")})
 
@@ -81,6 +84,8 @@ app.post('/Register-user', async (req, res) => {
     await user.save();
 
     // === Create Tile ===
+
+    console.log(Coordfinder.GiveMeNextCoordAndSetState(), "COORDS BABAY")
     const defaultHeightmapURL = './Tiles/HeightMaps/00.png';
     const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
     const defaultWalkmapURL = './Tiles/WalkMaps/00.png';
