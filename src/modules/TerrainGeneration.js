@@ -2,26 +2,6 @@ const { PNG } = require('pngjs');
 const fs = require('fs');
 const seedrandom = require('seedrandom');
 
-
-class TileData {
-    constructor(chunkX, chunkY, width, height,openEdges) {
-      this.chunkOrigin=[chunkX,chunkY];
-      this.resolution=[width,height];
-      this.openEdges=openEdges;
-      this.riverPath = [];
-      this.crossingPoints = [];
-      this.nonCrossingPoints = [];
-    }
-
-    setRiverPath(path) {
-        this.riverPath = path;
-        this.crossingPoints = path.filter(p => p.crossable);
-        this.nonCrossingPoints = path.filter(p => !p.crossable);
-    }
-}
-
-
-
 const seed='TERRAIN_SEED'
 const rng = seedrandom(seed);
 const width = 512;
@@ -173,50 +153,35 @@ function riverMask(x, y, riverPath, radius = 60) {
     return { strength: 0, crossable: false };
 }
 
+function fBm(x, y, octaves = 5, lacunarity = 2.0, gain = 0.5) {
+    let total = 0;
+    let amplitude = 1;
+    let frequency = 1;
+    let max = 0; // for normalization
+
+    for (let i = 0; i < octaves; i++) {
+        total += noise2D(x * frequency, y * frequency) * amplitude;
+        max += amplitude;
+        amplitude *= gain;
+        frequency *= lacunarity;
+    }
+
+    return (total/max+1)/2;
+
+}
+
 async function generateHeightmap(chunkX=0,chunkY=0) {
     console.log("woah hey !",chunkX,chunkY)
 
     const png = new PNG({ width, height });
     const colourMap = new PNG({ width, height });
     const walkmap = new PNG({ width:walkWidth, height:walkHeight });
-    // const openEdges = chooseOpenEdges(chunkX,chunkY);
     const openEdges = chooseOpenEdges(chunkX,chunkY);
-    console.log(`Open edges for chunk are`, openEdges)
-    const tileData = new TileData(chunkX, chunkY, width, height,openEdges);
+    // console.log(`Open edges for chunk are`, openEdges)
 
-
-    // const { start, end } = pickRiverEndpoints(openEdges, width, height,20, 100);
-    // const { start, end } = pickRiverEndpoints(chunkX,chunkY,openEdges, width, height,20, 100);
     const endpoints=pickRiverEndpoints(chunkX,chunkY,openEdges, width, height,20);
-    console.log(endpoints, "THESE ARE THE ENDPOINTS")
-    // console.log(`Open edges for chunk are`, openEdges);
-
-
-
-
-
 
     const riverPath = generateRiverPath(endpoints)//start, end);
-    console.log(riverPath, "THIS IS THE RIVER PATH G")
-    tileData.setRiverPath(riverPath);
-
-    function fBm(x, y, octaves = 5, lacunarity = 2.0, gain = 0.5) {
-        let total = 0;
-        let amplitude = 1;
-        let frequency = 1;
-        let max = 0; // for normalization
-    
-        for (let i = 0; i < octaves; i++) {
-            total += noise2D(x * frequency, y * frequency) * amplitude;
-            max += amplitude;
-            amplitude *= gain;
-            frequency *= lacunarity;
-        }
-    
-        return (total/max+1)/2;
-
-    }
-
 
 
     // ✅ CHUNK-AWARE GET HEIGHT FUNCTION

@@ -1,6 +1,0 @@
-const supervalue=15
-
-function xd(){
-    console.log(supervalue)
-}
-module.exports={xd}
