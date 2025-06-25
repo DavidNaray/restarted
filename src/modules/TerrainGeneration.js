@@ -21,124 +21,183 @@ class TileData {
 }
 
 
-async function generateHeightmap(chunkX=0,chunkY=0) {
-    const { createNoise2D } = await import('simplex-noise');
-    
-    const rng = seedrandom('TERRAIN_SEED');
-    const noise2D = createNoise2D(rng);
 
-    const width = 512;
-    const height = 512;
-    const scale=5;
-    const png = new PNG({ width, height });
-    const colourMap = new PNG({ width, height });
+const seed='TERRAIN_SEED'
+const rng = seedrandom(seed);
+const width = 512;
+const height = 512;
+const scale=5;
+const walkWidth=width*3;
+const walkHeight=height*3;
 
-    const walkWidth=width*3;
-    const walkHeight=height*3;
-    const walkmap = new PNG({ width:walkWidth, height:walkHeight });
-    const openEdges = chooseOpenEdges();
+const { createNoise2D } = require('simplex-noise')//await import('simplex-noise');
+const noise2D = createNoise2D(rng);
 
-    const tileData = new TileData(chunkX, chunkY, width, height,openEdges);
 
-    // Choose 2 open edges randomly
-    function chooseOpenEdges() {
-        const edges = ['top', 'right', 'bottom', 'left'];
-        return edges.sort(() => Math.random() - 0.5).slice(0, 2);
+// Get open edges for a given tile
+function chooseOpenEdges(tileX, tileY) {
+  const openEdges = [];
+
+  const edgeSamples = {
+    top:    [tileX,     tileY - 0.5],
+    right:  [tileX + 0.5, tileY],
+    bottom: [tileX,     tileY + 0.5],
+    left:   [tileX - 0.5, tileY]
+  };
+
+  for (const edge of ["top", "right", "bottom", "left"]) {
+    const [nx, ny] = edgeSamples[edge];
+    const frequency=0.3;
+    const val = noise2D(nx*frequency, ny*frequency);
+    if (val > 0.3) {
+      openEdges.push(edge);
     }
+  }
 
-    // Pick start/end points for river
-    function pickRiverEndpoints(openEdges, width, height,margin = 20, minDistance = 100) {
-        // margin = how far from edge corners start/end can be placed
-        // minDistance = minimum pixel distance between start and end
-
-        function randomEdgePoint(edge) {
-            if (edge === 'top') return [Math.floor(margin + Math.random() * (width - 2 * margin)), 0];
-            if (edge === 'bottom') return [Math.floor(margin + Math.random() * (width - 2 * margin)), height - 1];
-            if (edge === 'left') return [0, Math.floor(margin + Math.random() * (height - 2 * margin))];
-            if (edge === 'right') return [width - 1, Math.floor(margin + Math.random() * (height - 2 * margin))];
+  return openEdges;
+}
 
 
-            // if (edge === 'top') return [Math.floor(Math.random() * width), 0];
-            // if (edge === 'bottom') return [Math.floor(Math.random() * width), height - 1];
-            // if (edge === 'left') return [0, Math.floor(Math.random() * height)];
-            // if (edge === 'right') return [width - 1, Math.floor(Math.random() * height)];
-        }
+function pickRiverEndpoints(tileX, tileY, openEdges, width, height, margin = 20) {
 
+    const edgeSamples = {
+        top:    [tileX,     tileY - 0.5],
+        right:  [tileX + 0.5, tileY],
+        bottom: [tileX,     tileY + 0.5],
+        left:   [tileX - 0.5, tileY]
+    };
+    const endpoints = [];
 
-        let start, end;
-        let dist = 0;
-        let tries = 0;
-        do {
-          start = randomEdgePoint(openEdges[0]);
-          end = randomEdgePoint(openEdges[1]);
-          const dx = end[0] - start[0];
-          const dy = end[1] - start[1];
-          dist = Math.sqrt(dx * dx + dy * dy);
-          tries++;
-          if (tries > 100) {
-            // fallback if can't find good points after 100 tries
-            break;
-          }
-        } while (dist < minDistance);
+    function randomEdgePoint(edge) {
+        const [nx, ny] = edgeSamples[edge];
+        const t = (noise2D(nx, ny)+1)/2; // [0,1] deterministically
 
-        // return {
-        //     start: randomEdgePoint(edgeA),
-        //     end: randomEdgePoint(edgeB)
-        // };
-        return { start, end };
+        if (edge === 'top')    return [Math.floor(margin + t * (width - 2 * margin)), 0];
+        if (edge === 'bottom') return [Math.floor(margin + t * (width - 2 * margin)), height - 1];
+        if (edge === 'left')   return [0, Math.floor(margin + t * (height - 2 * margin))];
+        if (edge === 'right')  return [width - 1, Math.floor(margin + t * (height - 2 * margin))];
     }
-
-    const { start, end } = pickRiverEndpoints(openEdges, width, height,20, 100);
-    console.log(`Open edges for chunk are`, openEdges);
-
-
-    // Utility
-    function clamp(val) {
-        return Math.max(0, Math.min(1, val));
+    
+    
+    for (const edge of openEdges) {
+        const point=randomEdgePoint(edge)
+        endpoints.push(point)
     }
+    return endpoints
+}
+// 👇 River path with shallow crossing points
+function generateRiverPath(endpoints) {//start,end
+    const steps = 256 
+    const crossableFreq = 0.01
+    const clusterRadius = 10
+    const warpScale = 0.01;// Lower frequency → broader curves
+    const warpStrength = 5;// Lower strength → gentler deviation
+    const noiseWarp = noise2D;//createNoise2D(rng); // same seed
 
-    // 👇 River path with shallow crossing points
-    function generateRiverPath(start, end, steps = 256, crossableFreq = 0.01, clusterRadius = 10) {
-        const path = [];
+    const allPaths = [];
+    
+    if( endpoints.length==1){
+        return [{ x: endpoints[0][0], y: endpoints[0][1], crossable: false }];
+    }else{
 
-        // Perlin warping
-        const warpScale = 0.01;// Lower frequency → broader curves
-        const warpStrength = 5;// Lower strength → gentler deviation
-        const noiseWarp = createNoise2D(rng); // same seed
-    
-        // Step 1: Generate curved path (without assigning crossable yet)
-        for (let i = 0; i <= steps; i++) {
-            const t = i / steps;
-            let x = start[0] + t * (end[0] - start[0]);
-            let y = start[1] + t * (end[1] - start[1]);
-    
-            const warpX = noiseWarp(x * warpScale, y * warpScale);
-            const warpY = noiseWarp((x + 999) * warpScale, (y + 999) * warpScale);
-    
-            x += warpX * warpStrength;
-            y += warpY * warpStrength;
-    
-            path.push({ x: Math.floor(x), y: Math.floor(y), crossable: false });
-        }
-    
-        // Step 2: Randomly pick some points as cluster centers
-        const clusterCenters = path.filter(() => Math.random() < crossableFreq);
-    
-        // Step 3: Mark nearby points in path as crossable
-        for (const point of path) {
-            for (const center of clusterCenters) {
-                const dx = point.x - center.x;
-                const dy = point.y - center.y;
-                if (Math.sqrt(dx * dx + dy * dy) < clusterRadius) {
-                    point.crossable = true;
-                    break;
+        // For every unique pair (combinations, not permutations)
+        for (let i = 0; i < endpoints.length; i++) {
+            const start = endpoints[i];
+            // const end = endpoints[j];
+            const end = endpoints[(i + 1) % endpoints.length]; // wrap around to index 0
+
+
+            const path = [];
+
+            // Step 1: Generate curved path (without assigning crossable yet)
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                let x = start[0] + t * (end[0] - start[0]);
+                let y = start[1] + t * (end[1] - start[1]);
+
+                const warpX = noiseWarp(x * warpScale, y * warpScale);
+                const warpY = noiseWarp((x + 999) * warpScale, (y + 999) * warpScale);
+
+                x += warpX * warpStrength;
+                y += warpY * warpStrength;
+
+                path.push({ x: Math.floor(x), y: Math.floor(y), crossable: false });
+            }
+
+
+            // Step 2: Randomly pick some points as cluster centers
+            const clusterCenters = path.filter(() => Math.random() < crossableFreq);
+            
+            // Step 3: Mark nearby points in path as crossable
+            for (const point of path) {
+                for (const center of clusterCenters) {
+                    const dx = point.x - center.x;
+                    const dy = point.y - center.y;
+                    if (Math.sqrt(dx * dx + dy * dy) < clusterRadius) {
+                        point.crossable = true;
+                        break;
+                    }
                 }
             }
+            allPaths.push(path);
         }
-        return path;
     }
 
-    const riverPath = generateRiverPath(start, end);
+
+    return allPaths.flat();
+    // return path;
+}
+
+// Utility
+function clamp(val) {
+    return Math.max(0, Math.min(1, val));
+}
+
+// 👇 Return river strength & crossable status
+function riverMask(x, y, riverPath, radius = 60) {
+    let closest = null;
+    let minDist = Infinity;
+    for (const point of riverPath) {
+        const dx = x - point.x;
+        const dy = y - point.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < minDist && dist < radius) {
+            minDist = dist;
+            closest = point;
+        }
+    }
+    if (closest) {
+        const strength = 1.0 - (minDist / radius);
+        return { strength, crossable: closest.crossable };
+    }
+    return { strength: 0, crossable: false };
+}
+
+async function generateHeightmap(chunkX=0,chunkY=0) {
+    console.log("woah hey !",chunkX,chunkY)
+
+    const png = new PNG({ width, height });
+    const colourMap = new PNG({ width, height });
+    const walkmap = new PNG({ width:walkWidth, height:walkHeight });
+    // const openEdges = chooseOpenEdges(chunkX,chunkY);
+    const openEdges = chooseOpenEdges(chunkX,chunkY);
+    console.log(`Open edges for chunk are`, openEdges)
+    const tileData = new TileData(chunkX, chunkY, width, height,openEdges);
+
+
+    // const { start, end } = pickRiverEndpoints(openEdges, width, height,20, 100);
+    // const { start, end } = pickRiverEndpoints(chunkX,chunkY,openEdges, width, height,20, 100);
+    const endpoints=pickRiverEndpoints(chunkX,chunkY,openEdges, width, height,20);
+    console.log(endpoints, "THESE ARE THE ENDPOINTS")
+    // console.log(`Open edges for chunk are`, openEdges);
+
+
+
+
+
+
+    const riverPath = generateRiverPath(endpoints)//start, end);
+    console.log(riverPath, "THIS IS THE RIVER PATH G")
     tileData.setRiverPath(riverPath);
 
     function fBm(x, y, octaves = 5, lacunarity = 2.0, gain = 0.5) {
@@ -156,26 +215,6 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
     
         return (total/max+1)/2;
 
-    }
-
-    // 👇 Return river strength & crossable status
-    function riverMask(x, y, riverPath, radius = 60) {
-        let closest = null;
-        let minDist = Infinity;
-        for (const point of riverPath) {
-            const dx = x - point.x;
-            const dy = y - point.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < minDist && dist < radius) {
-                minDist = dist;
-                closest = point;
-            }
-        }
-        if (closest) {
-            const strength = 1.0 - (minDist / radius);
-            return { strength, crossable: closest.crossable };
-        }
-        return { strength: 0, crossable: false };
     }
 
 
