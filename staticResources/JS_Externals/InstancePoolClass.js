@@ -75,7 +75,7 @@ export class TileInstancePool {
 
 
     createInstanceObjectOfCount(objectType,count,oldMesh = null){
-        const objectTypeMesh=OBJECTS.get(objectType);
+        const objectTypeMesh=OBJECTS.get(objectType).Mesh;
         const geometry = objectTypeMesh.geometry;//refers to the geometry
         const material = objectTypeMesh.material;
         const mesh = new THREE.InstancedMesh( geometry, material, count );

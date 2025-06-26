@@ -1,7 +1,7 @@
 import {renderer} from "../siteJS.js"
 import {onPointerMove} from "./RaycasterHandling.js"
 import {onclickBuilding,adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
-
+import {globalmanager} from "./GlobalInstanceMngr.js"
 
 let socket;
 export async function getUserTileData(accessToken){
@@ -133,7 +133,14 @@ function HandleSocketResponses(socket){
         renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
         renderer.domElement.removeEventListener( 'click', onclickBuilding );
         if(response.permission){
-            console.log("permission to place building: accepted")
+            console.log("permission to place building: accepted",response)
+            const whichTile=globalmanager.getTile(response.tile[0],response.tile[1])
+            console.log(whichTile)
+            const metaData={
+                "position":response.position,
+                "health":response.health
+            }
+            whichTile.objectLoad(response.AssetName,metaData,response.AssetClass)
         }else{
             console.log("permission to place building: denied")
         }

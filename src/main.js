@@ -410,7 +410,10 @@ io.on('connection', (socket) => {
             "position":position,//RequestMetaData.position,
             "rotation":RequestMetaData.rotation,
             // "building":true,
-            "health":100
+            "health":100,
+            "tile":[tileX,tileY],
+            "AssetName":BuildingAssetName,
+            "AssetClass":"Building"
         }
 
         socket.emit('CanYouPlaceBuilding', responseObject);

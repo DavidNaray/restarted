@@ -1,7 +1,5 @@
 import * as THREE from "three";
 import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/controls/OrbitControls.js';
-import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/loaders/GLTFLoader.js';
-import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/utils/BufferGeometryUtils.js';
 
 import {getUserTileData,setupSocketConnection} from "./JS_Externals/SceneInitiation.js"
 import {MakeToolTips} from "./JS_Externals/ResourceTips.js"

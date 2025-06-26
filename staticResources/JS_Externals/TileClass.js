@@ -220,11 +220,9 @@ export class Tile{
     //this means that objectLoad should always be called, not addToScene, that is a utlity function of objectLoad
 
     async addToScene(Obj_Identifier,MetaData){
-        
-
 
         const xyz=MetaData.position
-        console.log("FIRING FIRING",xyz)
+        // console.log("FIRING FIRING",xyz)
         const transform = new THREE.Matrix4();
         const position = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
         const quaternion = new THREE.Quaternion();  // No rotation
@@ -234,9 +232,10 @@ export class Tile{
         this.instancePooling.GeneralAddInstance(Obj_Identifier,transform,MetaData);//.metaData
     }
 
-    async objectLoad(assetId,MetaData){
-        // const OBJ_Name=OBJ_ENTRY.assetId
-        // console.log("OBJ ENTRY !!!!!!!!!!!!!",OBJ_Name)
+    async objectLoad(assetId,MetaData,AssetClass){
+
+        //AssetClass is if the asset being loaded should be considered a building or unit etc
+
         const has=OBJECTS.has(assetId)
 
         if(!has){
@@ -288,7 +287,7 @@ export class Tile{
                             const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
                             mergedMesh.scale.set(2,2, 2);
                             mergedMesh.updateMatrix();
-                            OBJECTS.set(assetId, mergedMesh);
+                            OBJECTS.set(assetId, {"AssetClass":AssetClass, "Mesh":mergedMesh});
 
                             // OBJ_ENTRY.instances.forEach(inst => {
                             //     this.addToScene(OBJ_Name, inst);
