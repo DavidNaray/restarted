@@ -1,5 +1,73 @@
 import {updateGridColumns} from "./Utils.js"
+import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
+import {globalmanager} from "./GlobalInstanceMngr.js"
+import {renderer} from "../siteJS.js"
+import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest} from "./SceneInitiation.js"
 
+
+
+var BuildingAssetName;//variable to hold which building is trying to be placed right now
+
+function onclickBuilding(event){
+    // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+    const intersects = intersectsTileMeshes()
+
+    if (intersects.length > 0) {
+        const intersectedMesh = intersects[0].object;
+        const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
+
+        if (foundTile) {
+            console.log("Clicked tile:", foundTile.x, foundTile.y);
+
+            //found the tile, add the building
+            //create an asset_dictionary to use as a parameter for the tile.objectLoad(asset_dictionary)
+
+            const IntersectPoint=intersects[0].point
+            const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
+            // foundTile.getPosWithHeight(processedPoint).then(val=>{
+            //     const instanceMetaData={
+            //         "position":val,
+            //         "userOwner":localStorage.getItem('accessToken').id,//ThisUser._id,
+            //         "health":100,
+            //         "state":"Built"
+            //     }
+            //     foundTile.checkValidityOfAssetPlacement(BuildingAssetName,instanceMetaData)
+            // });
+            const RequestMetaData={
+                "tile":[foundTile.x, foundTile.y],
+                "position":processedPoint,
+                "rotation":0,
+                "userOwner":localStorage.getItem('accessToken').id,
+            }
+            //permission is false, or it will be an adjusted position
+            EmitBuildingPlacementRequest(BuildingAssetName,RequestMetaData);
+
+            // console.log("aight, we got the press",processedPoint)
+        }
+    }
+
+    //this code needs to be moved the response of EmitBuildingPlacementRequest
+    //the user clicked, the building has been placed, remove eventListeners
+    renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+    renderer.domElement.removeEventListener( 'click', onclickBuilding );
+}
+
+function onHoverBuilding(event){
+    onPointerMove(event)
+
+    //would be moving the asset of BuildingAssetName
+}
+
+function PlaceBuilding(event){
+
+    //on renderer.domElement so that placement doesnt follow when users mouse is over the overlay
+    renderer.domElement.addEventListener( 'pointermove', onHoverBuilding );
+    renderer.domElement.addEventListener( 'click', onclickBuilding );
+
+    BuildingAssetName=event.currentTarget.myParam
+
+}
 
 function MilTrainingElements(){
     const contentBox=document.getElementById("Dropdown_Content_Box");
@@ -271,7 +339,7 @@ function ConstructionElements(){
                 
                 
                 
-                // optionButton.addEventListener("click",PlaceBuilding)
+                optionButton.addEventListener("click",PlaceBuilding)
             } 
 
 

@@ -122,6 +122,12 @@ function HandleSocketResponses(socket){
             document.getElementById("ToolTipMaxPop").innerText=MaxPopulation;
         }catch(e){}
     });
+
+    socket.on('CanYouPlaceBuilding', (response) => {
+        console.log("YIPEEEEEEE",response)
+    });
+
+
 }
 
 function HandleInitialEmits(socket){
@@ -141,6 +147,18 @@ export function EmitManPowerUpdate(){socket.emit('requestManPowerUpdate');}
 export function EmitWarSupportUpdate(){socket.emit('requestWarSupportUpdate');}
 export function EmitStabilityUpdate(){socket.emit('requestStabilityUpdate');}
 export function EmitPoliticalPowerUpdate(){socket.emit('requestPoliticalPowerUpdate')}
+
+export function EmitBuildingPlacementRequest(BuildingAssetName,RequestMetaData){
+    socket.emit('BuildingPlacementRequest',{
+        "BuildingAssetName":BuildingAssetName,
+        "RequestMetaData":RequestMetaData
+    })
+    return false
+}
+
+export function EmitUnitPlacementRequest(){
+
+}
 
 
 export function setupSocketConnection(){

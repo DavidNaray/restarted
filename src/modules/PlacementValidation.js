@@ -107,3 +107,5 @@ async function SharpImgBuildingPlacementVerification(MaskImglocation,Imglocation
     return true;//managed to get through the mask parsing step, must be valid
 
 }
+
+module.exports={SharpImgBuildingPlacementVerification,SharpImgPointVerification}

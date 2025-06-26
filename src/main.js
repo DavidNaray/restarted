@@ -14,7 +14,7 @@ const TileSchemaImport=require("./Schemas/Tile")
 const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
-
+const {SharpImgBuildingPlacementVerification,SharpImgPointVerification}=require("./modules/PlacementValidation.js")
 
 const mongoose = require('mongoose');
 const { Console } = require('console');
@@ -378,4 +378,38 @@ io.on('connection', (socket) => {
             console.error("Error fetching user:", err);
         });
     });
+
+    socket.on('BuildingPlacementRequest',async ({BuildingAssetName,RequestMetaData}) =>{
+        //response should be which asset, 
+        // a valid coordinate for the position since height is actually gpu rendered its not real
+        //rotation
+        //which tile
+        //any other stats like health etc
+        
+        //takes in imagelocation for mask (for the building) and walkMaplocation for the tile
+
+        const tileX=RequestMetaData.tile[0].toString();
+        const tileY=RequestMetaData.tile[1].toString();
+        
+        const MaskLocation=path.join(__dirname,'../Assets/Asset_Masks/')+BuildingAssetName+"_Mask.png"
+        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
+
+        const passIn={
+            "position":RequestMetaData.position,
+            "rotation":RequestMetaData.rotation,
+        }
+        const permission=await SharpImgBuildingPlacementVerification(MaskLocation,WalkMapLocation,passIn)
+        
+        const responseObject={
+            "permission":permission,
+            "position":RequestMetaData.position,
+            "rotation":RequestMetaData.rotation,
+            "health":100
+        }
+
+        socket.emit('CanYouPlaceBuilding', responseObject);
+    })
+
+
+
 });
