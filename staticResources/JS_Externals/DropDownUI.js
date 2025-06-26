@@ -7,7 +7,7 @@ import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest} from "./SceneInit
 
 
 var BuildingAssetName;//variable to hold which building is trying to be placed right now
-var divToChangevalue;
+var divToChangevalue;//this holds the div that displays the deploy position
 
 export function adjustUnitDeployPosition(response){
     const position=response.position;

@@ -1,4 +1,4 @@
-class MinHeap {
+export class MinHeap {
     constructor(compare) {
         this.heap = [];
         this.compare = compare; // (a, b) => number, like (a, b) => a.f - b.f
@@ -52,7 +52,7 @@ class MinHeap {
     }
 }
 
-class PriorityQueue {
+export class PriorityQueue {
   constructor() {
     this.heap = new MinHeap((a, b) => a.priority - b.priority);
   }

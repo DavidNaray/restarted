@@ -142,7 +142,6 @@ function HandleSocketResponses(socket){
         //the user clicked, the deployment has/not been set, remove eventListeners
         renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
         renderer.domElement.removeEventListener( 'click',  onTileClick);
-        
     });
 
 }
