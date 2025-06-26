@@ -12,7 +12,7 @@ class GlobalInstanceManager {
     }
     
     registerTile(tile) {
-        this.tiles.set(tile.tileCoord, tile);
+        this.tiles.set(`${tile.x},${tile.y}`, tile);
     }
 
     getTileByWorldPosition(x, z) {

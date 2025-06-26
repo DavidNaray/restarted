@@ -410,6 +410,19 @@ io.on('connection', (socket) => {
         socket.emit('CanYouPlaceBuilding', responseObject);
     })
 
-
+    socket.on('UnitDeploymentPositionRequest',async ({RequestMetaData}) => {
+        const tileX=RequestMetaData.tile[0].toString();
+        const tileY=RequestMetaData.tile[1].toString();
+        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
+        const passIn=RequestMetaData.position
+        const permission=await SharpImgPointVerification(WalkMapLocation,passIn)
+        
+        const responseObject={
+            "permission":permission,
+            "position":RequestMetaData.position,
+            "tile":RequestMetaData.tile
+        }
+        socket.emit('CanYouDeployHere', responseObject);
+    })
 
 });

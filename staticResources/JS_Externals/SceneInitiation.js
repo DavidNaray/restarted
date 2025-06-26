@@ -1,6 +1,6 @@
 import {renderer} from "../siteJS.js"
 import {onPointerMove} from "./RaycasterHandling.js"
-import {onclickBuilding} from "./DropDownUI.js"
+import {onclickBuilding,adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
 
 
 let socket;
@@ -134,6 +134,16 @@ function HandleSocketResponses(socket){
         renderer.domElement.removeEventListener( 'click', onclickBuilding );
     });
 
+    socket.on('CanYouDeployHere', (response) => {
+        console.log("deploy here?",response)
+        if(response.permission){
+            adjustUnitDeployPosition(response)
+        }
+        //the user clicked, the deployment has/not been set, remove eventListeners
+        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        renderer.domElement.removeEventListener( 'click',  onTileClick);
+        
+    });
 
 }
 
@@ -162,8 +172,11 @@ export function EmitBuildingPlacementRequest(BuildingAssetName,RequestMetaData){
     })
 }
 
-export function EmitUnitPlacementRequest(){
-
+export function EmitUnitPlacementRequest(RequestMetaData){
+    console.log(RequestMetaData, "before unit deploy emit")
+    socket.emit('UnitDeploymentPositionRequest',{
+        "RequestMetaData":RequestMetaData
+    })
 }
 
 

@@ -11,7 +11,7 @@ import {raycaster,pointer} from "./JS_Externals/RaycasterHandling.js"
 
 import {globalmanager} from "./JS_Externals/GlobalInstanceMngr.js"
 
-export var renderer,camera;
+export var renderer,camera,username,UserId;
 var controls,renderRequested;
 const scene = new THREE.Scene();
 
@@ -20,9 +20,6 @@ const fileLoader = new THREE.FileLoader(loader.manager);
 fileLoader.setResponseType('arraybuffer'); // GLB is binary
 fileLoader.setRequestHeader({'Authorization': `Bearer ${localStorage.getItem('accessToken')}`});
 
-
-var isPlacingBuilding=false;
-var BuildingAssetName=null;
 
 const tileSize=1;
 
@@ -328,6 +325,7 @@ class Tile{
         this.abstractMap=new Map();
 
         this.loadtextures();
+        this.instanceManager.registerTile(this)
     }
 
     async loadtextures(){
@@ -1384,11 +1382,23 @@ window.onresize=function(){//resize the canvas
 }
 
 window.onload=async function(){
+    function decodeJWT(token) {
+        const payloadBase64 = token.split('.')[1]; // the middle part
+        const payload = atob(payloadBase64); // decode base64 to string
+        return JSON.parse(payload); // parse the string to object
+    }
+
     async function  startAutoRefresh() {
         const res = await fetch('/token', { method: 'POST', credentials: 'include' });
         if (res.ok) {
             const data = await res.json();
             localStorage.setItem('accessToken', data.accessToken);
+            const token = localStorage.getItem('accessToken');
+            const decoded = decodeJWT(token);
+            // console.log(decoded.username); // ✅
+            // console.log(decoded.id);       // ✅
+            username=decoded.username
+            UserId=decoded.id
             console.log("Access token refreshed.");
         }
         setInterval(async () => {
@@ -1396,6 +1406,12 @@ window.onload=async function(){
             if (res.ok) {
                 const data = await res.json();
                 localStorage.setItem('accessToken', data.accessToken);
+                const token = localStorage.getItem('accessToken');
+                const decoded = decodeJWT(token);
+                // console.log(decoded.username); // ✅
+                // console.log(decoded.id);       // ✅
+                username=decoded.username
+                UserId=decoded.id
                 console.log("Access token refreshed.");
             }else {
                 console.error("Failed to refresh token", await res.text());
@@ -1470,7 +1486,7 @@ function IterateOverDeploy(regimenEnvelope,DeployPoint,Obj_Identifier){
             console.log(val, "should be the point.....")
             const instanceMetaData={
                 "position":val,
-                "userId":localStorage.getItem('accessToken').id,//ThisUser._id,
+                "userId":UserId,//localStorage.getItem('accessToken').id,//ThisUser._id,
                 "health":100,
                 // "state":"Built"
             }

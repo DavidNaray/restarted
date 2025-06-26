@@ -1,12 +1,332 @@
 import {updateGridColumns} from "./Utils.js"
 import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
-import {renderer} from "../siteJS.js"
+import {renderer,UserId} from "../siteJS.js"
 import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest} from "./SceneInitiation.js"
 
 
 
 var BuildingAssetName;//variable to hold which building is trying to be placed right now
+var divToChangevalue;
+
+export function adjustUnitDeployPosition(response){
+    const position=response.position;
+    const X=position[0].toFixed(2)
+    const Y=position[1].toFixed(2)
+    const Z=position[2].toFixed(2)
+    divToChangevalue.innerText=X+","+Y+","+Z
+
+    const ToTile=globalmanager.getTile(response.tile[0],response.tile[1])
+    // console.log("target tile",response.tile[0],response.tile[1],ToTile)
+    divToChangevalue.myParam=[position,ToTile || undefined]
+}
+export function onTileClick(ev){
+    const intersects = intersectsTileMeshes()//raycaster.intersectObjects(globalmanager.allTileMeshes, true);
+
+    if (intersects.length > 0) {
+        const intersectedMesh = intersects[0].object;
+        const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
+
+        if (foundTile) {
+            const IntersectPoint=intersects[0].point
+            const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
+
+            const RequestMetaData={
+                "tile":[foundTile.x, foundTile.y],
+                "position":processedPoint,
+                "userOwner":UserId//localStorage.getItem('accessToken').id,
+            }
+            EmitUnitPlacementRequest(RequestMetaData)
+        }
+    }
+}
+
+function deploymentPoint(event){
+    divToChangevalue=event.target;
+    // console.log("target",divToChangevalue)
+    renderer.domElement.addEventListener( 'pointermove', onPointerMove );
+    renderer.domElement.addEventListener( 'click', onTileClick );
+        
+}
+
+function createUnitRegime(event){
+    const whichUnit=event.currentTarget.myParam
+    console.log(whichUnit, "THIS UNIT!!!!")
+
+    //add to PieceRegimen
+    const component=document.getElementById("PieceRegimen");
+
+    const regimenEnvelope=document.createElement("div");
+    {
+        regimenEnvelope.style.width="100%";
+        regimenEnvelope.style.aspectRatio="10/1"
+        regimenEnvelope.style.marginTop="4px";
+        regimenEnvelope.style.marginBottom="max(2vw,2vh)";
+        regimenEnvelope.style.backgroundColor="gray";
+        regimenEnvelope.style.borderBottom="solid 4px black"
+    }
+    component.appendChild(regimenEnvelope)
+
+    const TopInfo=document.createElement("div");
+    {
+        TopInfo.style.display="grid"
+        TopInfo.style.gridTemplateColumns="1fr 4fr 2fr"
+        TopInfo.style.columnGap="4px";
+        TopInfo.style.borderBottom="solid 4px black"
+        // TopInfo.style.borderTop="solid 4px black"
+    }
+    regimenEnvelope.appendChild(TopInfo)
+    const ImageHolder=document.createElement("div");
+    {
+        ImageHolder.style.width="calc(100% - 4px)";
+        ImageHolder.style.aspectRatio="1/1";
+        ImageHolder.style.padding="4px"
+        ImageHolder.style.paddingRight="0"
+    }
+    TopInfo.appendChild(ImageHolder)
+    const ImageIcon=document.createElement("div");
+    {
+        ImageIcon.style.backgroundColor="white";
+        ImageIcon.className="IconGeneral"
+        ImageIcon.style.backgroundImage="url('Icons/"+whichUnit +"Icon.png')"
+        ImageIcon.style.width="100%"
+        ImageIcon.style.height="100%"
+    }
+    ImageHolder.appendChild(ImageIcon)
+
+    const midTopSection=document.createElement("div");
+    {
+        midTopSection.style.display="grid"
+        midTopSection.style.gridTemplateRows="1fr 1fr"
+        midTopSection.style.width="100%"
+    }
+    TopInfo.appendChild(midTopSection)
+
+    const UnitType=document.createElement("div");
+    {
+        // midTopSection.style.gridTemplateRows="1fr 1fr"
+        UnitType.style.width="calc(100%)"
+        UnitType.style.backgroundColor="white"
+        UnitType.style.color="black"
+        UnitType.style.margin="4px 0 2px 0px"
+        UnitType.style.overflow="hidden"
+        UnitType.style.whiteSpace="nowrap"
+        UnitType.innerText=whichUnit
+        UnitType.style.textAlign="center"
+        UnitType.style.alignContent="center"
+        UnitType.style.fontSize="max(1.5vw,1.5vh)"
+    }
+    midTopSection.appendChild(UnitType)
+
+    const DeployPoint=document.createElement("div");
+    {
+        // midTopSection.style.gridTemplateRows="1fr 1fr"
+        DeployPoint.style.width="100%"
+        DeployPoint.style.backgroundColor="white"
+        DeployPoint.style.margin="2px 0 4px 0px"
+        DeployPoint.innerText="Select A Position"
+        DeployPoint.style.overflow="hidden"
+        DeployPoint.style.whiteSpace="nowrap"
+        DeployPoint.style.textAlign="center"
+        DeployPoint.style.alignContent="center"
+        DeployPoint.style.fontSize="max(1.5vw,1.5vh)"
+    }
+    DeployPoint.addEventListener("click",deploymentPoint)
+    midTopSection.appendChild(DeployPoint)
+
+    const RightTopSection=document.createElement("div");
+    {
+        RightTopSection.style.display="grid"
+        RightTopSection.style.gridTemplateRows="1fr 1fr"
+        RightTopSection.style.width="100%"
+    }
+    TopInfo.appendChild(RightTopSection)
+    
+    const AddSubSection=document.createElement("div");
+    {
+        AddSubSection.style.width="calc(100% - 4px)"
+        // AddSubSection.style.backgroundColor="white"
+        AddSubSection.style.margin="4px 4px 2px 0px"
+        // AddSubSection.style.alignContent="center"
+        AddSubSection.style.display="flex"
+        AddSubSection.style.flexDirection="row"
+    }
+    RightTopSection.appendChild(AddSubSection)
+
+    const SubtractBut=document.createElement("div");
+    {
+        // SubtractBut.style.height="100%"
+        SubtractBut.style.aspectRatio="1/1"
+        // SubtractBut.style.left="0"
+        SubtractBut.style.backgroundColor="white"
+        SubtractBut.style.backgroundImage="url('Icons/Subtract.png')"
+        SubtractBut.className="IconGeneral"
+    }
+    AddSubSection.appendChild(SubtractBut)
+
+    const middle = document.createElement("div");
+    {
+        // middle.style.flex = "1";
+        middle.style.aspectRatio="1/2"
+        middle.style.minWidth = "0"; // important to allow shrinking
+        middle.style.background = "rgb(98, 98, 98)";
+        middle.style.overflow="hidden"
+    }
+
+    AddSubSection.appendChild(middle)
+    const AddBut=document.createElement("div");
+    {
+        // SubtractBut.style.height="100%"
+        AddBut.style.aspectRatio="1/1"
+        // AddBut.style.right="0"
+        AddBut.style.backgroundColor="white"
+        AddBut.style.backgroundImage="url('Icons/Add.png')"
+        AddBut.className="IconGeneral"
+    }
+    AddSubSection.appendChild(AddBut)
+
+
+    const AddDeploySection=document.createElement("div");
+    {
+        AddDeploySection.style.width="calc(100% - 4px)"
+        // AddDeploySection.style.backgroundColor="white"
+        AddDeploySection.style.margin="2px 4px 4px 0px"
+        // AddDeploySection.style.alignContent="center"
+        AddDeploySection.style.display="flex"
+        AddDeploySection.style.flexDirection="row"
+    }
+    RightTopSection.appendChild(AddDeploySection)
+
+    const countHolder = document.createElement("div");
+    {
+        countHolder.style.flex = "1";
+        // countHolder.style.aspectRatio="1/2"
+        countHolder.style.minWidth = "0"; // important to allow shrinking
+        countHolder.style.background = "white";
+        countHolder.style.overflow="hidden"
+        countHolder.style.whiteSpace="nowrap"
+        countHolder.innerText="1"
+        countHolder.style.textAlign="center"
+        countHolder.style.alignContent="center"
+        countHolder.style.fontSize="max(1.5vw,1.5vh)"
+    }
+    AddDeploySection.appendChild(countHolder)
+
+    const DeployBut=document.createElement("div");
+    {
+        // SubtractBut.style.height="100%"
+        DeployBut.style.aspectRatio="1/1"
+        // AddBut.style.right="0"
+        DeployBut.style.backgroundColor="white"
+        DeployBut.style.backgroundImage="url('Icons/Deploy.png')"
+        DeployBut.className="IconGeneral"
+        DeployBut.style.marginLeft="4px"
+    }
+    DeployBut.addEventListener("click",function(){
+        IterateOverDeploy(regimenEnvelope,DeployPoint,whichUnit);
+    })
+    AddDeploySection.appendChild(DeployBut)
+    
+    //adding the section for the specific units within the regimen
+    const soldierTrack=document.createElement("div");
+    {
+        soldierTrack.style.width="calc(100% - 8px)"
+        soldierTrack.style.aspectRatio="10/1"
+        soldierTrack.style.backgroundColor="gray"
+        soldierTrack.style.padding="4px"
+        
+        soldierTrack.style.display="flex"
+        soldierTrack.style.flexDirection="row"
+        soldierTrack.style.columnGap="4px"
+    }
+    regimenEnvelope.appendChild(soldierTrack)
+
+    const SoldierSpecifics=document.createElement("div");
+    {
+        // DeploySpecific.style.aspectRatio="1/1"
+        SoldierSpecifics.style.backgroundColor="white"
+        SoldierSpecifics.style.flex = "1";
+        SoldierSpecifics.style.minWidth = "0";
+    }
+    soldierTrack.appendChild(SoldierSpecifics)
+
+    const DeploySpecific=document.createElement("div");
+    {
+        DeploySpecific.style.aspectRatio="1/1"
+        DeploySpecific.style.backgroundColor="white"
+    }
+    soldierTrack.appendChild(DeploySpecific)
+
+    const cancelTrain=document.createElement("div");
+    {
+        cancelTrain.style.aspectRatio="1/1"
+        cancelTrain.style.backgroundColor="white"
+    }
+    soldierTrack.appendChild(cancelTrain)
+
+
+
+
+
+
+
+    AddBut.addEventListener("click",function(e){
+        try{
+            const val=Number(countHolder.innerText)
+            countHolder.innerText=val+1
+            // console.log(, "THIS IS THE PARENT")
+            // const rootRegimen=e.target.parentElement.parentElement.parentElement.parentElement
+            const soldierTrack=document.createElement("div");
+            {
+                soldierTrack.style.width="calc(100% - 8px)"
+                soldierTrack.style.aspectRatio="10/1"
+                soldierTrack.style.backgroundColor="gray"
+                soldierTrack.style.padding="4px"
+                
+                soldierTrack.style.display="flex"
+                soldierTrack.style.flexDirection="row"
+                soldierTrack.style.columnGap="4px"
+            }
+            regimenEnvelope.appendChild(soldierTrack)
+
+            const SoldierSpecifics=document.createElement("div");
+            {
+                // DeploySpecific.style.aspectRatio="1/1"
+                SoldierSpecifics.style.backgroundColor="white"
+                SoldierSpecifics.style.flex = "1";
+                SoldierSpecifics.style.minWidth = "0";
+            }
+            soldierTrack.appendChild(SoldierSpecifics)
+
+            const DeploySpecific=document.createElement("div");
+            {
+                DeploySpecific.style.aspectRatio="1/1"
+                DeploySpecific.style.backgroundColor="white"
+            }
+            soldierTrack.appendChild(DeploySpecific)
+
+            const cancelTrain=document.createElement("div");
+            {
+                cancelTrain.style.aspectRatio="1/1"
+                cancelTrain.style.backgroundColor="white"
+            }
+            soldierTrack.appendChild(cancelTrain)
+        }catch(p){}
+        
+    });
+    SubtractBut.addEventListener("click",function(){
+        try{
+            const val=Number(countHolder.innerText)
+            if(val > 1){
+                countHolder.innerText=val-1
+                regimenEnvelope.removeChild(regimenEnvelope.lastChild)
+            }
+            
+        }catch(p){}
+    });
+}
+
+
 
 export function onclickBuilding(event){
     // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
@@ -18,27 +338,18 @@ export function onclickBuilding(event){
         const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
 
         if (foundTile) {
-            console.log("Clicked tile:", foundTile.x, foundTile.y);
+            // console.log("Clicked tile:", foundTile.x, foundTile.y);
 
-            //found the tile, add the building
-            //create an asset_dictionary to use as a parameter for the tile.objectLoad(asset_dictionary)
+            //find the tile, add the building
 
             const IntersectPoint=intersects[0].point
             const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
-            // foundTile.getPosWithHeight(processedPoint).then(val=>{
-            //     const instanceMetaData={
-            //         "position":val,
-            //         "userOwner":localStorage.getItem('accessToken').id,//ThisUser._id,
-            //         "health":100,
-            //         "state":"Built"
-            //     }
-            //     foundTile.checkValidityOfAssetPlacement(BuildingAssetName,instanceMetaData)
-            // });
+
             const RequestMetaData={
                 "tile":[foundTile.x, foundTile.y],
                 "position":processedPoint,
                 "rotation":0,
-                "userOwner":localStorage.getItem('accessToken').id,
+                "userOwner":UserId//localStorage.getItem('accessToken').id,
             }
             //permission is false, or it will be an adjusted position
             EmitBuildingPlacementRequest(BuildingAssetName,RequestMetaData);
@@ -185,7 +496,7 @@ function MilTrainingElements(){
             }
 
 
-            // unit.addEventListener("click",createUnitRegime)
+            unit.addEventListener("click",createUnitRegime)
             
             
             unitHolder.appendChild(unit)

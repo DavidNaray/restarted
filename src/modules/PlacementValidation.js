@@ -8,7 +8,7 @@ const worldTileSize = 7.5;//7.5; // world units → corresponds to full width/he
 const pixelsPerUnit = walkMapWidth / worldTileSize;
 
 async function SharpImgPointVerification(Imglocation,selectedPoint){
-    //selectedPoint of form [x,z,y]
+    //selectedPoint of form [x,y,z]
     const X=selectedPoint[0]
     const Y=selectedPoint[2]
     
@@ -33,12 +33,14 @@ async function SharpImgPointVerification(Imglocation,selectedPoint){
     
     if(isWhite){
         return true;//placement is valid
+    }else{
+        return false;//by default or if !isWhite, placement is not valid
     }
-    return false;//by default or if !isWhite, placement is not valid
+    
 }
 
 async function SharpImgBuildingPlacementVerification(MaskImglocation,Imglocation,MetaData){
-    //selectedPoint of form [x,z,y]
+    //selectedPoint of form [x,y,z]
     const X=MetaData.position[0]//selectedPoint[0]
     const Y=MetaData.position[2]//selectedPoint[2]
     
