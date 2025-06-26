@@ -440,10 +440,33 @@ io.on('connection', (socket) => {
         socket.emit('CanYouDeployHere', responseObject);
     })
 
-    socket.on('testing',async () => {
+    socket.on('testing',async () => {//relevant to seeing if the abstractMap code worked
         const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+"0"+"0"+".png"
         socket.emit('testingResponse', "hello");
         PortalConnectivity(WalkMapLocation)
     });
 
+    socket.on('DeployAllUnits',async ({RequestMetaData}) => {
+        // const tileX=RequestMetaData.tile[0].toString();
+        // const tileY=RequestMetaData.tile[1].toString();
+        // const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
+        // const passIn=RequestMetaData.position
+        // const permission=await SharpImgPointVerification(WalkMapLocation,passIn)
+        
+        // var position;
+        // if(permission){
+        //     const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
+        //     position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
+        // }
+
+        const responseObject={
+            "AssetClass":"Unit",
+            "position":RequestMetaData.DeployPosition,
+            "UnitType":RequestMetaData.UnitType,
+            "tile":RequestMetaData.tile,
+            "UnitCount":RequestMetaData.UnitCount
+            
+        }
+        socket.emit('DeployAllUnitsHere', responseObject);
+    });
 });

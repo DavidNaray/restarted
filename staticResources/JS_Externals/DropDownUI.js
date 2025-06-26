@@ -2,7 +2,7 @@ import {updateGridColumns} from "./Utils.js"
 import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {renderer,UserId} from "../siteJS.js"
-import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest} from "./SceneInitiation.js"
+import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed} from "./SceneInitiation.js"
 
 
 
@@ -41,6 +41,52 @@ export function onTileClick(ev){
     }
 }
 
+function IterateOverDeploy(regimenEnvelope,DeployPoint,Obj_Identifier){
+    console.log(Obj_Identifier)
+    // console.log(regimenEnvelope.children.length)More actions
+    //loop for deploying all units in regimen
+    try{
+        if(DeployPoint.myParam[0]==undefined){return}
+    }catch(plu){return}
+
+    const targetTile=DeployPoint.myParam[1]
+    const DeployPosition=DeployPoint.myParam[0]
+    //because the terrain is gpu drawn, need to get the height from the heightmap at the a,y position!
+
+    const requestMetaData={
+        "UnitCount":regimenEnvelope.children.length-1,
+        "UnitType":Obj_Identifier,
+        "DeployPosition":DeployPosition,
+        "tile":[targetTile.x,targetTile.y]
+    }
+    // for(let i=1;i<regimenEnvelope.children.length;i++){
+        
+    //     // const IntersectPoint=intersects[0].point
+
+    //     //build the request
+
+
+
+    //     // DeployPoint.myParam[1].getPosWithHeight(DeployPoint.myParam[0]).then(val=>{
+    //     //     console.log(val, "should be the point.....")
+    //     //     const instanceMetaData={
+    //     //         "position":val,
+    //     //         "userId":UserId,//localStorage.getItem('accessToken').id,//ThisUser._id,
+    //     //         "health":100,
+    //     //         // "state":"Built"
+    //     //     }
+    //     //     DeployPoint.myParam[1].objectLoad(Obj_Identifier,instanceMetaData)
+
+    //     // })
+    //     regimenEnvelope.removeChild(regimenEnvelope.children[i])
+
+    // }
+    EmitUnitsBeingDeployed(requestMetaData)
+    // console.log(regimenEnvelope.parentElement)
+    regimenEnvelope.parentElement.removeChild(regimenEnvelope)
+    // console.log(DeployPoint.myParam,"yes param")
+}
+
 function deploymentPoint(event){
     divToChangevalue=event.target;
     // console.log("target",divToChangevalue)
@@ -50,7 +96,7 @@ function deploymentPoint(event){
 }
 
 function createUnitRegime(event){
-    const whichUnit=event.currentTarget.myParam
+    const whichUnit=event.currentTarget.myParam//archer, spearmen etc
     console.log(whichUnit, "THIS UNIT!!!!")
 
     //add to PieceRegimen

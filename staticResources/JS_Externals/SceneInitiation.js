@@ -160,6 +160,26 @@ function HandleSocketResponses(socket){
         console.log(response)
     })
 
+    socket.on('DeployAllUnitsHere', (response) => {
+        console.log("deploying units",response.position)
+        // if(response.permission){
+        //     adjustUnitDeployPosition(response)
+        // }
+        //the user clicked, the deployment has/not been set, remove eventListeners
+        // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        // renderer.domElement.removeEventListener( 'click',  onTileClick);
+        const whichTileUnits=globalmanager.getTile(response.tile[0],response.tile[1])
+        console.log(whichTileUnits, "ok...")
+        const metaDataUnits={
+            "position":response.position,
+            // "health":response.health
+        }
+        for(var i=0;i<response.UnitCount;i++){
+            console.log("pluh!",i)
+            whichTileUnits.objectLoad(response.UnitType,metaDataUnits,response.AssetClass)
+        }
+        
+    });
 }
 
 function HandleInitialEmits(socket){
@@ -192,6 +212,13 @@ export function EmitBuildingPlacementRequest(BuildingAssetName,RequestMetaData){
 export function EmitUnitPlacementRequest(RequestMetaData){
     console.log(RequestMetaData, "before unit deploy emit")
     socket.emit('UnitDeploymentPositionRequest',{
+        "RequestMetaData":RequestMetaData
+    })
+}
+
+export function EmitUnitsBeingDeployed(RequestMetaData){
+    console.log(RequestMetaData)
+    socket.emit('DeployAllUnits',{
         "RequestMetaData":RequestMetaData
     })
 }
