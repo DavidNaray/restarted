@@ -10,26 +10,6 @@ const pixelsPerUnit = walkMapWidth / worldTileSize;
 
 const subgridSize=32;
 
-
-async function DetermineSubgrid(UnitPosition){//determine which subgrid a unit belongs to
-    //walkmap is 1536, if we make subgrids 32 pixels in size, thats 48x48 subgrids 
-
-    // UnitPosition of form [x, y, z]
-    const X=UnitPosition[0]
-    const Y=UnitPosition[2]
-
-    // Convert world coordinates to pixel coordinates on walkMap
-    const imgX = Math.round(walkMapWidth / 2 + X * pixelsPerUnit);
-    const imgY = Math.round(walkMapHeight / 2 + Y * pixelsPerUnit);
-
-
-    //first grid would be [0,0] last grid would be [47,47]
-    const SubGridgridAlong=Math.floor(imgX/subgridSize)
-    const SubGridgridDown=Math.floor(imgY/subgridSize)
-
-    return SubGridgridAlong+","+SubGridgridDown
-}
-
 async function generatePortalMap(Imglocation) {//generate the portals of the subgrids for the abstract map
     
     const { data, info } = await sharp(Imglocation)//'walkmap.png'
@@ -120,7 +100,7 @@ async function generatePortalMap(Imglocation) {//generate the portals of the sub
         }
     }
 
-    return [portalMap,data,info.width];
+    return [portalMap,data];
 }
 
 async function addEdgeToAbstractGraph(abstractMap,start, end, cost){
@@ -141,6 +121,7 @@ async function addEdgeToAbstractGraph(abstractMap,start, end, cost){
     }
 
 }
+
 async function extractRegion(rawData, channels, x, y, width, height) {
   const region = new Uint8Array(width * height * channels);
 
@@ -249,10 +230,8 @@ async function PortalConnectivity(Imglocation){
     const portalMap=portalMapPlusDataPlusWidth[0]
     const rawData=portalMapPlusDataPlusWidth[1]
     
-    // const ImgWidth=portalMapPlusDataPlusWidth[2]
-    // console.log(rawData,"and width",ImgWidth)
     const abstractMap=new Map();
-    // console.log(portalMap.has("47,47"), "DOES IT HAVE IT !!!!!")
+    // console.log(portalMap.has("47,47"), "DOES IT HAVE IT !!!!!")//("47,47") since 48x48 subgrids, cant proceed until full set
     for (const [key, portals] of portalMap.entries()) {
         // console.log(portals,key)
         const XY=key.split(',');
@@ -374,11 +353,81 @@ async function PortalConnectivity(Imglocation){
     }
 
     console.log("YIPEE ABSTRACTMAp")
-    
-    // waitForCompletion();
-    
-
 }
 
+//above is creating the abstract map, finding the portals of the image
+//--------------------------------------
+//below making use of the abstract map, determining unit positions in terms of subgrids
+
+async function DetermineSubgrid(UnitPosition){//determine which subgrid a unit belongs to
+    //walkmap is 1536, if we make subgrids 32 pixels in size, thats 48x48 subgrids 
+
+    // UnitPosition of form [x, y, z]
+    const X=UnitPosition[0]
+    const Y=UnitPosition[2]
+
+    // Convert world coordinates to pixel coordinates on walkMap
+    const imgX = Math.round(walkMapWidth / 2 + X * pixelsPerUnit);
+    const imgY = Math.round(walkMapHeight / 2 + Y * pixelsPerUnit);
+
+
+    //first grid would be [0,0] last grid would be [47,47]
+    const SubGridgridAlong=Math.floor(imgX/subgridSize)
+    const SubGridgridDown=Math.floor(imgY/subgridSize)
+
+    return SubGridgridAlong+","+SubGridgridDown
+}
+
+async function abstractMapAstar(start, goal,abstractMap) {//start, goal must be pixels that are in the abstractMap
+    function reconstructPath(cameFrom, current) {
+        const path = [current];
+        while (cameFrom.has(current)) {
+            current = cameFrom.get(current);
+            path.push(current);
+        }
+        path.reverse();
+        return path;
+    }
+    function heuristic(nodeA, nodeB) {
+        // For example, Euclidean distance ignoring edge types
+        const [xA, yA] = nodeA.split(',').map(Number);
+        const [xB, yB] = nodeB.split(',').map(Number);
+        return Math.hypot(xA - xB, yA - yB);
+    }
+    // const graph=abstractMap;//this.abstractMap;
+
+    const openSet = new PriorityQueue(); // Min-heap keyed by f(n)
+    const cameFrom = new Map();
+    const gScore = new Map();
+
+    gScore.set(start, 0);
+    openSet.enqueue(start, heuristic(start, goal));
+
+    const visited = new Set();
+    while (!openSet.isEmpty()) {
+        const current = openSet.dequeue();
+        if (visited.has(current)) continue;
+        visited.add(current);
+
+        if (current === goal) {
+            return reconstructPath(cameFrom, current);
+        }
+
+        const neighbors = abstractMap.get(current) || new Map();
+
+        for (const [neighbor, cost] of neighbors.entries()) {
+            const tentativeG = gScore.get(current) + cost;
+
+            if (!gScore.has(neighbor) || tentativeG < gScore.get(neighbor)) {
+                cameFrom.set(neighbor, current);
+                gScore.set(neighbor, tentativeG);
+                const fScore = tentativeG + heuristic(neighbor, goal);
+                openSet.enqueue(neighbor, fScore);
+            }
+        }
+    }
+
+    return null; // No path found
+}
 
 module.exports={PortalConnectivity}
