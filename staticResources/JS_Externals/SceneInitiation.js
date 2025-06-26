@@ -1,3 +1,8 @@
+import {renderer} from "../siteJS.js"
+import {onPointerMove} from "./RaycasterHandling.js"
+import {onclickBuilding} from "./DropDownUI.js"
+
+
 let socket;
 export async function getUserTileData(accessToken){
     try {
@@ -125,6 +130,8 @@ function HandleSocketResponses(socket){
 
     socket.on('CanYouPlaceBuilding', (response) => {
         console.log("YIPEEEEEEE",response)
+        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        renderer.domElement.removeEventListener( 'click', onclickBuilding );
     });
 
 
@@ -153,7 +160,6 @@ export function EmitBuildingPlacementRequest(BuildingAssetName,RequestMetaData){
         "BuildingAssetName":BuildingAssetName,
         "RequestMetaData":RequestMetaData
     })
-    return false
 }
 
 export function EmitUnitPlacementRequest(){

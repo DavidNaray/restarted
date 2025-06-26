@@ -8,7 +8,7 @@ import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest} from "./SceneInit
 
 var BuildingAssetName;//variable to hold which building is trying to be placed right now
 
-function onclickBuilding(event){
+export function onclickBuilding(event){
     // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
 
     const intersects = intersectsTileMeshes()
@@ -49,8 +49,8 @@ function onclickBuilding(event){
 
     //this code needs to be moved the response of EmitBuildingPlacementRequest
     //the user clicked, the building has been placed, remove eventListeners
-    renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-    renderer.domElement.removeEventListener( 'click', onclickBuilding );
+    // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+    // renderer.domElement.removeEventListener( 'click', onclickBuilding );
 }
 
 function onHoverBuilding(event){
