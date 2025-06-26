@@ -3,9 +3,41 @@ const sharp = require('sharp');
 const walkMapWidth=1536//512*3
 const walkMapHeight=1536//512*3
 
+const HeightMapWidth=512
+const HeightMapHeight=512
 // Scale and position setup
 const worldTileSize = 7.5;//7.5; // world units → corresponds to full width/height of walkMap
 const pixelsPerUnit = walkMapWidth / worldTileSize;
+const pixelsPerHeightmap=HeightMapWidth / worldTileSize;
+
+async function getPosWithHeight(selectedPoint,HeightImglocation){
+    //selectedPoint of form [x,y,z]
+    const X=selectedPoint[0]
+    const Y=selectedPoint[2]
+
+    const imgX = Math.round(HeightMapWidth / 2 + X * pixelsPerHeightmap);//pixelsPerUnit);
+    const imgY =   Math.round(HeightMapHeight / 2 + Y * pixelsPerHeightmap);//pixelsPerUnit);
+
+    const { data, info } = await sharp(HeightImglocation)//'walkmap.png'
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+    
+    const index = (imgY * info.width + imgX) * 4; // 4 bytes per pixel (RGBA)
+    // console.log(info.width, info.height); // dimensions
+    // console.log(data); // raw pixel buffer (RGBA)
+    
+    const r=data[index];
+    // const g=data[index+1];
+    // const b=data[index+2];
+    // const a=data[index+3];
+
+    const Heightscale=0.6; //from tile terrain builder material
+    const height=(r*Heightscale)/(30*worldTileSize)
+
+    return [X,height,Y];
+}
+
 
 async function SharpImgPointVerification(Imglocation,selectedPoint){
     //selectedPoint of form [x,y,z]
@@ -110,4 +142,4 @@ async function SharpImgBuildingPlacementVerification(MaskImglocation,Imglocation
 
 }
 
-module.exports={SharpImgBuildingPlacementVerification,SharpImgPointVerification}
+module.exports={SharpImgBuildingPlacementVerification,SharpImgPointVerification,getPosWithHeight}

@@ -129,9 +129,14 @@ function HandleSocketResponses(socket){
     });
 
     socket.on('CanYouPlaceBuilding', (response) => {
-        console.log("YIPEEEEEEE",response)
+        // console.log("YIPEEEEEEE",response.position)
         renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
         renderer.domElement.removeEventListener( 'click', onclickBuilding );
+        if(response.permission){
+            console.log("permission to place building: accepted")
+        }else{
+            console.log("permission to place building: denied")
+        }
     });
 
     socket.on('CanYouDeployHere', (response) => {
@@ -144,6 +149,10 @@ function HandleSocketResponses(socket){
         renderer.domElement.removeEventListener( 'click',  onTileClick);
     });
 
+    socket.on('testingResponse', (response) => {
+        console.log(response)
+    })
+
 }
 
 function HandleInitialEmits(socket){
@@ -154,6 +163,8 @@ function HandleInitialEmits(socket){
     socket.emit('requestWarSupportUpdate');
     socket.emit('requestStabilityUpdate');
     socket.emit('requestPoliticalPowerUpdate');
+
+    socket.emit('testing');
 }
 
 export function EmitWoodUpdate(){socket.emit('requestWoodUpdate');}

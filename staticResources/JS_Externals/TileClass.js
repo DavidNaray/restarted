@@ -104,9 +104,7 @@ export class Tile{
             this.heightMapCanvas =texCanv[1] 
             this.BuildTileBase();
         })
-        .catch(err => {
-            console.error('Texture load error:', err);
-        });
+        .catch(err => {console.error('Texture load error:', err);});
 
         // -------------------------------//
         loadTextureWithAuth(this.texUrl, localStorage.getItem('accessToken'))
@@ -115,9 +113,7 @@ export class Tile{
             this.TextureMapCanvas=texture[1];
             this.BuildTileBase();
         })
-        .catch(err => {
-            console.error('Texture load error:', err);
-        });
+        .catch(err => {console.error('Texture load error:', err);});
 
         // -------------------------------//
         loadWalkMapWithAuth(this.WalkMapUrl, localStorage.getItem('accessToken'))
@@ -127,14 +123,14 @@ export class Tile{
             // const goalpixel={x:80,y:80}
 
             // this.AstarPathCost(startpixel,goalpixel,startpixel,80,80)
-            this.PortalConnectivity()
+
+            // this.PortalConnectivity()
+
         })
-        .catch(err => {
-            console.error('Texture load error:', err);
-        });
+        .catch(err => {console.error('Texture load error:', err);});
     }
     async BuildTileBase(){
-        console.log("tried!!!")
+        // console.log("tried!!!")
         if (this.heightmap && this.texture) {
             // const width = this.heightmap.image.width;
             // const height = this.heightmap.image.height;
@@ -328,97 +324,8 @@ export class Tile{
         
     }
 
-    async getPlacementMask(assetId){
-        if (OBJECTS_MASKS.has(assetId)) {
-            return OBJECTS_MASKS.get(assetId);
-        }
-        async function loadPlacementMasksWithAuth(url, token) {
-            const response = await fetch(url, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to load texture: ${response.statusText}`);
-            }
-
-            const blob = await response.blob();
-            const imageBitmap = await createImageBitmap(blob);
-
-            const canvas = document.createElement('canvas');
-            canvas.width = imageBitmap.width;
-            canvas.height = imageBitmap.height;
-
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(imageBitmap, 0, 0);
-
-            return canvas;
-        }
-
-        return new Promise((resolve, reject) => {
-            loadPlacementMasksWithAuth("Assets/Asset_Masks/" + assetId + "_Mask.png", localStorage.getItem('accessToken'))
-            .then(texture => {
-                // this.walkMap=texture;
-                // const startpixel={x:40,y:40}
-                // const goalpixel={x:80,y:80}
-                const maskObject = {
-                    "canvas": texture,
-                    "width": texture.width,
-                    "height": texture.height,
-                };
-                OBJECTS_MASKS.set(assetId, maskObject);
-                // return maskObject;//OBJECTS_MASKS.get(assetId);
-                resolve(maskObject);
-                // this.AstarPathCost(startpixel,goalpixel,startpixel,80,80)
-                // this.PortalConnectivity()
-            })
-            .catch(err => {
-                console.error('Texture load error:', err);
-                reject(new Error("Failed to load mask for assetId: " + assetId));
-            });
-        
-        });
-
-    }
-
-    async getPosWithHeight(selectedPoint){
-        const worldPos = selectedPoint//[selectedPoint.x,selectedPoint.y,selectedPoint.z]; // [x, y, z]
-
-
-        const HeightMapcanvas = this.heightMapCanvas
-        console.log(HeightMapcanvas, "COME ON BABYYYYYY, HEIGTH CANVASSS");
-        const HeightMapWidth = HeightMapcanvas.width;
-        const HeightMapHeight = HeightMapcanvas.height;
-
-        const HeightMapTempCanvas = document.createElement('canvas');
-        HeightMapTempCanvas.width = HeightMapWidth;
-        HeightMapTempCanvas.height = HeightMapHeight;
-        
-        // console.log(this.heightmap, "bro this gotta be valid")
-        const ctx = HeightMapcanvas.getContext('2d');
-        // ctx.drawImage(HeightMapcanvas, 0, 0);
-
-        // Scale and position setup
-        const worldTileSize = 7.5;//7.5; // world units → corresponds to full width/height of walkMap
-        const pixelsPerUnit = HeightMapWidth / worldTileSize;
-
-        // Convert world coordinates to pixel coordinates on walkMap
-        const imgX = Math.round(HeightMapWidth / 2 + worldPos[0] * pixelsPerUnit);
-        const imgY = Math.round(HeightMapHeight / 2 + worldPos[2] * pixelsPerUnit);
-
-        const HeightData = ctx.getImageData(imgX, imgY, 1, 1).data;
-        const [r, g, b, a] = HeightData;
-
-        const Heightscale=0.6; //from tile terrain builder material
-        //secondly, only the R value so basically its
-        const height=(r*Heightscale)/(30*7.5)
-
-        console.log(height, "muaahahahahahahaha")
-        return [selectedPoint[0],height,selectedPoint[2]];
-
-         
-    }
+    
     //Pathfinding functionality
-
     async DetermineSubgrid(MetaData){//determine which subgrid a unit belongs to
         //walkmap is 1536, if we make subgrids 32 pixels in size, thats 48x48 subgrids 
 

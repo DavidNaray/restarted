@@ -14,7 +14,8 @@ const TileSchemaImport=require("./Schemas/Tile")
 const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
-const {SharpImgBuildingPlacementVerification,SharpImgPointVerification}=require("./modules/PlacementValidation.js")
+const {SharpImgBuildingPlacementVerification,SharpImgPointVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
+const {PortalConnectivity}=require("./modules/PathfindingFunctionality.js")
 
 const mongoose = require('mongoose');
 const { Console } = require('console');
@@ -399,11 +400,16 @@ io.on('connection', (socket) => {
             "rotation":RequestMetaData.rotation,
         }
         const permission=await SharpImgBuildingPlacementVerification(MaskLocation,WalkMapLocation,passIn)
-        
+        var position;
+        if(permission){
+            const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
+            position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
+        }
         const responseObject={
             "permission":permission,
-            "position":RequestMetaData.position,
+            "position":position,//RequestMetaData.position,
             "rotation":RequestMetaData.rotation,
+            // "building":true,
             "health":100
         }
 
@@ -417,12 +423,24 @@ io.on('connection', (socket) => {
         const passIn=RequestMetaData.position
         const permission=await SharpImgPointVerification(WalkMapLocation,passIn)
         
+        var position;
+        if(permission){
+            const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
+            position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
+        }
+
         const responseObject={
             "permission":permission,
-            "position":RequestMetaData.position,
+            "position":position,//RequestMetaData.position,
             "tile":RequestMetaData.tile
         }
         socket.emit('CanYouDeployHere', responseObject);
     })
+
+    socket.on('testing',async () => {
+        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+"0"+"0"+".png"
+        socket.emit('testingResponse', "hello");
+        PortalConnectivity(WalkMapLocation)
+    });
 
 });
