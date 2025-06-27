@@ -69,7 +69,7 @@ export class TileInstancePool {
             mesh.count = index + 1;
         }
         console.log(mesh.freeIndices)
-        
+        mesh.computeBoundingSphere();
         requestRenderIfNotRequested();
     }
 

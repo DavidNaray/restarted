@@ -5,14 +5,17 @@ import {getUserTileData,setupSocketConnection} from "./JS_Externals/SceneInitiat
 import {MakeToolTips} from "./JS_Externals/ResourceTips.js"
 import {addEventListenersToButtons} from "./JS_Externals/DropDownUI.js"
 import {updateGridColumns} from "./JS_Externals/Utils.js"
-import {raycaster,pointer} from "./JS_Externals/RaycasterHandling.js"
+import {raycaster,pointer,MouseDownHandling,MouseMovingHandling,MouseUpHandling} from "./JS_Externals/RaycasterHandling.js"
 
 import {globalmanager} from "./JS_Externals/GlobalInstanceMngr.js"
 import {Tile} from "./JS_Externals/TileClass.js"
 
-export var renderer,camera,username,UserId;
+export var renderer,camera,username,UserId,controls;
 export const scene = new THREE.Scene();
-var controls,renderRequested;
+export const InputState={value:"neutral"};
+
+var renderRequested
+
 
 
 class Template{
@@ -34,8 +37,13 @@ function sceneSetup(tiles){
     renderer.setPixelRatio(window.devicePixelRatio * 0.75); // Half the normal pixel ratio
 
     document.getElementById("ThreeBlock").appendChild(renderer.domElement)
-
     
+    //add eventlisteners to allow object selection
+    renderer.domElement.addEventListener("mousedown",MouseDownHandling)
+    renderer.domElement.addEventListener("mousemove",MouseMovingHandling)
+    renderer.domElement.addEventListener("mouseup",MouseUpHandling)
+    //--------------------------------------------
+
     camera = new THREE.PerspectiveCamera( 75, renderer.domElement.width / renderer.domElement.height, 0.1, 10000 );//window.innerWidth / window.innerHeight
     camera.position.z = 5;
     camera.position.y = 1;

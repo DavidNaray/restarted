@@ -1,7 +1,7 @@
 import {updateGridColumns} from "./Utils.js"
 import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
-import {renderer,UserId} from "../siteJS.js"
+import {renderer,UserId,InputState} from "../siteJS.js"
 import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed} from "./SceneInitiation.js"
 
 
@@ -88,6 +88,7 @@ function IterateOverDeploy(regimenEnvelope,DeployPoint,Obj_Identifier){
 }
 
 function deploymentPoint(event){
+    InputState.value="DeploymentPointRegime"
     divToChangevalue=event.target;
     // console.log("target",divToChangevalue)
     renderer.domElement.addEventListener( 'pointermove', onPointerMove );
@@ -417,7 +418,7 @@ function onHoverBuilding(event){
 }
 
 function PlaceBuilding(event){
-
+    InputState.value="Builder"
     //on renderer.domElement so that placement doesnt follow when users mouse is over the overlay
     renderer.domElement.addEventListener( 'pointermove', onHoverBuilding );
     renderer.domElement.addEventListener( 'click', onclickBuilding );

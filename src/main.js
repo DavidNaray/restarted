@@ -447,17 +447,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('DeployAllUnits',async ({RequestMetaData}) => {
-        // const tileX=RequestMetaData.tile[0].toString();
-        // const tileY=RequestMetaData.tile[1].toString();
-        // const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
-        // const passIn=RequestMetaData.position
-        // const permission=await SharpImgPointVerification(WalkMapLocation,passIn)
-        
-        // var position;
-        // if(permission){
-        //     const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
-        //     position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
-        // }
 
         const responseObject={
             "AssetClass":"Unit",

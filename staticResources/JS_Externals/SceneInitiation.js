@@ -1,4 +1,4 @@
-import {renderer} from "../siteJS.js"
+import {renderer,InputState} from "../siteJS.js"
 import {onPointerMove} from "./RaycasterHandling.js"
 import {onclickBuilding,adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
@@ -129,6 +129,7 @@ function HandleSocketResponses(socket){
     });
 
     socket.on('CanYouPlaceBuilding', (response) => {
+        InputState.value="neutral"
         // console.log("YIPEEEEEEE",response.position)
         renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
         renderer.domElement.removeEventListener( 'click', onclickBuilding );
@@ -147,7 +148,8 @@ function HandleSocketResponses(socket){
     });
 
     socket.on('CanYouDeployHere', (response) => {
-        console.log("deploy here?",response)
+        InputState.value="neutral"
+        // console.log("deploy here?",response)
         if(response.permission){
             adjustUnitDeployPosition(response)
         }
@@ -162,20 +164,15 @@ function HandleSocketResponses(socket){
 
     socket.on('DeployAllUnitsHere', (response) => {
         console.log("deploying units",response.position)
-        // if(response.permission){
-        //     adjustUnitDeployPosition(response)
-        // }
-        //the user clicked, the deployment has/not been set, remove eventListeners
-        // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-        // renderer.domElement.removeEventListener( 'click',  onTileClick);
+
         const whichTileUnits=globalmanager.getTile(response.tile[0],response.tile[1])
-        console.log(whichTileUnits, "ok...")
+
         const metaDataUnits={
             "position":response.position,
             // "health":response.health
         }
         for(var i=0;i<response.UnitCount;i++){
-            console.log("pluh!",i)
+
             whichTileUnits.objectLoad(response.UnitType,metaDataUnits,response.AssetClass)
         }
         
