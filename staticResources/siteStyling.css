@@ -51,7 +51,8 @@ html, body {
 
 #Button_Dropdown{
   width:  min(550px,40%);
-  height: 90%;
+  /* height: 90%; */
+  max-height: 90%;
 
   background-color: gray;
   position: relative;  
@@ -59,20 +60,18 @@ html, body {
   flex-direction: column;
 
   padding:min(0.75vw,0.75vh);
+  /* padding-bottom: 0; */
   padding-top: 0;
-
+  overflow: hidden;
 }
 
 #inner_B_Dropdown{
   position: relative;
-  /* bottom: min(0.75vw,0.75vh);
-  top:0.5vw;
-  right:0;
-  left: 0; */
-  margin-top: 0.5vw;
-  /* margin-bottom: 0.5vw; */
+
   width: 100%;
-  height: calc(100% - 0.5vw);
+  height: calc(100% - min(0.75vw,0.75vh));
+  /* - min(0.75vw,0.75vh)); */
+  /* margin-bottom: min(0.75vw,0.75vh); */
   overflow-y: scroll;  
   scrollbar-gutter: stable;
   scrollbar-color: black gray;
@@ -80,7 +79,7 @@ html, body {
   /* EXTREMELY IMPORTANT, STOPS A HUGE BOX APPEARING FOR SOME REASON, YOU NEED GAP BETWEEN DIV AND THE SCTROLL BAR */
   padding-right: 1px;
   /* ---------------------------------------------------------------------------------------------------- */
-
+  /* padding-bottom: 1px; */
 
   &::-webkit-scrollbar-button {
     display: none;

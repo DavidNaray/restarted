@@ -115,7 +115,7 @@
         <!-- dropdown for when Buttons activate  -->
         <div id="Button_Dropdown" style="  display: none;">
             <!-- title box and the close button for the dropdown -->
-            <div style="width: 100%;aspect-ratio: 9/1;background-color: rgb(98, 98, 98);overflow-x: hidden;">
+            <div style="width: 100%;aspect-ratio: 9/1;background-color: rgb(98, 98, 98);overflow-x: hidden;flex-shrink: 0;">
                 <div style="height: calc(100% - 1vw);aspect-ratio: 1/1;float: right;padding: 0.5vw;">
                     <!-- x button -->
                      <div id="close_Dropdown" style="background-color: black;width: 100%;height: 100%;"></div>
@@ -126,14 +126,10 @@
                 </div>
                 
             </div>
-            <div style="background-color: transparent;width: 100%;height: 100%;position: relative;">
-                <div id="inner_B_Dropdown">
-                    <div id="Dropdown_Content_Box" style="width: 100%;min-height: calc(100%);background-color: rgb(98, 98, 98);overflow-x: hidden;"></div>
-                </div>
-
+ 
+            <div id="inner_B_Dropdown">
+                <div id="Dropdown_Content_Box" style="width: 100%;;background-color: rgb(98, 98, 98);overflow-x: hidden;"></div>
             </div>
-
-            
 
         </div>
     </div>

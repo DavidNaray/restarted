@@ -102,13 +102,14 @@ function createUnitRegime(event){
 
     //add to PieceRegimen
     const component=document.getElementById("PieceRegimen");
-
+    // component.style.marginTop="1px"
     const regimenEnvelope=document.createElement("div");
     {
         regimenEnvelope.style.width="100%";
-        regimenEnvelope.style.aspectRatio="10/1"
-        regimenEnvelope.style.marginTop="4px";
-        regimenEnvelope.style.marginBottom="max(2vw,2vh)";
+        // regimenEnvelope.style.height="20px"
+        regimenEnvelope.style.display = "block";
+
+        regimenEnvelope.style.marginBottom="1vw"//"max(2vw,2vh)";
         regimenEnvelope.style.backgroundColor="gray";
         regimenEnvelope.style.borderBottom="solid 4px black"
     }
@@ -126,7 +127,7 @@ function createUnitRegime(event){
     const ImageHolder=document.createElement("div");
     {
         ImageHolder.style.width="calc(100% - 4px)";
-        ImageHolder.style.aspectRatio="1/1";
+        // ImageHolder.style.aspectRatio="1/1";
         ImageHolder.style.padding="4px"
         ImageHolder.style.paddingRight="0"
     }
@@ -137,7 +138,10 @@ function createUnitRegime(event){
         ImageIcon.className="IconGeneral"
         ImageIcon.style.backgroundImage="url('Icons/"+whichUnit +"Icon.png')"
         ImageIcon.style.width="100%"
-        ImageIcon.style.height="100%"
+        // ImageIcon.style.height="100%"
+        ImageIcon.style.paddingTop="100%"
+        ImageIcon.style.height = "auto"; // or remove it entirely
+        ImageIcon.style.display = "block"; // Prevents bottom whitespace
     }
     ImageHolder.appendChild(ImageIcon)
 
@@ -262,6 +266,8 @@ function createUnitRegime(event){
     const DeployBut=document.createElement("div");
     {
         // SubtractBut.style.height="100%"
+        DeployBut.style.height="100%";
+        // DeployBut.style.width="auto"
         DeployBut.style.aspectRatio="1/1"
         // AddBut.style.right="0"
         DeployBut.style.backgroundColor="white"
@@ -430,11 +436,16 @@ function PlaceBuilding(event){
 function MilTrainingElements(){
     const contentBox=document.getElementById("Dropdown_Content_Box");
     const MilTraincontentBox=document.getElementById("MilTraincontentBox");
+
     if(!MilTraincontentBox){
         const creatingMTCB=document.createElement("div");
         {
             creatingMTCB.style.width="100%";
+            // creatingMTCB.style.height=""
+            creatingMTCB.style.maxHeight="100%"
             creatingMTCB.id="MilTraincontentBox"
+            // creatingMTCB.style.flexGrow="0";
+            // flex-grow: 0;
         }
         contentBox.appendChild(creatingMTCB)
 
@@ -451,7 +462,7 @@ function MilTrainingElements(){
             // IndiOrTemplateButtons.style.backgroundColor="red";
             IndiOrTemplateButtons.id="IndiOrTemplateButtons"
             IndiOrTemplateButtons.style.width="calc(100% - 8px)"
-            IndiOrTemplateButtons.style.aspectRatio="12/1"
+            // IndiOrTemplateButtons.style.aspectRatio="12/1"
             IndiOrTemplateButtons.style.display="grid";
             IndiOrTemplateButtons.style.gridTemplateColumns="auto auto 0"
             IndiOrTemplateButtons.style.columnGap="4px"
@@ -520,25 +531,32 @@ function MilTrainingElements(){
         IndiTemplateOptionHolder.appendChild(IndiOptionHolder)
         
         // create the options for individual units
-        const indiUnits=[["archer","url('Icons/ArcherIcon.png')"],["spearman","url('Icons/SpearManIcon.png')"],]
+        const indiUnits=[["archer","url('Icons/ArcherIcon.png')"],["spearman","url('Icons/SpearManIcon.png')"],
+    ["spearman","url('Icons/SpearManIcon.png')"],["spearman","url('Icons/SpearManIcon.png')"],["spearman","url('Icons/SpearManIcon.png')"]
+,["spearman","url('Icons/SpearManIcon.png')"],["spearman","url('Icons/SpearManIcon.png')"],["spearman","url('Icons/SpearManIcon.png')"]]
+
+
+
+
         indiUnits.forEach((param)=>{
             const unitHolder=document.createElement("div");
             {
                 unitHolder.style.width="calc(100% - 1vw)"
-
-                unitHolder.style.aspectRatio="1/1"
+                
+                // unitHolder.style.aspectRatio="1/1"
                 unitHolder.style.padding="0.5vw"
+                // unitHolder.style.paddingTop="100%"
             }
             IndiOptionHolder.appendChild(unitHolder)
             const unit=document.createElement("div");
             {
                 unit.style.width="100%"
-                unit.style.height="100%"
-                // unit.style.height="calc(100% - 1vw)"
+                unit.style.height = "auto"; // or remove it entirely
+                unit.style.display = "block"; // Prevents bottom whitespace
+                unit.style.paddingTop="100%"
                 unit.myParam=param[0]
-                unit.style.aspectRatio="1/1"
+
                 unit.style.backgroundImage=param[1]||"";
-                unit.style.backgroundColor="gray";
                 unit.className="IconGeneral"
             }
 
@@ -570,7 +588,7 @@ function MilTrainingElements(){
                 Template.style.backgroundColor="green"
                 // soldier.style.
             }
-            TemplateOptionHolder.appendChild(Template)
+            // TemplateOptionHolder.appendChild(Template)
         })
 
 
@@ -582,8 +600,10 @@ function MilTrainingElements(){
             titlePieceRegimen.style.height="100%";
             titlePieceRegimen.style.display="inline-block"
             // IndiTemplateOptionHolder.style.backgroundColor="pink"
-            titlePieceRegimen.style.margin="4px"
+            titlePieceRegimen.style.marginLeft="4px"
+            titlePieceRegimen.style.marginRight="4px"
             titlePieceRegimen.style.marginTop="1vw"
+            titlePieceRegimen.style.marginBottom="1vw"
             titlePieceRegimen.style.borderBottom="solid 0.25vw gray"
             titlePieceRegimen.innerText="Training Regimens"
             titlePieceRegimen.style.color="white"
@@ -601,7 +621,8 @@ function MilTrainingElements(){
             // PieceRegimen.style.height="100%";
             PieceRegimen.style.display="block"
             // PieceRegimen.style.backgroundColor="pink"
-            PieceRegimen.style.margin="4px"
+            PieceRegimen.style.marginLeft="4px"
+            PieceRegimen.style.marginRight="4px"
             // titlePieceRegimen.style.marginTop="1vw"
             // titlePieceRegimen.style.borderBottom="solid 0.25vw gray"
             // titlePieceRegimen.innerText="Training Regimens"
@@ -709,11 +730,12 @@ function ConstructionElements(){
         const BuildQueueTitleBox=document.createElement("div");
         {
             BuildQueueTitleBox.style.width="calc(100% - 1vw)";
-            BuildQueueTitleBox.style.aspectRatio="13/1";
+            // BuildQueueTitleBox.style.aspectRatio="13/1";
             BuildQueueTitleBox.style.display="grid";
             BuildQueueTitleBox.style.gridTemplateColumns="1.5fr 1fr ";
             BuildQueueTitleBox.style.margin="0 0.5vw 0 0.5vw";
             BuildQueueTitleBox.style.borderBottom="solid gray 0.25vw"
+            BuildQueueTitleBox.style.marginBottom="1vw"
             
         }
         creatingCCB.appendChild(BuildQueueTitleBox)
