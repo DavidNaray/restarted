@@ -878,6 +878,7 @@ export function UnitSelectionDisplay(Selected){
         {
             UnitInfoDispContentBox.style.width="100%";
             UnitInfoDispContentBox.id="UnitInfoDispContentBox"
+            UnitInfoDispContentBox.style.paddingTop="1vw"
         }
         contentBox.appendChild(UnitInfoDispContentBox)
 
@@ -896,7 +897,7 @@ export function UnitSelectionDisplay(Selected){
                 UnitsDisplayTitleCard.style.display="inline-block"
                 UnitsDisplayTitleCard.style.marginLeft="4px"
                 UnitsDisplayTitleCard.style.marginRight="4px"
-                UnitsDisplayTitleCard.style.marginTop="1vw"
+                // UnitsDisplayTitleCard.style.marginTop="1vw"
                 UnitsDisplayTitleCard.style.marginBottom="1vw"
                 UnitsDisplayTitleCard.style.borderBottom="solid 0.25vw gray"
                 UnitsDisplayTitleCard.innerText="Selected Units"
@@ -1023,9 +1024,30 @@ export function UnitSelectionDisplay(Selected){
                 break;
         }
     })
-    addToMiscSelection("Buildings",BuildingCountTracking)
-    addToMiscSelection("Units",UnitcountTracking)
-    addToMiscSelection("Misc",MiscCountTracking)
+    if(Object.keys(BuildingCountTracking).length === 0){
+        //hide the buildings section
+        document.getElementById("BuildingDispSectionInUIDCB_Parent").style.display="none"
+    }else{
+        document.getElementById("BuildingDispSectionInUIDCB_Parent").style.display="block"
+        addToMiscSelection("Buildings",BuildingCountTracking)
+    }
+    
+    if(Object.keys(UnitcountTracking).length === 0){
+        //hide the Units section
+        document.getElementById("UnitDispSectionInUIDCB_Parent").style.display="none"
+    }else{
+        document.getElementById("UnitDispSectionInUIDCB_Parent").style.display="block"
+        addToMiscSelection("Units",UnitcountTracking)
+    }
+    
+    if(Object.keys(MiscCountTracking).length === 0){
+        //hide the Misc section
+        document.getElementById("OtherDispSectionInUIDCB_Parent").style.display="none"
+    }else{
+        document.getElementById("OtherDispSectionInUIDCB_Parent").style.display="block"
+        addToMiscSelection("Misc",MiscCountTracking)
+    }
+    
 
     UnitInfoDispContentBox.style.display="block"
 }

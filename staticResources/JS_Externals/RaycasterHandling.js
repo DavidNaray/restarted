@@ -80,7 +80,7 @@ export function MouseUpHandling(e) {
                 }
             }else{
                 var UnitInfoDispContentBox=document.getElementById("UnitInfoDispContentBox");
-                if(UnitInfoDispContentBox.style.display=="block"){
+                if(UnitInfoDispContentBox && UnitInfoDispContentBox.style.display=="block"){
                     // UnitInfoDispContentBox.style.display="none"
                     document.getElementById("Button_Dropdown").style.display="none";
                 }
