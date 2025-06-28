@@ -139,10 +139,12 @@ function HandleSocketResponses(socket){
             console.log(whichTile)
             const metaData={
                 "position":response.position,
-                "health":response.health,
+                "rotation":response.rotation,
                 "UnitType":response.UnitType,
-                "AssetClass":response.AssetClass
-
+                "AssetClass":response.AssetClass,
+                "owner":response.owner,
+                "ServerId":response.ServerId,
+                "health":response.health,
             }
             whichTile.objectLoad(response.UnitType,metaData,response.AssetClass)
         }else{
@@ -169,15 +171,18 @@ function HandleSocketResponses(socket){
         console.log("deploying units",response.position)
 
         const whichTileUnits=globalmanager.getTile(response.tile[0],response.tile[1])
+        console.log(response.ServerIds)
 
-        const metaDataUnits={
-            "position":response.position,
-            "UnitType":response.UnitType,
-            "AssetClass":response.AssetClass,
-            // "health":response.health
-        }
         for(var i=0;i<response.UnitCount;i++){
-
+            const metaDataUnits={
+                "position":response.position,
+                "UnitType":response.UnitType,
+                "AssetClass":response.AssetClass,
+                "owner":response.owner,
+                "ServerId":response.ServerIds[i]
+                // "health":response.health
+            }
+            console.log(response.ServerIds[i], "placing units, this is the serverId of one")
             whichTileUnits.objectLoad(response.UnitType,metaDataUnits,response.AssetClass)
         }
         

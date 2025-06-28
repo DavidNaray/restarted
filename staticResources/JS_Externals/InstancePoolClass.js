@@ -8,7 +8,7 @@ export class TileInstancePool {
         this.dummyMatrix = new THREE.Matrix4(); // Globally or per class
         this.instanceGroups = new Map(); // objectType → instanceObject (for that objectType) 
         
-
+        this.ServerId_To_ObjTypeAndInstId_Mapping=new Map();//integer → [objectType,instanceId]
 
     }
 
@@ -21,6 +21,7 @@ export class TileInstancePool {
         //form of meta will vary, buildings may have name, type of building, under construction, resistances etc
         //units may have health, damage, weaknesses etc 
         //most importantly a reference to a template object if its part of a template
+        console.log("i am getting the right meta right?: ",meta)
         let mesh=this.instanceGroups.get(objectType);
         if(!mesh){
             console.log("didnt exist, make it!")
@@ -62,13 +63,15 @@ export class TileInstancePool {
 
         }
 
+        this.ServerId_To_ObjTypeAndInstId_Mapping.set(meta.ServerId,[objectType,index]);
+        console.log("lets see the tile total instance tracking state:",this.ServerId_To_ObjTypeAndInstId_Mapping)
         mesh.setMatrixAt(index, transform);
         mesh.metadata.set(index,meta);
         mesh.instanceMatrix.needsUpdate = true;
         if (index >= mesh.count) {
             mesh.count = index + 1;
         }
-        console.log(mesh.freeIndices)
+        // console.log(mesh.freeIndices)
         mesh.computeBoundingSphere();
         requestRenderIfNotRequested();
     }

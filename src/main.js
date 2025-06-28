@@ -401,19 +401,35 @@ io.on('connection', (socket) => {
         }
         const permission=await SharpImgBuildingPlacementVerification(MaskLocation,WalkMapLocation,passIn)
         var position;
+        var ServerIdProvided;
         if(permission){
             const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
             position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
+
+            //lookup the tile 
+            const tile = await TileScheme.findOne({x: RequestMetaData.tile[0],y: RequestMetaData.tile[1]});//owner: user._id });
+            console.log("TILE TARGET", tile.x,tile.y,"topindice",tile.topIndice)
+            if(tile.freeIndices.length>0){
+                ServerIdProvided=tile.freeIndices.shift();//pops first element in array
+            }else{
+                ServerIdProvided=tile.topIndice
+                tile.topIndice+=1
+            }
+            tile.save()
+        
         }
+        console.log("what the hell come on:", ServerIdProvided)
         const responseObject={
             "permission":permission,
             "position":position,//RequestMetaData.position,
             "rotation":RequestMetaData.rotation,
             "UnitType":RequestMetaData.UnitType,
             "health":100,
+            "owner":RequestMetaData.userOwner,
             "tile":[tileX,tileY],
             // "AssetName":BuildingAssetName,
-            "AssetClass":"Building"
+            "AssetClass":"Building",
+            "ServerId":ServerIdProvided
         }
 
         socket.emit('CanYouPlaceBuilding', responseObject);
@@ -435,7 +451,8 @@ io.on('connection', (socket) => {
         const responseObject={
             "permission":permission,
             "position":position,//RequestMetaData.position,
-            "tile":RequestMetaData.tile
+            "tile":RequestMetaData.tile,
+            "owner":RequestMetaData.userOwner,
         }
         socket.emit('CanYouDeployHere', responseObject);
     })
@@ -448,13 +465,38 @@ io.on('connection', (socket) => {
 
     socket.on('DeployAllUnits',async ({RequestMetaData}) => {
 
+        // console.log(RequestMetaData.owner, "owner")
+        var chosenServerIndices=[];
+        //get the title, check free indices and the rest are top ++++
+        const tile = await TileScheme.findOne({x: RequestMetaData.tile[0],y: RequestMetaData.tile[1]});//owner: user._id });
+        // console.log("TILE TARGET", tile.x,tile.y,"topindice",tile.topIndice)
+        var tileFreeIndices=tile.freeIndices
+        var TileTopIndice=tile.topIndice
+        for(let i=0;i<RequestMetaData.UnitCount;i++){
+            if(tileFreeIndices.length>0){
+                console.log(tileFreeIndices,"FREE INDICES!")
+                const freeIndice=tileFreeIndices.shift();//pops first element in array
+                chosenServerIndices.push(freeIndice)
+            }else{
+                chosenServerIndices.push(TileTopIndice)
+                // tile.topIndice+=1
+                TileTopIndice+=1
+            }
+                 
+        }
+        tile.freeIndices=tileFreeIndices
+        tile.topIndice=TileTopIndice
+        tile.save()
+        console.log("chosen....",chosenServerIndices)
+
         const responseObject={
             "AssetClass":"Unit",
             "position":RequestMetaData.DeployPosition,
             "UnitType":RequestMetaData.UnitType,
             "tile":RequestMetaData.tile,
-            "UnitCount":RequestMetaData.UnitCount
-            
+            "UnitCount":RequestMetaData.UnitCount,
+            "owner":RequestMetaData.owner,
+            "ServerIds":chosenServerIndices
         }
         socket.emit('DeployAllUnitsHere', responseObject);
     });

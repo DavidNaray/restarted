@@ -59,7 +59,8 @@ function IterateOverDeploy(regimenEnvelope,DeployPoint,Obj_Identifier){
         "UnitCount":regimenEnvelope.children.length-1,
         "UnitType":Obj_Identifier,
         "DeployPosition":DeployPosition,
-        "tile":[targetTile.x,targetTile.y]
+        "tile":[targetTile.x,targetTile.y],
+        "owner":UserId,
     }
     // for(let i=1;i<regimenEnvelope.children.length;i++){
         

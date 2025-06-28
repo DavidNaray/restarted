@@ -4,6 +4,9 @@ const tileSchema = new mongoose.Schema({
     x:Number,
     y:Number,
 
+    freeIndices:[Number],
+    topIndice:{type:Number,default:0},
+
     owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },       // ✅ Full control & vision
     allies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],    // ✅ Full vision, restricted actions (per owners rules)
     involvedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],// ⚔️ Enemies or visiting users
@@ -20,6 +23,7 @@ const tileSchema = new mongoose.Schema({
         instances:[{
             position: [Number], // [x, y, z] on the tile
             metaData: {
+                ServerId:Number,
                 health: Number,
                 state: String,     // e.g., "under_construction", "built", etc.
             }
@@ -34,6 +38,7 @@ const tileSchema = new mongoose.Schema({
             metaData: {
                 // templateId: { type: String, default: null },  // null = free unit
                 templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', default: null },
+                ServerId:Number,
                 health: Number,
                 state: String,       // e.g., "idle", "moving", "attacking"
 
