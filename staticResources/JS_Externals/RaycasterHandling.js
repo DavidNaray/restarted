@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {camera,InputState,scene,controls} from "../siteJS.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
+import {UnitSelectionDisplay} from "./DropDownUI.js"
 
 
 let isDragging = false;
@@ -67,11 +68,21 @@ export function MouseUpHandling(e) {
                 const hit = intersects[0];
 
                 if (hit.instanceId !== undefined) {
-                    console.log('Instanced object hit, instanceId:', hit.instanceId);
-                    console.log('Base mesh:', hit.object);
+                    // console.log('Instanced object hit, instanceId:', hit.instanceId);
+                    // console.log('Base mesh:', hit.object);
+                    
                     // You can now use hit.instanceId to reference that specific instance
+                    const sendOver=[hit]
+                    UnitSelectionDisplay(sendOver)
                 } else {
                     console.log('Non-instanced object hit:', hit.object);
+
+                }
+            }else{
+                var UnitInfoDispContentBox=document.getElementById("UnitInfoDispContentBox");
+                if(UnitInfoDispContentBox.style.display=="block"){
+                    // UnitInfoDispContentBox.style.display="none"
+                    document.getElementById("Button_Dropdown").style.display="none";
                 }
             }
         }

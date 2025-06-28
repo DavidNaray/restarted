@@ -9,6 +9,8 @@ import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDepl
 var BuildingAssetName;//variable to hold which building is trying to be placed right now
 var divToChangevalue;//this holds the div that displays the deploy position
 
+//------------------------------------------------------------------------
+//Unit creation and handling functions
 export function adjustUnitDeployPosition(response){
     const position=response.position;
     const X=position[0].toFixed(2)
@@ -379,60 +381,6 @@ function createUnitRegime(event){
     });
 }
 
-
-
-export function onclickBuilding(event){
-    // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
-
-    const intersects = intersectsTileMeshes()
-
-    if (intersects.length > 0) {
-        const intersectedMesh = intersects[0].object;
-        const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
-
-        if (foundTile) {
-            // console.log("Clicked tile:", foundTile.x, foundTile.y);
-
-            //find the tile, add the building
-
-            const IntersectPoint=intersects[0].point
-            const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
-
-            const RequestMetaData={
-                "tile":[foundTile.x, foundTile.y],
-                "position":processedPoint,
-                "rotation":0,
-                "userOwner":UserId//localStorage.getItem('accessToken').id,
-            }
-            //permission is false, or it will be an adjusted position
-            EmitBuildingPlacementRequest(BuildingAssetName,RequestMetaData);
-
-            // console.log("aight, we got the press",processedPoint)
-        }
-    }
-
-    //this code needs to be moved the response of EmitBuildingPlacementRequest
-    //the user clicked, the building has been placed, remove eventListeners
-    // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-    // renderer.domElement.removeEventListener( 'click', onclickBuilding );
-}
-
-function onHoverBuilding(event){
-    onPointerMove(event)
-
-    //would be moving the asset of BuildingAssetName
-}
-
-function PlaceBuilding(event){
-    InputState.value="Builder"
-    //on renderer.domElement so that placement doesnt follow when users mouse is over the overlay
-    renderer.domElement.addEventListener( 'pointermove', onHoverBuilding );
-    renderer.domElement.addEventListener( 'click', onclickBuilding );
-
-    BuildingAssetName=event.currentTarget.myParam
-
-}
-
 function MilTrainingElements(){
     const contentBox=document.getElementById("Dropdown_Content_Box");
     const MilTraincontentBox=document.getElementById("MilTraincontentBox");
@@ -648,6 +596,60 @@ function MilTrainingElements(){
     }
     updateGridColumns();
 }
+//-------------------------------------------------------------------------
+//construction functions
+export function onclickBuilding(event){
+    // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+    const intersects = intersectsTileMeshes()
+
+    if (intersects.length > 0) {
+        const intersectedMesh = intersects[0].object;
+        const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
+
+        if (foundTile) {
+            // console.log("Clicked tile:", foundTile.x, foundTile.y);
+
+            //find the tile, add the building
+
+            const IntersectPoint=intersects[0].point
+            const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
+
+            const RequestMetaData={
+                "tile":[foundTile.x, foundTile.y],
+                "position":processedPoint,
+                "rotation":0,
+                "userOwner":UserId,
+                "UnitType":BuildingAssetName
+            }
+            //permission is false, or it will be an adjusted position
+            EmitBuildingPlacementRequest(RequestMetaData);//BuildingAssetName,
+
+            // console.log("aight, we got the press",processedPoint)
+        }
+    }
+
+    //this code needs to be moved the response of EmitBuildingPlacementRequest
+    //the user clicked, the building has been placed, remove eventListeners
+    // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+    // renderer.domElement.removeEventListener( 'click', onclickBuilding );
+}
+
+function onHoverBuilding(event){
+    onPointerMove(event)
+
+    //would be moving the asset of BuildingAssetName
+}
+
+function PlaceBuilding(event){
+    InputState.value="Builder"
+    //on renderer.domElement so that placement doesnt follow when users mouse is over the overlay
+    renderer.domElement.addEventListener( 'pointermove', onHoverBuilding );
+    renderer.domElement.addEventListener( 'click', onclickBuilding );
+
+    BuildingAssetName=event.currentTarget.myParam
+
+}
 
 function ConstructionElements(){
     const contentBox=document.getElementById("Dropdown_Content_Box");
@@ -689,10 +691,10 @@ function ConstructionElements(){
         const optionObjNames=["ArmsFactory","CivilianFactory","Mine","SawMill","Mill","Storage","House"]
 
         const ColouroptionTags=[
-            "url('Icons/arms-factory.png')","url('Icons/civilian-factory.png')",
-            "url('Icons/quarry.png')","url('Icons/Sawmill.png')",
-            "url('Icons/Farm.png')","url('Icons/Warehouse.png')",
-            "url('Icons/House.png')",
+            "url('Icons/ArmsFactoryIcon.png')","url('Icons/CivilianFactoryIcon.png')",
+            "url('Icons/quarryIcon.png')","url('Icons/SawmillIcon.png')",
+            "url('Icons/MillIcon.png')","url('Icons/WarehouseIcon.png')",
+            "url('Icons/HouseIcon.png')",
             
         ]
 
@@ -769,6 +771,266 @@ function ConstructionElements(){
     }
 }
 
+//--------------------------------------------------------------------------
+//handle the display of selected objects
+
+function addToMiscSelection(option, values){
+    var whichTo=false;
+    switch(option){
+        case "Buildings":
+            whichTo=document.getElementById("BuildingDisplayContentBox");
+            break;
+        case "Units":
+            whichTo=document.getElementById("UnitsDisplayContentBox");
+            break;
+        case "Misc":
+            whichTo=document.getElementById("OtherDisplayContentBox");
+            break;
+        default:
+            console.log("hmm")
+            break;
+    }
+
+    if(whichTo!=false){
+        //traverse through each key (which is unitType) with a count display
+        while (whichTo.firstChild) {
+            whichTo.removeChild(whichTo.firstChild);
+        }
+        for (const [key, value] of Object.entries(values)) {
+            console.log(key, value);
+            const Envelope=document.createElement("div");
+            {
+                Envelope.style.width="calc(100% - 8px)"
+                Envelope.style.display="grid"
+                Envelope.style.gridTemplateColumns="0.6fr 2fr 1fr"
+                Envelope.style.marginLeft="4px"
+                Envelope.style.marginRight="4px"
+                Envelope.style.backgroundColor="white"
+                Envelope.style.marginBottom="4px"
+            }
+            whichTo.appendChild(Envelope)
+            const ImgDivContainer=document.createElement("div");
+            {
+                ImgDivContainer.style.width="calc(100% - 8px)"
+                ImgDivContainer.style.aspectRatio="1/1"
+                // ImgDivContainer.style.backgroundColor="green"
+                ImgDivContainer.style.padding="4px"
+            }
+            Envelope.appendChild(ImgDivContainer)
+            
+            const ImgDiv=document.createElement("div");
+            {
+                //"url('Icons/ArmsFactoryIcon.png')"
+                console.log("Icons/"+key+"Icon.png")
+                ImgDiv.style.backgroundImage="url(Icons/"+key.toString()+"Icon.png)"
+                ImgDiv.className="IconGeneral"
+                ImgDiv.style.width="100%";
+                ImgDiv.style.height="100%";
+            }
+            ImgDivContainer.appendChild(ImgDiv)
+
+            const WhichObjectTitle=document.createElement("div");
+            {
+                WhichObjectTitle.style.maxWidth="100%"
+                WhichObjectTitle.style.height="100%"
+                WhichObjectTitle.style.alignContent="center"
+                WhichObjectTitle.style.textAlign="center"
+                WhichObjectTitle.innerText=key
+                WhichObjectTitle.style.color="black"
+                WhichObjectTitle.style.fontSize="max(2vw,2vh)"
+                WhichObjectTitle.style.textOverflow="clip"
+                WhichObjectTitle.style.overflow="hidden"
+            }
+            Envelope.appendChild(WhichObjectTitle)
+
+            const ObjectCountTitle=document.createElement("div");
+            {
+                ObjectCountTitle.style.maxWidth="100%"
+                ObjectCountTitle.style.height="100%"
+                ObjectCountTitle.style.alignContent="center"
+                ObjectCountTitle.style.textAlign="center"
+                ObjectCountTitle.innerText=value
+                ObjectCountTitle.style.color="black"
+                ObjectCountTitle.style.fontSize="max(2vw,2vh)"
+                ObjectCountTitle.style.textOverflow="clip"
+                ObjectCountTitle.style.overflow="hidden"
+            }
+            Envelope.appendChild(ObjectCountTitle)
+        }
+    }
+
+}
+
+export function UnitSelectionDisplay(Selected){
+    
+    resetButtonDropDown();
+    document.getElementById("Title").innerHTML="Selection Information"
+    // var buildingCount=false;
+    // var unitCount=false;
+    const UnitcountTracking={};
+    const BuildingCountTracking={};
+    const MiscCountTracking={};
+
+    const contentBox=document.getElementById("Dropdown_Content_Box");
+    var UnitInfoDispContentBox=document.getElementById("UnitInfoDispContentBox");
+    if(!UnitInfoDispContentBox){
+        UnitInfoDispContentBox=document.createElement("div");
+        {
+            UnitInfoDispContentBox.style.width="100%";
+            UnitInfoDispContentBox.id="UnitInfoDispContentBox"
+        }
+        contentBox.appendChild(UnitInfoDispContentBox)
+
+        //add a section for displaying units
+        const UnitDispSectionInUIDCB_Parent=document.createElement("div");
+        {
+            UnitDispSectionInUIDCB_Parent.style.width="100%";
+            UnitDispSectionInUIDCB_Parent.id="UnitDispSectionInUIDCB_Parent"
+        }
+        UnitInfoDispContentBox.appendChild(UnitDispSectionInUIDCB_Parent)
+            
+            const UnitsDisplayTitleCard=document.createElement("div");
+            {
+                UnitsDisplayTitleCard.style.maxWidth="calc(100% - 8px)";
+                UnitsDisplayTitleCard.style.height="100%";
+                UnitsDisplayTitleCard.style.display="inline-block"
+                UnitsDisplayTitleCard.style.marginLeft="4px"
+                UnitsDisplayTitleCard.style.marginRight="4px"
+                UnitsDisplayTitleCard.style.marginTop="1vw"
+                UnitsDisplayTitleCard.style.marginBottom="1vw"
+                UnitsDisplayTitleCard.style.borderBottom="solid 0.25vw gray"
+                UnitsDisplayTitleCard.innerText="Selected Units"
+                UnitsDisplayTitleCard.style.color="white"
+                UnitsDisplayTitleCard.style.fontSize="max(1.5vw,1.5vh)"
+                UnitsDisplayTitleCard.style.alignContent="center"
+                UnitsDisplayTitleCard.style.textAlign="left"
+            }
+            UnitDispSectionInUIDCB_Parent.appendChild(UnitsDisplayTitleCard)
+
+            const UnitsDisplayContentBox=document.createElement("div");
+            {
+                UnitsDisplayContentBox.style.width="100%"
+                UnitsDisplayContentBox.style.minHeight="20px"
+                // UnitsDisplayContentBox.style.backgroundColor="pink"
+                UnitsDisplayContentBox.id="UnitsDisplayContentBox"
+            }
+            UnitDispSectionInUIDCB_Parent.appendChild(UnitsDisplayContentBox)
+        
+        //section for displaying selected buildings
+        const BuildingDispSectionInUIDCB_Parent=document.createElement("div");
+        {
+            BuildingDispSectionInUIDCB_Parent.style.width="100%";
+            BuildingDispSectionInUIDCB_Parent.id="BuildingDispSectionInUIDCB_Parent"
+        }
+        UnitInfoDispContentBox.appendChild(BuildingDispSectionInUIDCB_Parent)
+
+            const BuildingDisplayTitleCard=document.createElement("div");
+            {
+                BuildingDisplayTitleCard.style.maxWidth="calc(100% - 8px)";
+                BuildingDisplayTitleCard.style.height="100%";
+                BuildingDisplayTitleCard.style.display="inline-block"
+                BuildingDisplayTitleCard.style.marginLeft="4px"
+                BuildingDisplayTitleCard.style.marginRight="4px"
+                // BuildingDisplayTitleCard.style.marginTop="1vw"
+                BuildingDisplayTitleCard.style.marginBottom="1vw"
+                BuildingDisplayTitleCard.style.borderBottom="solid 0.25vw gray"
+                BuildingDisplayTitleCard.innerText="Selected Buildings"
+                BuildingDisplayTitleCard.style.color="white"
+                BuildingDisplayTitleCard.style.fontSize="max(1.5vw,1.5vh)"
+                BuildingDisplayTitleCard.style.alignContent="center"
+                BuildingDisplayTitleCard.style.textAlign="left"
+            }
+            BuildingDispSectionInUIDCB_Parent.appendChild(BuildingDisplayTitleCard)
+
+            const BuildingDisplayContentBox=document.createElement("div");
+            {
+                BuildingDisplayContentBox.style.width="100%"
+                BuildingDisplayContentBox.style.minHeight="20px"
+                // BuildingDisplayContentBox.style.backgroundColor="pink"
+                BuildingDisplayContentBox.id="BuildingDisplayContentBox"
+            }
+            BuildingDispSectionInUIDCB_Parent.appendChild(BuildingDisplayContentBox)
+
+        //section for displaying anything else
+        const OtherDispSectionInUIDCB_Parent=document.createElement("div");
+        {
+            OtherDispSectionInUIDCB_Parent.style.width="100%";
+            OtherDispSectionInUIDCB_Parent.id="OtherDispSectionInUIDCB_Parent"
+        }
+        UnitInfoDispContentBox.appendChild(OtherDispSectionInUIDCB_Parent)
+
+        const OtherDisplayTitleCard=document.createElement("div");
+        {
+            OtherDisplayTitleCard.style.maxWidth="calc(100% - 8px)";
+            OtherDisplayTitleCard.style.height="100%";
+            OtherDisplayTitleCard.style.display="inline-block"
+            OtherDisplayTitleCard.style.marginLeft="4px"
+            OtherDisplayTitleCard.style.marginRight="4px"
+            // OtherDisplayTitleCard.style.marginTop="1vw"
+            OtherDisplayTitleCard.style.marginBottom="1vw"
+            OtherDisplayTitleCard.style.borderBottom="solid 0.25vw gray"
+            OtherDisplayTitleCard.innerText="Selected Miscellaneous"
+            OtherDisplayTitleCard.style.color="white"
+            OtherDisplayTitleCard.style.fontSize="max(1.5vw,1.5vh)"
+            OtherDisplayTitleCard.style.alignContent="center"
+            OtherDisplayTitleCard.style.textAlign="left"
+        }
+        OtherDispSectionInUIDCB_Parent.appendChild(OtherDisplayTitleCard)
+
+        const OtherDisplayContentBox=document.createElement("div");
+        {
+            OtherDisplayContentBox.style.width="100%"
+            OtherDisplayContentBox.style.minHeight="20px"
+            // OtherDisplayContentBox.style.backgroundColor="pink"
+            OtherDisplayContentBox.id="OtherDisplayContentBox"
+        }
+        OtherDispSectionInUIDCB_Parent.appendChild(OtherDisplayContentBox)
+    }
+
+    //go through the selected objects, first categories by if its a unit, then building, else its misc
+    //then by unitType
+
+    //Selected is an array of instanceObjects
+    Selected.forEach((InstanceElement) =>{
+        console.log(InstanceElement.object.metadata.get(InstanceElement.instanceId), "yo, its in dropdown baby")
+        const intMeta=InstanceElement.object.metadata.get(InstanceElement.instanceId)
+        const Asset_Class=intMeta.AssetClass
+        const Unit_Type=intMeta.UnitType
+        switch(Asset_Class){
+            case "Unit":
+                // addToUnitSelection(intMeta)
+                if(Unit_Type in UnitcountTracking){
+                    UnitcountTracking[Unit_Type]=UnitcountTracking[Unit_Type]+1
+                }else{
+                    UnitcountTracking[Unit_Type]=1
+                }
+                break;
+            case "Building":
+                // addToBuildingSelection(intMeta)
+                if(Unit_Type in BuildingCountTracking){
+                    BuildingCountTracking[Unit_Type]=BuildingCountTracking[Unit_Type]+1
+                }else{
+                    BuildingCountTracking[Unit_Type]=1
+                }
+                break;
+            default://misc (trees, rocks etc)
+                // addToMiscSelection(intMeta)
+                if(Unit_Type in MiscCountTracking){
+                    MiscCountTracking[Unit_Type]=MiscCountTracking[Unit_Type]+1
+                }else{
+                    MiscCountTracking[Unit_Type]=1
+                }
+                break;
+        }
+    })
+    addToMiscSelection("Buildings",BuildingCountTracking)
+    addToMiscSelection("Units",UnitcountTracking)
+    addToMiscSelection("Misc",MiscCountTracking)
+
+    UnitInfoDispContentBox.style.display="block"
+}
+//------------------------------------------------------------------
+//below is setup for everything above or util for above
 
 export function addEventListenersToButtons(){//opens the dropdown
     const addEventsToButtons=[
@@ -786,7 +1048,7 @@ export function addEventListenersToButtons(){//opens the dropdown
     document.getElementById("close_Dropdown").addEventListener("click",closeDropdown)
 }
 
-function buttonpressed(event){
+function resetButtonDropDown(){
     // console.log("parameter of pressed button:", event.currentTarget.myParam)
     const dropdownElement=document.getElementById("Button_Dropdown")
     if(dropdownElement.style.display=="none"){
@@ -800,6 +1062,10 @@ function buttonpressed(event){
         // console.log(childDiv, "THESE ARE THE CHILDREN OF THE DROPDOWN MAN")
         childDiv.style.display="none"
     }
+}
+
+function buttonpressed(event){
+    resetButtonDropDown()
 
     let Title;
     switch(event.currentTarget.myParam){
@@ -830,8 +1096,10 @@ function buttonpressed(event){
             console.log("something has gone wrong with button press")
 
     }
-    console.log(Title, "bruh")
-    document.getElementById("Title").innerHTML=Title
+    // console.log(Title, "bruh")
+    var titleElem=document.getElementById("Title")
+    titleElem.innerHTML=Title
+    titleElem.style.fontSize="max(2vw,2vh)"
 
 }
 

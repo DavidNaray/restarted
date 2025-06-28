@@ -185,7 +185,7 @@ p{
   #Button_Dropdown {
     /* width: 100%; */
     /* aspect-ratio: 1.75/1; */
-    height: 40%;
+    max-height: 40%;
     /* padding:min(0.75vw,0.75vh) */
   }
 }

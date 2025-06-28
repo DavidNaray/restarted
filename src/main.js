@@ -380,7 +380,7 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('BuildingPlacementRequest',async ({BuildingAssetName,RequestMetaData}) =>{
+    socket.on('BuildingPlacementRequest',async ({RequestMetaData}) =>{//BuildingAssetName,
         //response should be which asset, 
         // a valid coordinate for the position since height is actually gpu rendered its not real
         //rotation
@@ -388,7 +388,7 @@ io.on('connection', (socket) => {
         //any other stats like health etc
         
         //takes in imagelocation for mask (for the building) and walkMaplocation for the tile
-
+        const BuildingAssetName=RequestMetaData.UnitType
         const tileX=RequestMetaData.tile[0].toString();
         const tileY=RequestMetaData.tile[1].toString();
         
@@ -409,10 +409,10 @@ io.on('connection', (socket) => {
             "permission":permission,
             "position":position,//RequestMetaData.position,
             "rotation":RequestMetaData.rotation,
-            // "building":true,
+            "UnitType":RequestMetaData.UnitType,
             "health":100,
             "tile":[tileX,tileY],
-            "AssetName":BuildingAssetName,
+            // "AssetName":BuildingAssetName,
             "AssetClass":"Building"
         }
 

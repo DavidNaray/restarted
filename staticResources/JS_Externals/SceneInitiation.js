@@ -139,9 +139,12 @@ function HandleSocketResponses(socket){
             console.log(whichTile)
             const metaData={
                 "position":response.position,
-                "health":response.health
+                "health":response.health,
+                "UnitType":response.UnitType,
+                "AssetClass":response.AssetClass
+
             }
-            whichTile.objectLoad(response.AssetName,metaData,response.AssetClass)
+            whichTile.objectLoad(response.UnitType,metaData,response.AssetClass)
         }else{
             console.log("permission to place building: denied")
         }
@@ -169,6 +172,8 @@ function HandleSocketResponses(socket){
 
         const metaDataUnits={
             "position":response.position,
+            "UnitType":response.UnitType,
+            "AssetClass":response.AssetClass,
             // "health":response.health
         }
         for(var i=0;i<response.UnitCount;i++){
@@ -199,9 +204,9 @@ export function EmitWarSupportUpdate(){socket.emit('requestWarSupportUpdate');}
 export function EmitStabilityUpdate(){socket.emit('requestStabilityUpdate');}
 export function EmitPoliticalPowerUpdate(){socket.emit('requestPoliticalPowerUpdate')}
 
-export function EmitBuildingPlacementRequest(BuildingAssetName,RequestMetaData){
+export function EmitBuildingPlacementRequest(RequestMetaData){//BuildingAssetName,
     socket.emit('BuildingPlacementRequest',{
-        "BuildingAssetName":BuildingAssetName,
+        // "BuildingAssetName":BuildingAssetName,
         "RequestMetaData":RequestMetaData
     })
 }
