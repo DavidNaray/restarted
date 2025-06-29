@@ -105,7 +105,7 @@ export function MouseUpHandling(e) {
     }else if(e.button === 2){//right click
         //send moveableSelected over to the server to the point mouse is raycasting on at mouseup
         console.log(moveableSelected)
-        if(moveableSelected.value.length>0){
+        if(Object.keys(moveableSelected).length>0){//Object.keys(obj).length
             console.log("sending over, movement command for:", moveableSelected)
             onPointerMove(e)
 
@@ -123,6 +123,9 @@ export function MouseUpHandling(e) {
                         //a unit that is selected belongs to
                     //processedPoint and unit positions are still in global coordinates, not adjusted to the tile
                         //-> figure it out on the server
+
+                    //need to send position data also for each instance so that the server can check for manipulation
+                        //but thats part of its metadata
                     const RequestMetaData={
                         "TargetTile":[foundTile.x, foundTile.y],
                         "position":processedPoint,

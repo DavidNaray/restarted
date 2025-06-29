@@ -4,7 +4,7 @@ import {globalmanager} from "./GlobalInstanceMngr.js"
 import {renderer,UserId,InputState} from "../siteJS.js"
 import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed} from "./SceneInitiation.js"
 
-export var moveableSelected={value:[]};
+export var moveableSelected={value:{}};
 
 var BuildingAssetName;//variable to hold which building is trying to be placed right now
 var divToChangevalue;//this holds the div that displays the deploy position
@@ -862,6 +862,69 @@ function addToMiscSelection(option, values){
 
 }
 
+
+function exportDictSetupSelectable(AssetClass,temp,intMeta){
+    //AssetClass is like "Unit"
+    // temp is what the export value being manipulated
+
+    //structure should be {owner: { AssetClass: {tile: { UnitType:{"positions":[],"ServerIds":[] }}}}}
+
+    const owner=intMeta.owner;
+    const parentTile=intMeta.parentTile
+    const UnitType=intMeta.UnitType
+    if(owner in temp){
+        if(AssetClass in temp[owner]){
+            if(parentTile in temp[owner][AssetClass]){
+                if(UnitType in temp[owner][AssetClass][parentTile]){
+                    //everything exists so push new values into the arrays
+                    temp[owner][AssetClass][parentTile][UnitType]["positions"].push(intMeta.position)
+                    temp[owner][AssetClass][parentTile][UnitType]["positions"].push(intMeta.ServerId)
+                }else{//there is unit type for the owner of the instance, of assetclass in the parentTile for export
+                    temp[owner][AssetClass][parentTile][UnitType]={
+                        "positions":[intMeta.position],
+                        "ServerIds":[intMeta.ServerId]
+                    }
+                }
+
+            }else{//there is no record for the tile for the owner, for the assetclass in selectables
+                temp[owner][AssetClass][parentTile]={
+                    [UnitType]:{
+                        "positions":[intMeta.position],
+                        "ServerIds":[intMeta.ServerId]
+                    } 
+                }
+            }
+
+        }else{//The instances AssetClass has no record for the owner in selectables
+            temp[owner][AssetClass]={
+                [parentTile]:{
+                    [UnitType]:{
+                        "positions":[intMeta.position],
+                        "ServerIds":[intMeta.ServerId]
+                    } 
+                }
+            }
+        }
+
+    }else{//owner has no record for selectables
+        const initValue={
+            [AssetClass]:{
+                [parentTile]:{
+                    [UnitType]:{
+                        "positions":[intMeta.position],
+                        "ServerIds":[intMeta.ServerId]
+                    } 
+                }
+            }
+        }
+        temp[owner]=initValue;
+    }
+
+    // return the edited temp
+    return temp
+}
+
+
 export function UnitSelectionDisplay(Selected){
     
     resetButtonDropDown();
@@ -872,8 +935,10 @@ export function UnitSelectionDisplay(Selected){
     const BuildingCountTracking={};
     const MiscCountTracking={};
 
-    // moveableSelected.value=[]//its just units tbh, and its set to [] onmousedown but... just to be sure and clear
-    var temp=[]
+    //temp is dictionary with key of { assetClass -> {user/owner -> {tile -> {UnitType -> {keys ->arrays of info...} } } }
+    var temp={}
+
+
     const contentBox=document.getElementById("Dropdown_Content_Box");
     var UnitInfoDispContentBox=document.getElementById("UnitInfoDispContentBox");
     if(!UnitInfoDispContentBox){
@@ -998,17 +1063,17 @@ export function UnitSelectionDisplay(Selected){
     Selected.forEach((InstanceElement) =>{
         console.log(InstanceElement.object.metadata.get(InstanceElement.instanceId), "yo, its in dropdown baby")
         const intMeta=InstanceElement.object.metadata.get(InstanceElement.instanceId)
+        console.log(intMeta["owner"], "metainfo...")
         const Asset_Class=intMeta.AssetClass
         const Unit_Type=intMeta.UnitType
         switch(Asset_Class){
             case "Unit":
                 // addToUnitSelection(intMeta)
-                temp.push(intMeta)
-                if(Unit_Type in UnitcountTracking){
-                    UnitcountTracking[Unit_Type]=UnitcountTracking[Unit_Type]+1
-                }else{
-                    UnitcountTracking[Unit_Type]=1
-                }
+
+                const editedTemp=exportDictSetupSelectable("Unit",temp,intMeta);
+                temp=editedTemp
+                if(Unit_Type in UnitcountTracking){UnitcountTracking[Unit_Type]=UnitcountTracking[Unit_Type]+1}
+                else{UnitcountTracking[Unit_Type]=1};
                 break;
             case "Building":
                 // addToBuildingSelection(intMeta)

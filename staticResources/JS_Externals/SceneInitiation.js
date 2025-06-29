@@ -1,6 +1,6 @@
 import {renderer,InputState} from "../siteJS.js"
 import {onPointerMove} from "./RaycasterHandling.js"
-import {onclickBuilding,adjustUnitDeployPosition,onTileClick,moveableSelected} from "./DropDownUI.js"
+import {onclickBuilding,adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 
 let socket;
