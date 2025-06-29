@@ -30,21 +30,22 @@ const tileSchema = new mongoose.Schema({
         }]
     }],
 
-    units: [{
-        username: String,       // who owns these units
-        assetId: String,        // what type of unit they are
-        instances: [{
-            position: [Number], // [x, y]
-            metaData: {
-                // templateId: { type: String, default: null },  // null = free unit
-                templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', default: null },
-                ServerId:Number,
-                health: Number,
-                state: String,       // e.g., "idle", "moving", "attacking"
-
+    units: {
+        type:Map,
+        of:new mongoose.Schema({
+            // username: String,       // who owns these units, used in the key
+            // assetId: String,        // what type of unit they are
+            instances: {
+                type:Map,
+                of:new mongoose.Schema({
+                    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', default: null },
+                    health: Number,
+                    state: String,// e.g., "idle", "moving", "attacking"
+                    position: [Number], // [x, y]
+                }),default:{}
             }
-        }]
-    }],
+        }),default:{}
+    },
 
 
     updatedAt: { type: Date, default: Date.now }

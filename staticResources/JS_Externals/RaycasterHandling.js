@@ -26,7 +26,7 @@ export function intersectsTileMeshes(){
 
 export function MouseDownHandling(e) {
     if (e.button === 0) {//left click
-        moveableSelected.value=[];
+        moveableSelected.value={};
         if (InputState.value == 'neutral') {
             dragStart = { x: e.clientX, y: e.clientY };
             isDragging = false;
@@ -105,7 +105,7 @@ export function MouseUpHandling(e) {
     }else if(e.button === 2){//right click
         //send moveableSelected over to the server to the point mouse is raycasting on at mouseup
         console.log(moveableSelected)
-        if(Object.keys(moveableSelected).length>0){//Object.keys(obj).length
+        if(Object.keys(moveableSelected.value).length>0){//Object.keys(moveableSelected).length>0){//Object.keys(obj).length
             console.log("sending over, movement command for:", moveableSelected)
             onPointerMove(e)
 
@@ -128,7 +128,7 @@ export function MouseUpHandling(e) {
                         //but thats part of its metadata
                     const RequestMetaData={
                         "TargetTile":[foundTile.x, foundTile.y],
-                        "position":processedPoint,
+                        "position":processedPoint,//clicked on point
                         "userOwner":UserId,//whos performing this command
                         "SelectedUnits":moveableSelected.value[UserId],
                     }

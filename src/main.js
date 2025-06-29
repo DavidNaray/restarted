@@ -472,14 +472,53 @@ io.on('connection', (socket) => {
         // console.log("TILE TARGET", tile.x,tile.y,"topindice",tile.topIndice)
         var tileFreeIndices=tile.freeIndices
         var TileTopIndice=tile.topIndice
+        const compositeKey=`${RequestMetaData.owner},${RequestMetaData.UnitType}`
+        
         for(let i=0;i<RequestMetaData.UnitCount;i++){
             if(tileFreeIndices.length>0){
-                console.log(tileFreeIndices,"FREE INDICES!")
-                const freeIndice=tileFreeIndices.shift();//pops first element in array
+                // console.log(tileFreeIndices,"FREE INDICES!")
+                const freeIndice=tileFreeIndices.shift().toString();//pops first element in array
+
+                //add soldier to tile
+                // Ensure tile.units exists:
+                if (!tile.units) tile.units = new Map(); // Or {}
+                
+                //ensure that the composite has a mapping
+                if (!tile.units.has(compositeKey)) {
+                    tile.units.set(compositeKey, { instances: new Map() });
+                }
+
+                tile.units.get(compositeKey).instances.set(freeIndice,{
+                    templateId:null,
+                    health:100,
+                    state:"Idle",
+                    position:RequestMetaData.DeployPosition
+                })
+
+
+                //add to chosenServerIndices to notify user of development
                 chosenServerIndices.push(freeIndice)
             }else{
+                //add soldier to tile
+                // console.log(compositeKey,"compositeKEY!!!!")
+
+                // Ensure tile.units exists:
+                if (!tile.units) tile.units = new Map(); // Or {}
+                
+                //ensure that the composite has a mapping
+                if (!tile.units.has(compositeKey)) {
+                    tile.units.set(compositeKey, { instances: new Map() });
+                }
+
+                tile.units.get(compositeKey).instances.set(TileTopIndice.toString(),{
+                    templateId:null,
+                    health:100,
+                    state:"Idle",
+                    position:RequestMetaData.DeployPosition
+                })
+
+                //add to chosenServerIndices to notify user of development
                 chosenServerIndices.push(TileTopIndice)
-                // tile.topIndice+=1
                 TileTopIndice+=1
             }
                  
@@ -502,7 +541,69 @@ io.on('connection', (socket) => {
     });
 
     socket.on('MovementCommand',async ({RequestMetaData}) => {
-        console.log(RequestMetaData.SelectedUnits.Unit)
+        console.log(RequestMetaData)//.SelectedUnits.Unit)
+
+        const destinationPoint=RequestMetaData.position
+        const TargetTileXY=RequestMetaData.TargetTile
+        const UserIdCommandee=RequestMetaData.userOwner
+        const selectedUnits=RequestMetaData.SelectedUnits
+        //need to verify that the RequestMetaData.UserOwner (one commanding) shares Id of owner of unit of serverID
+        //but first some processing....
+        const originTiles=[];
+        var CHEATER=false;
+        for (const [AssetClass, TileEtc] of Object.entries(selectedUnits)) {
+            // console.log(AssetClass, TileEtc);
+            for (const [TileXYOrigin, UnitTypeEtc] of Object.entries(TileEtc)) {
+                const TileXY=TileXYOrigin.split(",").map(Number);
+                originTiles.push(TileXY)
+                // console.log(TileXY)
+                 
+                const InvestigateTile = await TileScheme.findOne({x:TileXY[0],y:TileXY[1]});
+                
+                for (const [UnitType, SIdPos] of Object.entries(UnitTypeEtc)) { 
+                    const compositeLocalTileKey=`${UserIdCommandee},${UnitType}`
+
+                    const LocalPositions=SIdPos.positions
+                    const LocalServerIds=SIdPos.ServerIds
+
+                    const WhatActuallyExistsHere=InvestigateTile.units.get(compositeLocalTileKey)
+                    if(WhatActuallyExistsHere){
+                        const ExistingInstancesHere=WhatActuallyExistsHere.instances
+                        LocalServerIds.forEach((SId)=>{
+                            //person making request is indeed the owner of the units... at least thats what is checked here
+                            const SIdIncluded=ExistingInstancesHere.has(SId.toString())
+                            if(SIdIncluded){
+                                //ok theyve been verified, continue the scan
+                                //need to check that the unit position is within a margin of error of expected location
+                                //------------------------------------------
+                                //---------assume ok for now----------------
+                                //------------------------------------------
+                            }else{
+                                CHEATER=true;
+                                console.log("ALERT. ACTION, referencing Sid that is not under their control on tile")
+                            }
+                        })
+                    }else{
+                        CHEATER=true;
+                        console.log("ALERT ALERT CHEATER.... ACTION, user trying to move units they do not have on the tile")
+                    }
+                }
+            }
+        }
+
+        if(CHEATER){
+            //perform kicking and ban basically, manipulating info is egregious offense
+        }
+        //otherwise yay continue
+
+        //the only thing valid is Unit assetClass so youre literally passing in
+        console.log(selectedUnits["Unit"],"pass in object")
+
+
+        //run unit positionValidation that checks if units in the request matches where 
+        // that unit should be according to the server within a margin of error (drift from collisions)
+            //collisions notify the server but only in batches so there will be times a movement
+            //command may happen where a unit will have a mismatched position with the server hence the margin
         const responseObject={
             hello:"hello"
         }
