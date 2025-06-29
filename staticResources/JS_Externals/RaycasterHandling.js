@@ -130,7 +130,7 @@ export function MouseUpHandling(e) {
                         "TargetTile":[foundTile.x, foundTile.y],
                         "position":processedPoint,
                         "userOwner":UserId,//whos performing this command
-                        "SelectedUnits":moveableSelected.value,
+                        "SelectedUnits":moveableSelected.value[UserId],
                     }
 
                     EmitMovementCommand(RequestMetaData);

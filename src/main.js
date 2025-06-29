@@ -502,7 +502,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('MovementCommand',async ({RequestMetaData}) => {
-    
+        console.log(RequestMetaData.SelectedUnits.Unit)
         const responseObject={
             hello:"hello"
         }
