@@ -21,7 +21,7 @@ export class TileInstancePool {
         //form of meta will vary, buildings may have name, type of building, under construction, resistances etc
         //units may have health, damage, weaknesses etc 
         //most importantly a reference to a template object if its part of a template
-        console.log("i am getting the right meta right?: ",meta)
+        // console.log("i am getting the right meta right?: ",meta)
         let mesh=this.instanceGroups.get(objectType);
         if(!mesh){
             console.log("didnt exist, make it!")
@@ -64,8 +64,9 @@ export class TileInstancePool {
         }
 
         this.ServerId_To_ObjTypeAndInstId_Mapping.set(meta.ServerId,[objectType,index]);
-        console.log("lets see the tile total instance tracking state:",this.ServerId_To_ObjTypeAndInstId_Mapping)
+        // console.log("lets see the tile total instance tracking state:",this.ServerId_To_ObjTypeAndInstId_Mapping)
         mesh.setMatrixAt(index, transform);
+        meta.parentTile=[this.tile.x,this.tile.y]
         mesh.metadata.set(index,meta);
         mesh.instanceMatrix.needsUpdate = true;
         if (index >= mesh.count) {

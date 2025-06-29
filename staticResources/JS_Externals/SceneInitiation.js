@@ -1,6 +1,6 @@
 import {renderer,InputState} from "../siteJS.js"
 import {onPointerMove} from "./RaycasterHandling.js"
-import {onclickBuilding,adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
+import {onclickBuilding,adjustUnitDeployPosition,onTileClick,moveableSelected} from "./DropDownUI.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 
 let socket;
@@ -164,7 +164,8 @@ function HandleSocketResponses(socket){
     });
 
     socket.on('testingResponse', (response) => {
-        console.log(response)
+        // console.log(response)
+        console.log("if this runs then the abstract map was made")
     })
 
     socket.on('DeployAllUnitsHere', (response) => {
@@ -186,6 +187,10 @@ function HandleSocketResponses(socket){
             whichTileUnits.objectLoad(response.UnitType,metaDataUnits,response.AssetClass)
         }
         
+    });
+
+    socket.on('MovementCommandResponse', (response) => {
+        console.log(response,"hm.....")
     });
 }
 
@@ -230,6 +235,12 @@ export function EmitUnitsBeingDeployed(RequestMetaData){
     })
 }
 
+export function EmitMovementCommand(RequestMetaData){
+    // if(Object.keys(RequestMetaData).length >) 
+    socket.emit('MovementCommand',{
+        "RequestMetaData":RequestMetaData
+    })
+}
 
 export function setupSocketConnection(){
     socket = io({auth:{token:localStorage.getItem('accessToken')}});

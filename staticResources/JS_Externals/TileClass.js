@@ -44,7 +44,7 @@ export class Tile{
     }
 
     async loadtextures(){
-        console.log("REQUEST THESE FILES",this.HeightUrl,this.texUrl)
+        // console.log("REQUEST THESE FILES",this.HeightUrl,this.texUrl)
          
         async function loadTextureWithAuth(url, token) {
             const response = await fetch(url, {
@@ -233,7 +233,7 @@ export class Tile{
     }
 
     async objectLoad(assetId,MetaData,AssetClass){
-        console.log("TRYNA LOAD IN:",assetId,MetaData,AssetClass)
+        // console.log("TRYNA LOAD IN:",assetId,MetaData,AssetClass)
         //AssetClass is if the asset being loaded should be considered a building or unit etc
 
         const has=OBJECTS.has(assetId)
@@ -299,17 +299,10 @@ export class Tile{
                     );
                 },
                 // called while loading is progressing
-                ( xhr ) =>{
-
-                    console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-
+                ( xhr ) =>{// console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
                 },
                 // called when loading has errors
-                ( error ) =>{
-
-                    console.log( 'An error happened',error );
-
-                }
+                ( error ) =>{console.log( 'An error happened',error );}
             );
         }else{
             this.addToScene(assetId, MetaData)

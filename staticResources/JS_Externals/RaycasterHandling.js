@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import {camera,InputState,scene,controls} from "../siteJS.js"
+import {camera,InputState,scene,controls,UserId} from "../siteJS.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
-import {UnitSelectionDisplay} from "./DropDownUI.js"
-
+import {UnitSelectionDisplay,moveableSelected} from "./DropDownUI.js"
+import {EmitMovementCommand} from "./SceneInitiation.js"
 
 let isDragging = false;
 let dragStart = { x: 0, y: 0 };
@@ -25,17 +25,20 @@ export function intersectsTileMeshes(){
 
 
 export function MouseDownHandling(e) {
-    if (e.button === 0) {
+    if (e.button === 0) {//left click
+        moveableSelected.value=[];
         if (InputState.value == 'neutral') {
             dragStart = { x: e.clientX, y: e.clientY };
             isDragging = false;
             InputState.value = 'BoxClickSelection';
         }
-    }
+    }else if(e.button === 2){//right click
+        // console.log("right click")
+    }   
 }
 
 export function MouseMovingHandling(e) {
-    if (e.button === 0) {
+    if (e.button === 0) {//left click
         if (InputState.value == 'BoxClickSelection' && DragSelectionKey) {
             controls.enabled=false
             
@@ -52,11 +55,13 @@ export function MouseMovingHandling(e) {
                 console.log("area small, removing drag box")
             }
         }
+    }else if(e.button === 2){//right click
+        // console.log("right drag")
     }
 }
 
 export function MouseUpHandling(e) {
-    if (e.button === 0) {
+    if (e.button === 0) {//left click
         if (InputState.value === 'BoxClickSelection') {
             if (isDragging) {
                 // perform box selection logic
@@ -97,6 +102,43 @@ export function MouseUpHandling(e) {
         InputState.value = 'neutral';//overall input state
 
         //note i could probably combine these two variable but cba.. it works rn
+    }else if(e.button === 2){//right click
+        //send moveableSelected over to the server to the point mouse is raycasting on at mouseup
+        console.log(moveableSelected)
+        if(moveableSelected.value.length>0){
+            console.log("sending over, movement command for:", moveableSelected)
+            onPointerMove(e)
+
+            const intersectTerrain=intersectsTileMeshes()
+            if (intersectTerrain.length > 0) {
+                const intersectedMesh = intersectTerrain[0].object;
+                const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
+                if (foundTile) {
+                    // const IntersectPoint=intersects[0].point
+                    const MoveToTargetPoint=intersectTerrain[0].point 
+                    const processedPoint=[MoveToTargetPoint.x,MoveToTargetPoint.y,MoveToTargetPoint.z]
+
+                    //problem is units can be selected over multiple tiles
+                        //each instance carries info about their parent tile, meaning now we have target tile and can every tile
+                        //a unit that is selected belongs to
+                    //processedPoint and unit positions are still in global coordinates, not adjusted to the tile
+                        //-> figure it out on the server
+                    const RequestMetaData={
+                        "TargetTile":[foundTile.x, foundTile.y],
+                        "position":processedPoint,
+                        "userOwner":UserId,//whos performing this command
+                        "SelectedUnits":moveableSelected.value,
+                    }
+
+                    EmitMovementCommand(RequestMetaData);
+                }
+            }
+        }else{
+            console.log("nothing to send")
+        }
+
+
+
     }
 }
 

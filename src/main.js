@@ -500,4 +500,12 @@ io.on('connection', (socket) => {
         }
         socket.emit('DeployAllUnitsHere', responseObject);
     });
+
+    socket.on('MovementCommand',async ({RequestMetaData}) => {
+    
+        const responseObject={
+            hello:"hello"
+        }
+        socket.emit('MovementCommandResponse',responseObject);
+    });
 });

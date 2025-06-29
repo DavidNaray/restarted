@@ -56,7 +56,7 @@ function sceneSetup(tiles){
     scene.add(ambientLight);
 
     const userData=tiles[0];
-    console.log(userData,"THIS IS THE X")
+    // console.log(userData,"THIS IS THE X")
     
     const tileyay=new Tile(userData.x,userData.y,globalmanager,userData.textures.texturemapUrl,userData.textures.heightmapUrl,userData.textures.WalkMapURL);
 

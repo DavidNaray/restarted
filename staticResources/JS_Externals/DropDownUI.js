@@ -4,7 +4,7 @@ import {globalmanager} from "./GlobalInstanceMngr.js"
 import {renderer,UserId,InputState} from "../siteJS.js"
 import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed} from "./SceneInitiation.js"
 
-
+export var moveableSelected={value:[]};
 
 var BuildingAssetName;//variable to hold which building is trying to be placed right now
 var divToChangevalue;//this holds the div that displays the deploy position
@@ -872,6 +872,8 @@ export function UnitSelectionDisplay(Selected){
     const BuildingCountTracking={};
     const MiscCountTracking={};
 
+    // moveableSelected.value=[]//its just units tbh, and its set to [] onmousedown but... just to be sure and clear
+    var temp=[]
     const contentBox=document.getElementById("Dropdown_Content_Box");
     var UnitInfoDispContentBox=document.getElementById("UnitInfoDispContentBox");
     if(!UnitInfoDispContentBox){
@@ -1001,6 +1003,7 @@ export function UnitSelectionDisplay(Selected){
         switch(Asset_Class){
             case "Unit":
                 // addToUnitSelection(intMeta)
+                temp.push(intMeta)
                 if(Unit_Type in UnitcountTracking){
                     UnitcountTracking[Unit_Type]=UnitcountTracking[Unit_Type]+1
                 }else{
@@ -1025,6 +1028,9 @@ export function UnitSelectionDisplay(Selected){
                 break;
         }
     })
+    console.log("temp",temp)
+    moveableSelected.value=temp
+    // temp
     if(Object.keys(BuildingCountTracking).length === 0){
         //hide the buildings section
         document.getElementById("BuildingDispSectionInUIDCB_Parent").style.display="none"
@@ -1039,6 +1045,7 @@ export function UnitSelectionDisplay(Selected){
     }else{
         document.getElementById("UnitDispSectionInUIDCB_Parent").style.display="block"
         addToMiscSelection("Units",UnitcountTracking)
+        //
     }
     
     if(Object.keys(MiscCountTracking).length === 0){
@@ -1049,7 +1056,7 @@ export function UnitSelectionDisplay(Selected){
         addToMiscSelection("Misc",MiscCountTracking)
     }
     
-
+    
     UnitInfoDispContentBox.style.display="block"
 }
 //------------------------------------------------------------------
