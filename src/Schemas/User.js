@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const userSchema = new mongoose.Schema({
   username: { type: String, unique: true },
   passwordHash: String,  // store hashed password here
+  OriginTile:[Number],//which tile is centered on 0,0, the rest of the tiles built around
   refreshTokens: [String],  // Store issued refresh tokens (optional)
   Resources:{
     Gold:{

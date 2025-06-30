@@ -51,4 +51,6 @@ const tileSchema = new mongoose.Schema({
     updatedAt: { type: Date, default: Date.now }
 });
 
-module.exports=tileSchema
+const TileScheme = mongoose.model('Tiles', tileSchema)
+
+module.exports=TileScheme//tileSchema

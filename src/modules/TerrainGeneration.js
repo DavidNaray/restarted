@@ -172,8 +172,9 @@ function fBm(x, y, octaves = 5, lacunarity = 2.0, gain = 0.5) {
 
 async function generateHeightmap(chunkX=0,chunkY=0) {
     console.log("woah hey !",chunkX,chunkY)
+    // const padded = new PNG({ width: width + 2, height: height + 2 });
 
-    const png = new PNG({ width, height });
+    const png = new PNG({ width:width, height:height });//heightmap
     const colourMap = new PNG({ width, height });
     const walkmap = new PNG({ width:walkWidth, height:walkHeight });
     const openEdges = chooseOpenEdges(chunkX,chunkY);

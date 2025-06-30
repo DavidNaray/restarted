@@ -15,7 +15,7 @@ export var OBJECTS=new Map();
 
 // responsible for generating the tile and holding the instancePools objects that track units and buildings
 export class Tile{
-    constructor(x,y,GInstanceManager,texUrl,HeightUrl,WalkMapUrl){
+    constructor(x,y,GInstanceManager,texUrl,HeightUrl,WalkMapUrl,centralTile){//TileRelationship, 
         this.instanceManager=GInstanceManager
         
         this.instancePooling=new TileInstancePool(this);
@@ -41,6 +41,11 @@ export class Tile{
 
         this.loadtextures();
         this.instanceManager.registerTile(this)
+
+        // this.viewLevel=TileRelationship;
+        //get the difference between this tile and the central
+        this.offSet=[centralTile[0]-x,centralTile[1]-y]
+        // console.log(this.offSet.length,"offset")
     }
 
     async loadtextures(){
@@ -61,6 +66,7 @@ export class Tile{
             const canvas = document.createElement('canvas');
             canvas.width = imageBitmap.width;
             canvas.height = imageBitmap.height;
+            // console.log("actual width",canvas.width)
 
             const ctx = canvas.getContext('2d');
             ctx.drawImage(imageBitmap, 0, 0);
@@ -131,26 +137,36 @@ export class Tile{
     async BuildTileBase(){
         // console.log("tried!!!")
         if (this.heightmap && this.texture) {
-            // const width = this.heightmap.image.width;
-            // const height = this.heightmap.image.height;
+
+            this.heightmap.minFilter = THREE.LinearFilter;
+            this.heightmap.magFilter = THREE.LinearFilter;
+            this.heightmap.generateMipmaps = false;
+            this.heightmap.wrapS = THREE.ClampToEdgeWrapping;
+            this.heightmap.wrapT = THREE.ClampToEdgeWrapping;
 
             const TERRAIN_SIZE = 30; // World size for scaling
             const HEIGHT_SCALE = 0.6;
             const totalTiles=16
 
             // ----
-            const tilesPerSide = 4; // 4x4 grid => 16 tiles total
+            const tilesPerSide = 4.0; // 4x4 grid => 16 tiles total
             // const tileSize = 1; // Each tile covers part of the 1x1 plane
-            const segmentsPerTile = ((this.heightmap.image.width/2) / tilesPerSide) - 1; // 128 segments for 512px heightmap
-
+            const segmentsPerTile = 128//Math.floor(((this.heightmap.image.width/2) / tilesPerSide)); // 128 segments for 512px heightmap
+            // console.log(segmentsPerTile,"segments")
+            // const padding = 0.5 / this.heightmap.image.width; // 0.5px in UV space
+            const uvScale = segmentsPerTile / this.heightMapCanvas.width;
             for (let y = 0; y < tilesPerSide; y++) {
                 for (let x = 0; x < tilesPerSide; x++) {
                     // Create a plane geometry for this tile
                     const geometry = new THREE.PlaneGeometry(1, 1, segmentsPerTile,segmentsPerTile );//segmentsPerTile
                     geometry.rotateX(-Math.PI / 2);
-
-                    const uvOffset = new THREE.Vector2(x / tilesPerSide, 1.0 - (y + 1) / tilesPerSide);
-                    const uvScale = 1 / tilesPerSide;
+                    
+                    
+                    // tile is 512 pixels, start at x=0, then move along 128
+                    const uvOffset = new THREE.Vector2()//(x*128)/511, (1.0 - (y + 1.0) / tilesPerSide )  );//(1.0 - (y + 1.0) / tilesPerSide )
+                    uvOffset.x=x * uvScale //+(x)/128
+                    uvOffset.y=1.0 - (y+1) * uvScale //+ (3-y)/128 //1.0 - ((y + 1) * segmentsPerTile) / (511)
+                    
 
                     const material = new THREE.ShaderMaterial({
                         uniforms: {
@@ -158,20 +174,23 @@ export class Tile{
                             textureMap: { value: this.texture },
                             heightScale: { value: HEIGHT_SCALE },
                             uvOffset: { value: uvOffset },
-                            uvScale: { value: uvScale }
+                            uvScale: { value: new THREE.Vector2(uvScale, uvScale) }
                         },
                         vertexShader: `
-                            precision mediump float;
-                            precision mediump int;
+                            precision highp  float;
+                            precision highp  int;
 
                             uniform sampler2D heightmap;
                             uniform float heightScale;
                             uniform vec2 uvOffset;
-                            uniform float uvScale;
+                            uniform vec2 uvScale;
                             varying vec2 vUv;
 
                             void main() {
-                                vUv = uvOffset + uv * uvScale;
+                                // vec2 texelSize = 1.0 / vec2(textureSize(heightmap, 0)); 
+                                // vec2 texelCenterOffset = tileTexelSize * 0.5;
+                                // vec2 texelSize = 1.0 / vec2(512.0, 512.0);
+                                vUv = uvOffset + uv * uvScale;  //+ texelSize * 0.5;
                                 float height = texture2D(heightmap, vUv).r * heightScale;
                                 vec3 newPosition = position + normal * height;
                                 gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
@@ -197,9 +216,9 @@ export class Tile{
                     const worldTileSize = TERRAIN_SIZE / totalTiles;
                     const totalSize = worldTileSize * tilesPerSide; // == TERRAIN_SIZE, but explicit
                     mesh.position.set(
-                        (x + 0.5) * worldTileSize - totalSize / 2,
+                        ((x + 0.5) * worldTileSize - totalSize / 2)-(this.offSet[0]*totalSize),
                         0,
-                        (y + 0.5) * worldTileSize - totalSize / 2
+                        ((y + 0.5) * worldTileSize - totalSize / 2)-(this.offSet[1]*totalSize)
                     );
                     mesh.scale.set(worldTileSize, 1, worldTileSize);
                     // mesh.matrixAutoUpdate = false;

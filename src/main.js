@@ -10,12 +10,14 @@ const bcrypt = require('bcrypt');
 const Coordfinder=require("./modules/NextChunkCoord")
 const genTerrain=require("./modules/TerrainGeneration")
 const userSchemaImport=require("./Schemas/User")
-const TileSchemaImport=require("./Schemas/Tile")
+const TileScheme=require("./Schemas/Tile")
 const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
 const {SharpImgBuildingPlacementVerification,SharpImgPointVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
 const {PortalConnectivity}=require("./modules/PathfindingFunctionality.js")
+const {validateUnitOwnership}=require("./modules/UnitPositionValidation.js")
+
 
 const mongoose = require('mongoose');
 const { Console } = require('console');
@@ -24,7 +26,9 @@ mongoose.connect(mongoDB).then(()=>{console.log("successfully connected to mongo
 
 const User = mongoose.model('User', userSchemaImport)
 const TemplateScheme = mongoose.model('Templates', TemplateSchemaImport)
-const TileScheme = mongoose.model('Tiles', TileSchemaImport)
+// const TileScheme = mongoose.model('Tiles', TileSchemaImport)
+
+// module.exports={TileScheme};
 
 const PORT= 5000
 const app=express()//creates server
@@ -79,7 +83,7 @@ app.post('/Register-user', async (req, res) => {
 
     // Save refreshToken to user in DB (optional)
     user.refreshTokens.push(refreshToken);
-    await user.save();
+    
 
     // === Create Tile ===
 
@@ -122,6 +126,11 @@ app.post('/Register-user', async (req, res) => {
     });
 
     await tile.save();
+
+    user.OriginTile=[chunkX,chunkY]
+    await user.save();
+
+
     console.log("ITS ON REGISTER MAN!!")
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
     res.json({ accessToken,user, success: true, message: 'User recognised'});
@@ -190,11 +199,54 @@ app.post('/token', async (req, res) => {
 app.get('/tiles', authenticateTokenImport, async (req, res) => {//authenticateToken
   try {
     const user = await User.findOne({ username: req.user.username });
-    console.log(user)
+    // console.log(user)
     if (!user) return res.status(404).json({ message: "User not found" });
 
-    const tiles = await TileScheme.find({ owner: user._id });
-    res.json({ success: true, tiles,user:user });
+    const tiles = {
+        "owner":await TileScheme.find({ owner: user._id }),
+        "allies":await TileScheme.find({ allies: user._id }),
+        "involvedUsers":await TileScheme.find({ involvedUsers: user._id })
+    }
+    // Set of all known tile keys
+    const knownTilesSet = new Set();
+    for (const category of Object.values(tiles)) {
+        for (const tile of category) {
+            knownTilesSet.add(`${tile.x},${tile.y}`);
+        }
+    }
+    const deltas = [
+        [-1, 0], [1, 0],
+        [0, -1], [0, 1],
+        [-1, -1], [-1, 1],
+        [1, -1], [1, 1],
+    ];
+
+    // Find perimeter neighbors
+    const neighborCoords = new Set();
+    for (const category of Object.values(tiles)) {
+        for (const tile of category) {
+            for (const [dx, dy] of deltas) {
+                const nx = tile.x + dx;
+                const ny = tile.y + dy;
+                const key = `${nx},${ny}`;
+                if (!knownTilesSet.has(key)) {//so if you dont find the 'neighbour' key in keys that are interacted by user
+                    neighborCoords.add(key);
+                }
+            }
+        }
+    }
+
+
+    // Fetch the actual tile documents for these perimeter tiles
+    const neighborsTiles = await TileScheme.find({
+        $or: [...neighborCoords].map(coord => {
+            const [x, y] = coord.split(',').map(Number);
+            return { x, y };
+        })
+    });
+    tiles["Neighbours"]=neighborsTiles
+
+    res.json({ success: true, tiles,OriginTile:user.OriginTile });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch tiles' });
   }
@@ -547,50 +599,13 @@ io.on('connection', (socket) => {
         const TargetTileXY=RequestMetaData.TargetTile
         const UserIdCommandee=RequestMetaData.userOwner
         const selectedUnits=RequestMetaData.SelectedUnits
+        
         //need to verify that the RequestMetaData.UserOwner (one commanding) shares Id of owner of unit of serverID
-        //but first some processing....
-        const originTiles=[];
-        var CHEATER=false;
-        for (const [AssetClass, TileEtc] of Object.entries(selectedUnits)) {
-            // console.log(AssetClass, TileEtc);
-            for (const [TileXYOrigin, UnitTypeEtc] of Object.entries(TileEtc)) {
-                const TileXY=TileXYOrigin.split(",").map(Number);
-                originTiles.push(TileXY)
-                // console.log(TileXY)
-                 
-                const InvestigateTile = await TileScheme.findOne({x:TileXY[0],y:TileXY[1]});
-                
-                for (const [UnitType, SIdPos] of Object.entries(UnitTypeEtc)) { 
-                    const compositeLocalTileKey=`${UserIdCommandee},${UnitType}`
-
-                    const LocalPositions=SIdPos.positions
-                    const LocalServerIds=SIdPos.ServerIds
-
-                    const WhatActuallyExistsHere=InvestigateTile.units.get(compositeLocalTileKey)
-                    if(WhatActuallyExistsHere){
-                        const ExistingInstancesHere=WhatActuallyExistsHere.instances
-                        LocalServerIds.forEach((SId)=>{
-                            //person making request is indeed the owner of the units... at least thats what is checked here
-                            const SIdIncluded=ExistingInstancesHere.has(SId.toString())
-                            if(SIdIncluded){
-                                //ok theyve been verified, continue the scan
-                                //need to check that the unit position is within a margin of error of expected location
-                                //------------------------------------------
-                                //---------assume ok for now----------------
-                                //------------------------------------------
-                            }else{
-                                CHEATER=true;
-                                console.log("ALERT. ACTION, referencing Sid that is not under their control on tile")
-                            }
-                        })
-                    }else{
-                        CHEATER=true;
-                        console.log("ALERT ALERT CHEATER.... ACTION, user trying to move units they do not have on the tile")
-                    }
-                }
-            }
-        }
-
+        const response=await validateUnitOwnership(selectedUnits,UserIdCommandee)
+        
+        const CHEATER=response[0]
+        const originTiles=response[1]
+        
         if(CHEATER){
             //perform kicking and ban basically, manipulating info is egregious offense
         }

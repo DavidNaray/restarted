@@ -16,7 +16,7 @@ export async function getUserTileData(accessToken){
         const data = await res.json();
 
         if (data.success) {
-            return data.tiles;  // Now this gets properly returned to the caller
+            return [data.tiles,data.OriginTile];  // Now this gets properly returned to the caller
         } else {
             console.error(data.message);
             return null;

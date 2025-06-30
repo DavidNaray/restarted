@@ -28,7 +28,9 @@ class Template{
     }
 }
 
-function sceneSetup(tiles){
+function sceneSetup(SetupInformation){
+    const tiles=SetupInformation[0]
+    const OriginTile=SetupInformation[1]
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false,powerPreference: "high-performance" });
@@ -55,55 +57,46 @@ function sceneSetup(tiles){
     let ambientLight = new THREE.AmbientLight(new THREE.Color('hsl(0, 100%, 100%)'), 3);
     scene.add(ambientLight);
 
-    const userData=tiles[0];
-    // console.log(userData,"THIS IS THE X")
+    // console.log(OriginTile)
+    // const userData=tiles["owner"][0];
     
-    const tileyay=new Tile(userData.x,userData.y,globalmanager,userData.textures.texturemapUrl,userData.textures.heightmapUrl,userData.textures.WalkMapURL);
+    
+    // const tileyay=new Tile(userData.x,userData.y,globalmanager,userData.textures.texturemapUrl,userData.textures.heightmapUrl,userData.textures.WalkMapURL);
 
-    // loop over the buildings
-    userData.buildings.forEach(buildingEntry =>{
-        //buildingEntry is of form:
-            // const B_TownHall={
-            //     "userId":user._id,
-            //     "assetId": "DATC",
-            //     "instances":[{
-            //         "position":[0,0,0],
-            //         "metaData":{
-            //             "health":100,
-            //             "state":"Built"
-            //         }
-            //     }]
-            // }
-        const assetID=buildingEntry.assetId;
-        const userID=buildingEntry.userId;
-        buildingEntry.instances.forEach(instanceEntry =>{
+    // // loop over the buildings
+    // userData.buildings.forEach(buildingEntry =>{
+    //     const assetID=buildingEntry.assetId;
+    //     const userID=buildingEntry.userId;
+    //     buildingEntry.instances.forEach(instanceEntry =>{
         
-            const newMetaData={
-                "position":instanceEntry.position,
-                "userId":userID,
-                "health":instanceEntry.health,
-                "state":instanceEntry.state,
-            }
+    //         const newMetaData={
+    //             "position":instanceEntry.position,
+    //             "userId":userID,
+    //             "health":instanceEntry.health,
+    //             "state":instanceEntry.state,
+    //         }
 
-            tileyay.objectLoad(assetID,newMetaData);
+    //         tileyay.objectLoad(assetID,newMetaData);
 
-        });
+    //     });
+    // })
 
-        // tileyay.objectLoad(buildingEntry)
+    for (const category of Object.values(tiles)) {
+        //category is like "owner", "allies", "involvedUsers"
+        // console.log(category,"cat")
+        for (const userData of category) {
+            console.log(userData)
+            const CreatedTile=new Tile(
+                userData.x,userData.y,
+                globalmanager,
+                userData.textures.texturemapUrl,userData.textures.heightmapUrl,userData.textures.WalkMapURL,
+                OriginTile
+                // category,
+                
+            );
+        }
+    }
 
-    })
-
-
-    // tileyay.addcubeInstance(1);
-    // tileyay.addcubeInstance(2);
-    // tileyay.addcubeInstance(3);
-    // tileyay.addcubeInstance(4);
-    // console.log("DIVISION, NOW IN REMOVAL process")
-    // tileyay.removecubeInstance(0);
-    // tileyay.removecubeInstance(1);
-
-    // tileyay.addcubeInstance(0);
-    // window.addEventListener( 'pointermove', onPointerMove );
 }
 
 function render(){
