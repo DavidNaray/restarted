@@ -4,7 +4,7 @@ import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/exam
 
 import {TileInstancePool} from "./InstancePoolClass.js"
 import {scene,requestRenderIfNotRequested} from "../siteJS.js"
-
+import {superHeightMapTexture,superColourMapTexture} from "./SuperCanvas.js"
 
 const loader = new GLTFLoader();//new THREE.TextureLoader();
 const fileLoader = new THREE.FileLoader(loader.manager);
@@ -48,7 +48,7 @@ export class Tile{
         // console.log(this.offSet.length,"offset")
     }
 
-    async loadtextures(){
+    loadtextures(){
         // console.log("REQUEST THESE FILES",this.HeightUrl,this.texUrl)
          
         async function loadTextureWithAuth(url, token) {
@@ -76,7 +76,7 @@ export class Tile{
             const texture = new THREE.Texture(canvas )//imageBitmap);
             // texture.flipY = true;
             texture.needsUpdate = true;
-            return [texture,canvas];
+            return [texture,canvas,imageBitmap];
         }
         async function loadWalkMapWithAuth(url, token) {
             const response = await fetch(url, {
@@ -106,7 +106,9 @@ export class Tile{
         loadTextureWithAuth(this.HeightUrl, localStorage.getItem('accessToken'))
         .then(texCanv => {
             this.heightmap = texCanv[0];
-            this.heightMapCanvas =texCanv[1] 
+            this.heightMapCanvas =texCanv[1];
+            superHeightMapTexture.addTile(this.x,this.y,texCanv[2])
+            // console.log(superHeightMapTexture.canvas.width, "canvas width!",superHeightMapTexture.canvas.height)
             this.BuildTileBase();
         })
         .catch(err => {console.error('Texture load error:', err);});
@@ -116,6 +118,7 @@ export class Tile{
         .then(texture => {
             this.texture = texture[0];
             this.TextureMapCanvas=texture[1];
+            superColourMapTexture.addTile(this.x,this.y,texture[2])
             this.BuildTileBase();
         })
         .catch(err => {console.error('Texture load error:', err);});
@@ -134,47 +137,39 @@ export class Tile{
         })
         .catch(err => {console.error('Texture load error:', err);});
     }
-    async BuildTileBase(){
-        // console.log("tried!!!")
+    BuildTileBase(){
         if (this.heightmap && this.texture) {
 
-            this.heightmap.minFilter = THREE.LinearFilter;
-            this.heightmap.magFilter = THREE.LinearFilter;
-            this.heightmap.generateMipmaps = false;
-            this.heightmap.wrapS = THREE.ClampToEdgeWrapping;
-            this.heightmap.wrapT = THREE.ClampToEdgeWrapping;
+            const heightTexToUse=superHeightMapTexture.texture
+            const ColourTexToUse=superColourMapTexture.texture
 
+            const uvScale=superHeightMapTexture.getUVScale(this.x,this.y)//OffsetAndScale[1]
+            
             const TERRAIN_SIZE = 30; // World size for scaling
             const HEIGHT_SCALE = 0.6;
             const totalTiles=16
 
-            // ----
             const tilesPerSide = 4.0; // 4x4 grid => 16 tiles total
-            // const tileSize = 1; // Each tile covers part of the 1x1 plane
-            const segmentsPerTile = 128//Math.floor(((this.heightmap.image.width/2) / tilesPerSide)); // 128 segments for 512px heightmap
-            // console.log(segmentsPerTile,"segments")
-            // const padding = 0.5 / this.heightmap.image.width; // 0.5px in UV space
-            const uvScale = segmentsPerTile / this.heightMapCanvas.width;
+            const segmentsPerTile = 128
+
+            // const uvScale = 0.25
             for (let y = 0; y < tilesPerSide; y++) {
                 for (let x = 0; x < tilesPerSide; x++) {
                     // Create a plane geometry for this tile
                     const geometry = new THREE.PlaneGeometry(1, 1, segmentsPerTile,segmentsPerTile );//segmentsPerTile
                     geometry.rotateX(-Math.PI / 2);
-                    
-                    
-                    // tile is 512 pixels, start at x=0, then move along 128
-                    const uvOffset = new THREE.Vector2()//(x*128)/511, (1.0 - (y + 1.0) / tilesPerSide )  );//(1.0 - (y + 1.0) / tilesPerSide )
-                    uvOffset.x=x * uvScale //+(x)/128
-                    uvOffset.y=1.0 - (y+1) * uvScale //+ (3-y)/128 //1.0 - ((y + 1) * segmentsPerTile) / (511)
-                    
+
+                    const uvOffset=superHeightMapTexture.getUVOffset(this.x,this.y)//OffsetAndScale[0]
+                    uvOffset.x=uvOffset.x + x*uvScale.x//+x/512                    
+                    uvOffset.y=1.0 - (y+1)*uvScale.y//+y*uvScale.y
 
                     const material = new THREE.ShaderMaterial({
                         uniforms: {
-                            heightmap: { value: this.heightmap },
-                            textureMap: { value: this.texture },
+                            heightmap: { value:heightTexToUse },
+                            textureMap: { value: ColourTexToUse },
                             heightScale: { value: HEIGHT_SCALE },
                             uvOffset: { value: uvOffset },
-                            uvScale: { value: new THREE.Vector2(uvScale, uvScale) }
+                            uvScale: { value: uvScale }
                         },
                         vertexShader: `
                             precision highp  float;
@@ -187,10 +182,7 @@ export class Tile{
                             varying vec2 vUv;
 
                             void main() {
-                                // vec2 texelSize = 1.0 / vec2(textureSize(heightmap, 0)); 
-                                // vec2 texelCenterOffset = tileTexelSize * 0.5;
-                                // vec2 texelSize = 1.0 / vec2(512.0, 512.0);
-                                vUv = uvOffset + uv * uvScale;  //+ texelSize * 0.5;
+                                vUv = uvOffset + uv * uvScale;
                                 float height = texture2D(heightmap, vUv).r * heightScale;
                                 vec3 newPosition = position + normal * height;
                                 gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
@@ -201,11 +193,13 @@ export class Tile{
                             precision mediump int;
 
                             uniform sampler2D textureMap;
+                            uniform sampler2D heightmap;
                             varying vec2 vUv;
 
                             void main() {
                                 vec3 color = texture2D(textureMap, vUv).rgb;
-                                gl_FragColor = vec4(color, 1.0);
+                                vec3 Hcolor = texture2D(heightmap, vUv).rgb;
+                                gl_FragColor = vec4(color, 1.0);//vec4(color, 1.0);
                             }
                         `,
                         side: THREE.FrontSide

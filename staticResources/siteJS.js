@@ -31,6 +31,7 @@ class Template{
 function sceneSetup(SetupInformation){
     const tiles=SetupInformation[0]
     const OriginTile=SetupInformation[1]
+    // console.log(OriginTile,"OriginTile")
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false,powerPreference: "high-performance" });
@@ -85,7 +86,7 @@ function sceneSetup(SetupInformation){
         //category is like "owner", "allies", "involvedUsers"
         // console.log(category,"cat")
         for (const userData of category) {
-            console.log(userData)
+            // console.log(userData)
             const CreatedTile=new Tile(
                 userData.x,userData.y,
                 globalmanager,
