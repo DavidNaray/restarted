@@ -41,8 +41,8 @@ class SuperTextureManager{
     }
 
     addTile(x, y, tileImageBitmap) {
-        console.log(`${x},${y}`,"tile requesting updating supertexture")
-        if(this.tiles.get(`${x},${y}`)){return;}
+        // console.log(`${x},${y}`,"tile requesting updating supertexture")
+        // if(this.tiles.get(`${x},${y}`)){return;}
 
         this.resizeIfNeeded(x, y);
 

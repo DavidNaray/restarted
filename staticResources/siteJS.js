@@ -31,7 +31,7 @@ class Template{
 function sceneSetup(SetupInformation){
     const tiles=SetupInformation[0]
     const OriginTile=SetupInformation[1]
-    // console.log(OriginTile,"OriginTile")
+    console.log(OriginTile,"OriginTile")
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false,powerPreference: "high-performance" });

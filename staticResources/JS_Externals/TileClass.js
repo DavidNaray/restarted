@@ -160,8 +160,9 @@ export class Tile{
                     geometry.rotateX(-Math.PI / 2);
 
                     const uvOffset=superHeightMapTexture.getUVOffset(this.x,this.y)//OffsetAndScale[0]
-                    uvOffset.x=uvOffset.x + x*uvScale.x//+x/512                    
-                    uvOffset.y=1.0 - (y+1)*uvScale.y//+y*uvScale.y
+                    console.log(uvOffset ,this.x,this.y)
+                    uvOffset.x=uvOffset.x + x*uvScale.x + 0.001//+x/512                    
+                    uvOffset.y= uvOffset.y+ 0.501 - (y+1)*uvScale.y//+y*uvScale.y
 
                     const material = new THREE.ShaderMaterial({
                         uniforms: {
