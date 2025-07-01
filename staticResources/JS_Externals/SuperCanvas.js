@@ -43,7 +43,7 @@ class SuperTextureManager{
     addTile(x, y, tileImageBitmap) {
         // console.log(`${x},${y}`,"tile requesting updating supertexture")
         // if(this.tiles.get(`${x},${y}`)){return;}
-
+        // console.log(this.tiles.get(`${x},${y}`),"in?")
         this.resizeIfNeeded(x, y);
 
         const px = x * this.tileSize;
@@ -61,8 +61,8 @@ class SuperTextureManager{
         const heightInTiles = this.canvas.height / this.tileSize;
 
         return new THREE.Vector2(
-            x / widthInTiles,
-            1.0 - (y + 1) / heightInTiles // Y is top-down
+            x *(1/widthInTiles),
+            1 - y*(1/heightInTiles) //(y + 1) / heightInTiles//0 when y=0, y=1 its then 0.5
         );
     }
 
@@ -70,8 +70,9 @@ class SuperTextureManager{
         const widthInTiles = this.canvas.width / this.tileSize;
         const heightInTiles = this.canvas.height / this.tileSize;
 
-        const WidthInSubTiles=0.25 / widthInTiles;//0.25 because each tile is split into 4x4 subtiles
+        const WidthInSubTiles=(0.25 /widthInTiles);//0.25 because each tile is split into 4x4 subtiles
         const HeightInSubTiles=0.25/heightInTiles;
+        // console.log(WidthInSubTiles,HeightInSubTiles, "Width...",widthInTiles,heightInTiles)
         return new THREE.Vector2(
             // (1.0 / widthInTiles),
             // (1.0 / heightInTiles)

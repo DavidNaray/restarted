@@ -144,7 +144,7 @@ export class Tile{
             const ColourTexToUse=superColourMapTexture.texture
 
             const uvScale=superHeightMapTexture.getUVScale(this.x,this.y)//OffsetAndScale[1]
-            
+            console.log(uvScale,this.x,this.y, "this scale")
             const TERRAIN_SIZE = 30; // World size for scaling
             const HEIGHT_SCALE = 0.6;
             const totalTiles=16
@@ -161,8 +161,8 @@ export class Tile{
 
                     const uvOffset=superHeightMapTexture.getUVOffset(this.x,this.y)//OffsetAndScale[0]
                     console.log(uvOffset ,this.x,this.y)
-                    uvOffset.x=uvOffset.x + x*uvScale.x + 0.001//+x/512                    
-                    uvOffset.y= uvOffset.y+ 0.501 - (y+1)*uvScale.y//+y*uvScale.y
+                    uvOffset.x=uvOffset.x + x*uvScale.x +0.001//+x/512                    
+                    uvOffset.y= uvOffset.y  - (y+1)*uvScale.y - 0.001//+y*uvScale.y
 
                     const material = new THREE.ShaderMaterial({
                         uniforms: {
