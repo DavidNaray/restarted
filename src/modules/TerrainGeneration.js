@@ -283,10 +283,9 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
             walkable: (mountains < 0.008) && (crossable || riverStrength < 0.3),
             riverStrength:riverStrength,
             crossable:crossable,
-            cliffSteepness:cliffSteepness,
-            isCliffFace:isCliffFace,
             mountainStrength:mountainStrength,
-            riverStrength:riverStrength
+            riverStrength:riverStrength,
+            nx,ny
         };
     }
 
@@ -308,9 +307,8 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                 walkable,
                 riverStrength,
                 crossable,
-                cliffSteepness,
-                isCliffFace,
                 mountainStrength,
+                nx,ny
             } = heightBuffer[y][x];
 
             const neighbors = [];
@@ -433,7 +431,7 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                 g = walkable ? 255 : 0;
                 b = walkable ? 255 : 0;
 
-                const greenNoise = (fBm(x * 0.01, y * 0.01) * 0.5 + 0.5) * 60;
+                const greenNoise = (fBm(nx , ny) * 0.5 + 0.5) * 60;
                 
                 // terrainR = walkable ? 40 : 0;
                 // terrainG = walkable ? 120 + greenNoise : 0;
