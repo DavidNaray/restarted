@@ -107,7 +107,7 @@ export class Tile{
         .then(texCanv => {
             this.heightmap = texCanv[0];
             this.heightMapCanvas =texCanv[1];
-            superHeightMapTexture.addTile(this.x,this.y,texCanv[2])
+            superHeightMapTexture.addTile(-this.offSet[0],-this.offSet[1],texCanv[2])
             // console.log(superHeightMapTexture.canvas.width, "canvas width!",superHeightMapTexture.canvas.height)
             this.BuildTileBase();
         })
@@ -118,7 +118,8 @@ export class Tile{
         .then(texture => {
             this.texture = texture[0];
             this.TextureMapCanvas=texture[1];
-            superColourMapTexture.addTile(this.x,this.y,texture[2])
+            //negated parameter of offset since "to the right", -1 for offset so yeah...
+            superColourMapTexture.addTile(-this.offSet[0],-this.offSet[1],texture[2])
             this.BuildTileBase();
         })
         .catch(err => {console.error('Texture load error:', err);});
@@ -143,8 +144,8 @@ export class Tile{
             const heightTexToUse=superHeightMapTexture.texture
             const ColourTexToUse=superColourMapTexture.texture
 
-            const uvScale=superHeightMapTexture.getUVScale(this.x,this.y)//OffsetAndScale[1]
-            console.log(uvScale,this.x,this.y, "this scale")
+            //OffsetAndScale[1]
+            // console.log(uvScale,this.x,this.y, "this scale")
             const TERRAIN_SIZE = 30; // World size for scaling
             const HEIGHT_SCALE = 0.6;
             const totalTiles=16
@@ -158,11 +159,17 @@ export class Tile{
                     // Create a plane geometry for this tile
                     const geometry = new THREE.PlaneGeometry(1, 1, segmentsPerTile,segmentsPerTile );//segmentsPerTile
                     geometry.rotateX(-Math.PI / 2);
-
-                    const uvOffset=superHeightMapTexture.getUVOffset(this.x,this.y)//OffsetAndScale[0]
-                    console.log(uvOffset ,this.x,this.y)
-                    uvOffset.x=uvOffset.x + x*uvScale.x +0.001//+x/512                    
-                    uvOffset.y= uvOffset.y  - (y+1)*uvScale.y - 0.001//+y*uvScale.y
+                    // const uvScale=superHeightMapTexture.getUVScale(this.x,this.y)
+                    // console.log(uvScale,this.x,this.y, "this scale")
+                    // const uvOffset=superHeightMapTexture.getUVOffset(this.x,this.y)//OffsetAndScale[0]
+                    // console.log(uvOffset ,this.x,this.y)
+                    const Rect=superHeightMapTexture.getTileUVRect(-this.offSet[0],-this.offSet[1])
+                    const uvOffset=Rect[0]
+                    
+                    const uvScale=Rect[1]
+                    // console.log(uvOffset,this.x,this.y,uvScale)
+                    uvOffset.x=(uvOffset.x + x*uvScale.x)      
+                    uvOffset.y= uvOffset.y  - (y+1)*uvScale.y  
 
                     const material = new THREE.ShaderMaterial({
                         uniforms: {
