@@ -71,7 +71,7 @@ class SuperTextureManager{
         this.texture.needsUpdate = true;
     }
 
-    addTile(x, y, tileImageBitmap) {
+    addTile(x, y, tileImageBitmap,TileClassObject) {
         // console.log(`${x},${y}`,"tile requesting updating supertexture")
         // if(this.tiles.get(`${x},${y}`)){return;}
         // console.log(this.tiles.get(`${x},${y}`),"in?")
@@ -79,13 +79,24 @@ class SuperTextureManager{
         
         const px = (x-this.minimumChunkX) * this.tileSize;
         const py = (y - this.minimumChunkY) * this.tileSize;
-        console.log(x,y,"addtile",px,py)
+        // console.log(x,y,"addtile",px,py)
         this.ctx.drawImage(tileImageBitmap,px, py);
         
         this.texture.needsUpdate = true;
-        console.log(this.texture.image.width, "image width")
+        // console.log(this.texture.image.width, "image width")
 
-        this.tiles.set(`${x},${y}`, true);
+        this.tiles.set(`${x},${y}`, TileClassObject);
+
+        // console.log("set?",this.tiles)
+        //go through this.tiles and run BuildMaterials for each object
+        // for (const [key, tileObj] of Object.entries(this.tiles)) {
+        //     console.log(key, "key?")
+        //     // tileObj.BuildMaterials();
+        // }
+        this.tiles.forEach((tileObj)=>{
+            // console.log(tileObj)
+            tileObj.BuildMaterials();
+        })
     }
 
     getUVOffset(x, y) {

@@ -20,7 +20,7 @@ export class Tile{
         
         this.instancePooling=new TileInstancePool(this);
         // this.UnitInstancePooling=new TileInstancePool(this);
-        this.meshes=new Set();//what makes up the terrain tile, to allow frustrum cull
+        this.meshes=new Map();//what makes up the terrain tile, to allow frustrum cull
 
         this.x=x;
         this.y=y;
@@ -41,11 +41,11 @@ export class Tile{
 
         this.loadtextures();
         this.instanceManager.registerTile(this)
-
-        // this.viewLevel=TileRelationship;
+    
         //get the difference between this tile and the central
         this.offSet=[centralTile[0]-x,centralTile[1]-y]
-        // console.log(this.offSet.length,"offset")
+        
+        this.BuildTileBase()
     }
 
     loadtextures(){
@@ -107,9 +107,9 @@ export class Tile{
         .then(texCanv => {
             this.heightmap = texCanv[0];
             this.heightMapCanvas =texCanv[1];
-            superHeightMapTexture.addTile(-this.offSet[0],-this.offSet[1],texCanv[2])
+            superHeightMapTexture.addTile(-this.offSet[0],-this.offSet[1],texCanv[2],this)
             // console.log(superHeightMapTexture.canvas.width, "canvas width!",superHeightMapTexture.canvas.height)
-            this.BuildTileBase();
+            // this.BuildTileBase();
         })
         .catch(err => {console.error('Texture load error:', err);});
 
@@ -119,8 +119,8 @@ export class Tile{
             this.texture = texture[0];
             this.TextureMapCanvas=texture[1];
             //negated parameter of offset since "to the right", -1 for offset so yeah...
-            superColourMapTexture.addTile(-this.offSet[0],-this.offSet[1],texture[2])
-            this.BuildTileBase();
+            superColourMapTexture.addTile(-this.offSet[0],-this.offSet[1],texture[2],this)
+            // this.BuildTileBase();
         })
         .catch(err => {console.error('Texture load error:', err);});
 
@@ -128,114 +128,120 @@ export class Tile{
         loadWalkMapWithAuth(this.WalkMapUrl, localStorage.getItem('accessToken'))
         .then(texture => {
             this.walkMap=texture;
-            // const startpixel={x:40,y:40}
-            // const goalpixel={x:80,y:80}
-
-            // this.AstarPathCost(startpixel,goalpixel,startpixel,80,80)
-
-            // this.PortalConnectivity()
 
         })
         .catch(err => {console.error('Texture load error:', err);});
     }
     BuildTileBase(){
-        if (this.heightmap && this.texture) {
+        // if (this.heightmap && this.texture) {
 
-            const heightTexToUse=superHeightMapTexture.texture
-            const ColourTexToUse=superColourMapTexture.texture
+        const TERRAIN_SIZE = 30; // World size for scaling
+        const totalTiles=16
 
-            //OffsetAndScale[1]
-            // console.log(uvScale,this.x,this.y, "this scale")
-            const TERRAIN_SIZE = 30; // World size for scaling
-            const HEIGHT_SCALE = 0.6;
-            const totalTiles=16
+        const tilesPerSide = 4.0; // 4x4 grid => 16 tiles total
+        const segmentsPerTile = 128
 
-            const tilesPerSide = 4.0; // 4x4 grid => 16 tiles total
-            const segmentsPerTile = 128
+        // const uvScale = 0.25
+        for (let y = 0; y < tilesPerSide; y++) {
+            for (let x = 0; x < tilesPerSide; x++) {
+                // Create a plane geometry for this tile
+                const geometry = new THREE.PlaneGeometry(1, 1, segmentsPerTile,segmentsPerTile );//segmentsPerTile
+                geometry.rotateX(-Math.PI / 2);
 
-            // const uvScale = 0.25
-            for (let y = 0; y < tilesPerSide; y++) {
-                for (let x = 0; x < tilesPerSide; x++) {
-                    // Create a plane geometry for this tile
-                    const geometry = new THREE.PlaneGeometry(1, 1, segmentsPerTile,segmentsPerTile );//segmentsPerTile
-                    geometry.rotateX(-Math.PI / 2);
-                    // const uvScale=superHeightMapTexture.getUVScale(this.x,this.y)
-                    // console.log(uvScale,this.x,this.y, "this scale")
-                    // const uvOffset=superHeightMapTexture.getUVOffset(this.x,this.y)//OffsetAndScale[0]
-                    // console.log(uvOffset ,this.x,this.y)
-                    const Rect=superHeightMapTexture.getTileUVRect(-this.offSet[0],-this.offSet[1])
-                    const uvOffset=Rect[0]
-                    
-                    const uvScale=Rect[1]
-                    // console.log(uvOffset,this.x,this.y,uvScale)
-                    uvOffset.x=(uvOffset.x + x*uvScale.x)      
-                    uvOffset.y= uvOffset.y  - (y+1)*uvScale.y  
+                const placeholderMaterial=new THREE.MeshBasicMaterial({ color: 0x0000ff })
 
-                    const material = new THREE.ShaderMaterial({
-                        uniforms: {
-                            heightmap: { value:heightTexToUse },
-                            textureMap: { value: ColourTexToUse },
-                            heightScale: { value: HEIGHT_SCALE },
-                            uvOffset: { value: uvOffset },
-                            uvScale: { value: uvScale }
-                        },
-                        vertexShader: `
-                            precision highp  float;
-                            precision highp  int;
+                const mesh = new THREE.Mesh(geometry, placeholderMaterial);
+                // Position tile in world space
+                const worldTileSize = TERRAIN_SIZE / totalTiles;
+                const totalSize = worldTileSize * tilesPerSide; // == TERRAIN_SIZE, but explicit
+                mesh.position.set(
+                    ((x + 0.5) * worldTileSize - totalSize / 2)-(this.offSet[0]*totalSize),
+                    0,
+                    ((y + 0.5) * worldTileSize - totalSize / 2)-(this.offSet[1]*totalSize)
+                );
+                mesh.scale.set(worldTileSize, 1, worldTileSize);
+                // mesh.matrixAutoUpdate = false;
 
-                            uniform sampler2D heightmap;
-                            uniform float heightScale;
-                            uniform vec2 uvOffset;
-                            uniform vec2 uvScale;
-                            varying vec2 vUv;
+                this.meshes.set(`${x},${y}`,mesh);
+                this.instanceManager.meshToTiles.set(mesh,this)
+                this.instanceManager.allTileMeshes.push(mesh)
+                scene.add(mesh);
 
-                            void main() {
-                                vUv = uvOffset + uv * uvScale;
-                                float height = texture2D(heightmap, vUv).r * heightScale;
-                                vec3 newPosition = position + normal * height;
-                                gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
-                            }
-                        `,
-                        fragmentShader: `
-                            precision lowp float;
-                            precision mediump int;
-
-                            uniform sampler2D textureMap;
-                            uniform sampler2D heightmap;
-                            varying vec2 vUv;
-
-                            void main() {
-                                vec3 color = texture2D(textureMap, vUv).rgb;
-                                vec3 Hcolor = texture2D(heightmap, vUv).rgb;
-                                gl_FragColor = vec4(color, 1.0);//vec4(color, 1.0);
-                            }
-                        `,
-                        side: THREE.FrontSide
-                    });
-
-                    const mesh = new THREE.Mesh(geometry, material);
-                    // Position tile in world space
-                    const worldTileSize = TERRAIN_SIZE / totalTiles;
-                    const totalSize = worldTileSize * tilesPerSide; // == TERRAIN_SIZE, but explicit
-                    mesh.position.set(
-                        ((x + 0.5) * worldTileSize - totalSize / 2)-(this.offSet[0]*totalSize),
-                        0,
-                        ((y + 0.5) * worldTileSize - totalSize / 2)-(this.offSet[1]*totalSize)
-                    );
-                    mesh.scale.set(worldTileSize, 1, worldTileSize);
-                    // mesh.matrixAutoUpdate = false;
-
-                    this.meshes.add(mesh);
-                    this.instanceManager.meshToTiles.set(mesh,this)
-                    this.instanceManager.allTileMeshes.push(mesh)
-                    scene.add(mesh);
-
-                }
             }
                   
-            requestRenderIfNotRequested();
+            // requestRenderIfNotRequested();
         }
     }
+
+    //called by the supercanvas to adjust the offsets and scaling the tile picks from the supercanvas
+    async BuildMaterials(){
+        // console.log("hello?")
+        const HEIGHT_SCALE = 0.6;
+        const heightTexToUse=superHeightMapTexture.texture
+        const ColourTexToUse=superColourMapTexture.texture
+
+        this.meshes.forEach((mesh,key)=>{
+            // console.log("pairing",key, mesh)
+            const processedKey=key.split(",")
+            const x=Number(processedKey[0])
+            const y=Number(processedKey[1])
+            console.log(x,y,"split up key")
+            const Rect=superHeightMapTexture.getTileUVRect(-this.offSet[0],-this.offSet[1])
+            const uvOffset=Rect[0]
+            const uvScale=Rect[1]
+            // console.log(uvOffset,this.x,this.y,uvScale)
+            uvOffset.x=(uvOffset.x + x*uvScale.x)     +0.001 
+            uvOffset.y= uvOffset.y  - (y+1)*uvScale.y  +0.001
+
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    heightmap: { value:heightTexToUse },
+                    textureMap: { value: ColourTexToUse },
+                    heightScale: { value: HEIGHT_SCALE },
+                    uvOffset: { value: uvOffset },
+                    uvScale: { value: uvScale }
+                },
+                vertexShader: `
+                    precision highp  float;
+                    precision highp  int;
+
+                    uniform sampler2D heightmap;
+                    uniform float heightScale;
+                    uniform vec2 uvOffset;
+                    uniform vec2 uvScale;
+                    varying vec2 vUv;
+
+                    void main() {
+                        vUv = uvOffset + uv * uvScale;
+                        float height = texture2D(heightmap, vUv).r * heightScale;
+                        vec3 newPosition = position + normal * height;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    precision lowp float;
+                    precision mediump int;
+
+                    uniform sampler2D textureMap;
+                    uniform sampler2D heightmap;
+                    varying vec2 vUv;
+
+                    void main() {
+                        vec3 color = texture2D(textureMap, vUv).rgb;
+                        vec3 Hcolor = texture2D(heightmap, vUv).rgb;
+                        gl_FragColor = vec4(color, 1.0);//vec4(color, 1.0);
+                    }
+                `,
+                side: THREE.FrontSide
+            });
+            mesh.material=material
+            mesh.material.needsUpdate=true
+
+
+        });
+        requestRenderIfNotRequested();
+    }
+
 
     //addToScene and objectLoad work as a pair, objectLoad checks if the object wanting to be added exists
     //this means that objectLoad should always be called, not addToScene, that is a utlity function of objectLoad
