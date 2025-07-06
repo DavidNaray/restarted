@@ -15,8 +15,9 @@ const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
 const {SharpImgBuildingPlacementVerification,SharpImgPointVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
-const {PortalConnectivity}=require("./modules/PathfindingFunctionality.js")
+const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership}=require("./modules/UnitPositionValidation.js")
+const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
 
 
 const mongoose = require('mongoose');
@@ -99,6 +100,16 @@ app.post('/Register-user', async (req, res) => {
     // console.log(chunkX,chunkY, "HOPEFULLY STILL CHANGES")
     genTerrain.generateHeightmap(chunkX,chunkY)//function that creates terrain
 
+    const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+chunkX.toString()+chunkY.toString()+".png"
+    console.log("WalkMapLocation",WalkMapLocation)
+    //abstractMapForTile is a map() of portals, 
+    // the key is the start portal, the value is a map of endportal -> cost to get there from the start portal (first key)
+    const abstractMapForTile=await PortalConnectivity(WalkMapLocation)
+    // const AbstractMapForSchema=convertMapToMongoDoc(abstractMapForTile)
+    // console.log("Size of abstract map in KB:", Buffer.byteLength(JSON.stringify(AbstractMapForSchema)) / 1024);
+    // console.log(AbstractMapForSchema)
+    // console.log(abstractMapForTile.get('47,47'), "the abstract map....")
+    
     const B_TownHall={
         "userId":user._id,
         "assetId": "DATC",
@@ -116,6 +127,7 @@ app.post('/Register-user', async (req, res) => {
         owner: user._id,
         allies: [],
         involvedUsers: [],
+        // AbstractMap:convertMapToMongoDoc(abstractMapForTile),
         textures:{
             heightmapUrl: './Tiles/HeightMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultHeightmapURL,
             texturemapUrl: './Tiles/TextureMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultTexturemapURL,
@@ -124,8 +136,17 @@ app.post('/Register-user', async (req, res) => {
         units: [],
         buildings: [B_TownHall]
     });
-
-    await tile.save();
+    // tile.AbstractMap=convertMapToMongoDoc(abstractMapForTile)
+    // tile.markModified('AbstractMap');
+    try {
+        tile.AbstractMap = convertMapToMongoDoc(abstractMapForTile);
+        tile.markModified('AbstractMap');
+        await tile.save();
+        console.log("✅ Tile saved successfully");
+    } catch (err) {
+        console.error("❌ Tile save failed:", err);
+    }
+    // await tile.save();
 
     user.OriginTile=[chunkX,chunkY]
     await user.save();
@@ -510,9 +531,9 @@ io.on('connection', (socket) => {
     })
 
     socket.on('testing',async () => {//relevant to seeing if the abstractMap code worked
-        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+"0"+"0"+".png"
+        // const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+"0"+"0"+".png"
         socket.emit('testingResponse', "hello");
-        PortalConnectivity(WalkMapLocation)
+        // PortalConnectivity(WalkMapLocation)
     });
 
     socket.on('DeployAllUnits',async ({RequestMetaData}) => {

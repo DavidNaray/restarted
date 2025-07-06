@@ -185,7 +185,7 @@ export class Tile{
             const processedKey=key.split(",")
             const x=Number(processedKey[0])
             const y=Number(processedKey[1])
-            console.log(x,y,"split up key")
+            // console.log(x,y,"split up key")
             const Rect=superHeightMapTexture.getTileUVRect(-this.offSet[0],-this.offSet[1])
             const uvOffset=Rect[0]
             const uvScale=Rect[1]

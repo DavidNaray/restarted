@@ -11,6 +11,22 @@ const tileSchema = new mongoose.Schema({
     allies: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],    // ✅ Full vision, restricted actions (per owners rules)
     involvedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],// ⚔️ Enemies or visiting users
 
+    AbstractMap: {
+        type: mongoose.Schema.Types.Mixed,
+        // [
+        //     {
+        //         subgrid: String,
+        //         connections: [
+        //             {
+        //                 to: String,
+        //                 cost: Number
+        //             }
+        //         ]
+        //     }
+        // ],
+        default: []
+    },
+
     textures: {
         heightmapUrl: String,
         texturemapUrl: String,
