@@ -877,11 +877,12 @@ function exportDictSetupSelectable(AssetClass,temp,intMeta){
             if(parentTile in temp[owner][AssetClass]){
                 if(UnitType in temp[owner][AssetClass][parentTile]){
                     //everything exists so push new values into the arrays
-                    temp[owner][AssetClass][parentTile][UnitType]["positions"].push(intMeta.position)
-                    temp[owner][AssetClass][parentTile][UnitType]["positions"].push(intMeta.ServerId)
+                    
+                    // temp[owner][AssetClass][parentTile][UnitType]["positions"].push(intMeta.position)
+                    temp[owner][AssetClass][parentTile][UnitType]["ServerIds"].push(intMeta.ServerId)
                 }else{//there is unit type for the owner of the instance, of assetclass in the parentTile for export
                     temp[owner][AssetClass][parentTile][UnitType]={
-                        "positions":[intMeta.position],
+                        // "positions":[intMeta.position],
                         "ServerIds":[intMeta.ServerId]
                     }
                 }
@@ -889,7 +890,7 @@ function exportDictSetupSelectable(AssetClass,temp,intMeta){
             }else{//there is no record for the tile for the owner, for the assetclass in selectables
                 temp[owner][AssetClass][parentTile]={
                     [UnitType]:{
-                        "positions":[intMeta.position],
+                        // "positions":[intMeta.position],
                         "ServerIds":[intMeta.ServerId]
                     } 
                 }
@@ -899,7 +900,7 @@ function exportDictSetupSelectable(AssetClass,temp,intMeta){
             temp[owner][AssetClass]={
                 [parentTile]:{
                     [UnitType]:{
-                        "positions":[intMeta.position],
+                        // "positions":[intMeta.position],
                         "ServerIds":[intMeta.ServerId]
                     } 
                 }
@@ -911,7 +912,7 @@ function exportDictSetupSelectable(AssetClass,temp,intMeta){
             [AssetClass]:{
                 [parentTile]:{
                     [UnitType]:{
-                        "positions":[intMeta.position],
+                        // "positions":[intMeta.position],
                         "ServerIds":[intMeta.ServerId]
                     } 
                 }

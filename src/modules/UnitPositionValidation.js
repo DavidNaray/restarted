@@ -14,7 +14,7 @@ async function validateUnitOwnership(selectedUnits,UserIdCommandee){
             
             for (const [UnitType, SIdPos] of Object.entries(UnitTypeEtc)) { 
                 const compositeLocalTileKey=`${UserIdCommandee},${UnitType}`
-                const LocalPositions=SIdPos.positions
+                // const LocalPositions=SIdPos.positions
                 const LocalServerIds=SIdPos.ServerIds
 
                 const WhatActuallyExistsHere=InvestigateTile.units.get(compositeLocalTileKey)
@@ -26,11 +26,7 @@ async function validateUnitOwnership(selectedUnits,UserIdCommandee){
                         const SIdIncluded=ExistingInstancesHere.has(SId.toString())
                         if(SIdIncluded){
 
-                            //ok theyve been verified, continue the scan
-                            //need to check that the unit position is within a margin of error of expected location
-                            //------------------------------------------
-                            //---------assume ok for now----------------
-                            //------------------------------------------
+                            //ok theyve been verified, they own the unit of the serverId
                         }else{
                             CHEATER=true;
                             console.log("ALERT. ACTION, referencing Sid that is not under their control on tile")

@@ -20,7 +20,10 @@ const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
         //goal position, this applies both to the units and the formation itself
         
 //reading tiles abstract portal info...
-// const graphMap = convertMongoPortalGraphToMap(tile.portalGraph);
+// const graphMap = convertMongoPortalGraphToMap(tile.AbstractMap);
 
 const TilePixelUnitMap=new Map()
 
+function calcFormationCenterPoint(selectedUnits){
+    //the median coordinate of selected units
+}
