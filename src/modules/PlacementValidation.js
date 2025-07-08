@@ -38,41 +38,6 @@ async function getPosWithHeight(selectedPoint,HeightImglocation){
     return [X,height,Y];
 }
 
-
-async function SharpImgPointVerification(Imglocation,selectedPoint){
-    //selectedPoint of form [x,y,z]
-    const X=selectedPoint[0]
-    const Y=selectedPoint[2]
-
-    //X and Y are global points and need to be reduced according to offset
-    
-    const imgX = Math.round(walkMapWidth / 2 + X * pixelsPerUnit);
-    const imgY =   Math.round(walkMapHeight / 2 + Y * pixelsPerUnit);
-    
-    const { data, info } = await sharp(Imglocation)//'walkmap.png'
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-    const index = (imgY * info.width + imgX) * 4; // 4 bytes per pixel (RGBA)
-    // console.log(info.width, info.height); // dimensions
-    // console.log(data); // raw pixel buffer (RGBA)
-    
-    const r=data[index];
-    const g=data[index+1];
-    const b=data[index+2];
-    const a=data[index+3];
-
-    const isWhite = (r === 255 && g === 255 && b === 255 && a === 255);
-    
-    if(isWhite){
-        return true;//placement is valid
-    }else{
-        return false;//by default or if !isWhite, placement is not valid
-    }
-    
-}
-
 async function SharpImgBuildingPlacementVerification(MaskImglocation,Imglocation,MetaData){
     //selectedPoint of form [x,y,z]
     const X=MetaData.position[0]//selectedPoint[0]
@@ -212,4 +177,4 @@ async function PointPlacementVerification(pixelCoord,Imglocation){
     }
 }
 
-module.exports={PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,SharpImgPointVerification,getPosWithHeight}
+module.exports={PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight}

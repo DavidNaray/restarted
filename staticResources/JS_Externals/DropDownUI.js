@@ -59,31 +59,8 @@ function IterateOverDeploy(regimenEnvelope,DeployPoint,Obj_Identifier){
         "UnitCount":regimenEnvelope.children.length-1,
         "UnitType":Obj_Identifier,
         "DeployPosition":DeployPosition,
-        "tile":[targetTile.x,targetTile.y],
-        "owner":UserId,
     }
-    // for(let i=1;i<regimenEnvelope.children.length;i++){
-        
-    //     // const IntersectPoint=intersects[0].point
 
-    //     //build the request
-
-
-
-    //     // DeployPoint.myParam[1].getPosWithHeight(DeployPoint.myParam[0]).then(val=>{
-    //     //     console.log(val, "should be the point.....")
-    //     //     const instanceMetaData={
-    //     //         "position":val,
-    //     //         "userId":UserId,//localStorage.getItem('accessToken').id,//ThisUser._id,
-    //     //         "health":100,
-    //     //         // "state":"Built"
-    //     //     }
-    //     //     DeployPoint.myParam[1].objectLoad(Obj_Identifier,instanceMetaData)
-
-    //     // })
-    //     regimenEnvelope.removeChild(regimenEnvelope.children[i])
-
-    // }
     EmitUnitsBeingDeployed(requestMetaData)
     // console.log(regimenEnvelope.parentElement)
     regimenEnvelope.parentElement.removeChild(regimenEnvelope)

@@ -15,7 +15,7 @@ const TileScheme=require("./Schemas/Tile")
 const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
-const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,SharpImgPointVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
+const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership}=require("./modules/UnitPositionValidation.js")
 const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
@@ -547,15 +547,19 @@ io.on('connection', (socket) => {
     });
 
     socket.on('DeployAllUnits',async ({RequestMetaData}) => {
-
-        // console.log(RequestMetaData.owner, "owner")
+        const userId=socket.userId
         var chosenServerIndices=[];
-        //get the title, check free indices and the rest are top ++++
-        const tile = await TileScheme.findOne({x: RequestMetaData.tile[0],y: RequestMetaData.tile[1]});//owner: user._id });
-        // console.log("TILE TARGET", tile.x,tile.y,"topindice",tile.topIndice)
+        
+        const TheUser = await User.findOne({ _id: userId });
+        const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,RequestMetaData.DeployPosition)
+        const chunkX=values.chunkCoords[0]
+        const chunkY=values.chunkCoords[1]
+
+        const tile = await TileScheme.findOne({x: chunkX,y: chunkY});
+        
         var tileFreeIndices=tile.freeIndices
         var TileTopIndice=tile.topIndice
-        const compositeKey=`${RequestMetaData.owner},${RequestMetaData.UnitType}`
+        const compositeKey=`${userId},${RequestMetaData.UnitType}`
         
         for(let i=0;i<RequestMetaData.UnitCount;i++){
             if(tileFreeIndices.length>0){
@@ -615,9 +619,9 @@ io.on('connection', (socket) => {
             "AssetClass":"Unit",
             "position":RequestMetaData.DeployPosition,
             "UnitType":RequestMetaData.UnitType,
-            "tile":RequestMetaData.tile,
+            "tile":values.chunkCoords,
             "UnitCount":RequestMetaData.UnitCount,
-            "owner":RequestMetaData.owner,
+            "owner":userId,
             "ServerIds":chosenServerIndices
         }
         socket.emit('DeployAllUnitsHere', responseObject);
