@@ -146,7 +146,7 @@ async function SharpImgBuildingPlacementVerification(MaskImglocation,Imglocation
 
 //returns the pixel clicked on, along with the clicked on chunk
 async function IdentifySpecificChunkPoint(CenterChunk,clickedPoint){
-    
+    // console.log("center...",CenterChunk, "clickedpoint: ",clickedPoint)
     const CHUNK_SIZE = 7.5;
     const CHUNK_RESOLUTION = 1536;
     
@@ -157,8 +157,8 @@ async function IdentifySpecificChunkPoint(CenterChunk,clickedPoint){
 
     //then divide by 7.5, (first tile is 0 to 1) and take the floor, 
         // if its 1 then its acceptable its the next tile since 1 is exactly on the edge
-    const chunkOffsetX = Math.floor((localX + 3.25) / CHUNK_SIZE)
-    const chunkOffsetZ = Math.floor((localZ + 3.25) / CHUNK_SIZE)
+    const chunkOffsetX = Math.floor((localX + 3.75) / CHUNK_SIZE)
+    const chunkOffsetZ = Math.floor((localZ + 3.75) / CHUNK_SIZE)
 
     const chunkX = CenterChunk[0] + chunkOffsetX;
     const chunkZ = CenterChunk[1] + chunkOffsetZ;

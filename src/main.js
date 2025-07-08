@@ -517,7 +517,7 @@ io.on('connection', (socket) => {
         
         const TheUser = await User.findOne({ _id: userId });
         const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,passIn)
-        // console.log("wonder what ill get",values.chunkCoords,values.pixelCoords)
+        console.log("wonder what ill get",values.chunkCoords,values.pixelCoords)
         const tileX=values.chunkCoords[0]
         const tileY=values.chunkCoords[1]
         const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
