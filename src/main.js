@@ -2,6 +2,7 @@ const http = require('http');
 const express=require("express");
 const path = require('path')
 const { Server } = require('socket.io');
+const jwt = require('jsonwebtoken');
 
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
@@ -14,7 +15,7 @@ const TileScheme=require("./Schemas/Tile")
 const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
-const {SharpImgBuildingPlacementVerification,SharpImgPointVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
+const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,SharpImgPointVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership}=require("./modules/UnitPositionValidation.js")
 const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
@@ -338,6 +339,7 @@ app.get('/{*any}',(req,res)=>{//handles urls not the explicitly defined, wanted 
 })
 
 
+
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('No token provided'));
@@ -509,25 +511,33 @@ io.on('connection', (socket) => {
     })
 
     socket.on('UnitDeploymentPositionRequest',async ({RequestMetaData}) => {
-        const tileX=RequestMetaData.tile[0].toString();
-        const tileY=RequestMetaData.tile[1].toString();
-        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
-        const passIn=RequestMetaData.position
-        const permission=await SharpImgPointVerification(WalkMapLocation,passIn)
+
+        const userId=socket.userId
+        const passIn=RequestMetaData.position//need to localise for the tile
         
+        const TheUser = await User.findOne({ _id: userId });
+        const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,passIn)
+        // console.log("wonder what ill get",values.chunkCoords,values.pixelCoords)
+        const tileX=values.chunkCoords[0]
+        const tileY=values.chunkCoords[1]
+        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
+
+        const permission=await PointPlacementVerification(values.pixelCoords,WalkMapLocation)
+        // console.log("new confirm func",permission,WalkMapLocation)
+
         var position;
         if(permission){
             const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
             position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
-        }
+            const responseObject={
+                "permission":permission,
+                "position":position,
+                "tile":values.chunkCoords,
+                "owner":userId,
+            }
+            socket.emit('CanYouDeployHere', responseObject);
+        }else{socket.emit('CanYouDeployHere', {"permission":permission});}
 
-        const responseObject={
-            "permission":permission,
-            "position":position,//RequestMetaData.position,
-            "tile":RequestMetaData.tile,
-            "owner":RequestMetaData.userOwner,
-        }
-        socket.emit('CanYouDeployHere', responseObject);
     })
 
     socket.on('testing',async () => {//relevant to seeing if the abstractMap code worked

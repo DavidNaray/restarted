@@ -34,9 +34,9 @@ export function onTileClick(ev){
             const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
 
             const RequestMetaData={
-                "tile":[foundTile.x, foundTile.y],
+                // "tile":[foundTile.x, foundTile.y],
                 "position":processedPoint,
-                "userOwner":UserId//localStorage.getItem('accessToken').id,
+                // "userOwner":UserId//gathered from the token
             }
             EmitUnitPlacementRequest(RequestMetaData)
         }

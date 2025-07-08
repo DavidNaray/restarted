@@ -22,8 +22,9 @@ const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
 //reading tiles abstract portal info...
 // const graphMap = convertMongoPortalGraphToMap(tile.AbstractMap);
 
-const TilePixelUnitMap=new Map()
+//when a user loads in it  
+const TilePixelOccupancyMap=new Map()
 
-function calcFormationCenterPoint(selectedUnits){
+function calcFormationCenterPoint(selectedUnitsPositions){
     //the median coordinate of selected units
 }
