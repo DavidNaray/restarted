@@ -4,7 +4,7 @@ import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/exam
 
 import {TileInstancePool} from "./InstancePoolClass.js"
 import {scene,requestRenderIfNotRequested} from "../siteJS.js"
-import {superHeightMapTexture,superColourMapTexture} from "./SuperCanvas.js"
+import {superHeightMapTexture,superColourMapTexture,superWalkMapTexture} from "./SuperCanvas.js"
 
 const loader = new GLTFLoader();//new THREE.TextureLoader();
 const fileLoader = new THREE.FileLoader(loader.manager);
@@ -247,8 +247,9 @@ export class Tile{
     //this means that objectLoad should always be called, not addToScene, that is a utlity function of objectLoad
 
     async addToScene(Obj_Identifier,MetaData){
-
-        const xyz=MetaData.position
+        const rawPosition=MetaData.position//these are in pixel coords for this tile
+        // console.log("raw position: ",rawPosition)
+        const xyz=superHeightMapTexture.getXYZ(-this.offSet[0],-this.offSet[1],rawPosition)//MetaData.position
         // console.log("FIRING FIRING",xyz)
         const transform = new THREE.Matrix4();
         const position = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);

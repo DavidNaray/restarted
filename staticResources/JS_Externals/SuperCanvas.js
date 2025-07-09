@@ -1,8 +1,8 @@
 import * as THREE from "three";
 
 class SuperTextureManager{
-    constructor(){
-        this.tileSize = 512;
+    constructor(scaleFactor){
+        this.tileSize = 512*scaleFactor;
         this.canvas = document.createElement('canvas');
 
         this.ctx = this.canvas.getContext('2d');
@@ -117,9 +117,29 @@ class SuperTextureManager{
     getTileUVRect(x, y){
         return [this.getUVOffset(x,y),this.getUVScale()]
     }
+
+    getXYZ(chunkX,chunkY,pixelCoords){
+        //each tile is 7.5, centered around 0,0,0 so -3.75 
+        //each walkMap is 1536 pixels so each pixel is 7.5/1536, since unit positions are based on walkmap
+            //must reduce to heightmapscale to sample the heightmap
+        const pixelToWorldConversion=7.5/ 1536
+        const HeightScale=0.6
+
+        const x=chunkX*7.5 - 3.75 + pixelToWorldConversion*pixelCoords[0];
+        const z=chunkY*7.5 - 3.75 + pixelToWorldConversion*pixelCoords[1];
+        
+        const pointX=chunkX*this.tileSize + Math.round(pixelCoords[0]/3)
+        const pointY=chunkY*this.tileSize + Math.round(pixelCoords[1]/3)
+        const y=((this.ctx.getImageData(pointX,pointY,1,1).data[0]) / (7.5*30))*HeightScale;
+        
+        // console.log(y,chunkX,chunkY,pointX,pointY,x,y, "sampled y coord")
+        
+        return [x,y,z]
+    }
 }
 
-export const superHeightMapTexture=new SuperTextureManager();
-export const superColourMapTexture=new SuperTextureManager();
+export const superHeightMapTexture=new SuperTextureManager(1);
+export const superColourMapTexture=new SuperTextureManager(1);
+export const superWalkMapTexture=new SuperTextureManager(3);
 
 // document.getElementById("canvas_debug").appendChild(superHeightMapTexture.canvas)

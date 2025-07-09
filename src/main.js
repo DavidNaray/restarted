@@ -579,7 +579,7 @@ io.on('connection', (socket) => {
                     templateId:null,
                     health:100,
                     state:"Idle",
-                    position:RequestMetaData.DeployPosition
+                    position:values.pixelCoords//RequestMetaData.DeployPosition
                 })
 
 
@@ -601,7 +601,7 @@ io.on('connection', (socket) => {
                     templateId:null,
                     health:100,
                     state:"Idle",
-                    position:RequestMetaData.DeployPosition
+                    position:values.pixelCoords//RequestMetaData.DeployPosition
                 })
 
                 //add to chosenServerIndices to notify user of development
@@ -617,7 +617,7 @@ io.on('connection', (socket) => {
 
         const responseObject={
             "AssetClass":"Unit",
-            "position":RequestMetaData.DeployPosition,
+            "position":values.pixelCoords,//RequestMetaData.DeployPosition,
             "UnitType":RequestMetaData.UnitType,
             "tile":values.chunkCoords,
             "UnitCount":RequestMetaData.UnitCount,

@@ -176,7 +176,7 @@ function HandleSocketResponses(socket){
 
         for(var i=0;i<response.UnitCount;i++){
             const metaDataUnits={
-                "position":response.position,
+                "position":response.position,//in pixel values for the chunk its to be deployed in!
                 "UnitType":response.UnitType,
                 "AssetClass":response.AssetClass,
                 "owner":response.owner,
