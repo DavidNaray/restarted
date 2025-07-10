@@ -19,7 +19,7 @@ const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPla
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership}=require("./modules/UnitPositionValidation.js")
 const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
-const {updateOccupancyMap}=require("./modules/PathfindingFunctionality.js")
+// const {updateOccupancyMap}=require("./modules/PathfindingFunctionality.js")
 const ChunkManager=require("./modules/CacheChunkInfo.js")
 // console.log(ChunkManager,"?")
 
@@ -270,11 +270,11 @@ app.get('/tiles', authenticateTokenImport, async (req, res) => {//authenticateTo
     });
     tiles["Neighbours"]=neighborsTiles
     
-    await updateOccupancyMap(tiles,user._id.toString())
+    // await updateOccupancyMap(tiles,user._id.toString())
 
     //pass tiles into ChunkManager registration, itll spit out the json of those tiles
-    const returnDict=ChunkManager.RegisterChunk(tiles)
-    console.log(returnDict)
+    const returnDict=await ChunkManager.RegisterChunk(tiles,user._id.toString())
+    // console.log(returnDict)
     res.json({ success: true, tiles: returnDict,OriginTile:user.OriginTile });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch tiles' });

@@ -1,3 +1,5 @@
+const {updateOccupancyMap}=require("./PathfindingFunctionality.js")
+
 class GlobalChunkManager {
     constructor() {
         this.tiles = new Map();//tiles have utility
@@ -5,7 +7,7 @@ class GlobalChunkManager {
     getTile(x, y) {
         return this.tiles.get(`${x},${y}`);
     }
-    RegisterChunk(tiles){
+    async RegisterChunk(tiles,userId){
         const returnDict={
             "owner":[],
             "allies":[],
@@ -35,6 +37,7 @@ class GlobalChunkManager {
                 }
                 this.tiles.set(`${tile.x},${tile.y}`,tileDict)
                 returnDict[key].push(tileDict)
+                await updateOccupancyMap(tile,userId)
             }
         }
         return returnDict;
