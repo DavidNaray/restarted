@@ -19,7 +19,9 @@ const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPla
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership}=require("./modules/UnitPositionValidation.js")
 const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
-
+const {updateOccupancyMap}=require("./modules/PathfindingFunctionality.js")
+const ChunkManager=require("./modules/CacheChunkInfo.js")
+// console.log(ChunkManager,"?")
 
 const mongoose = require('mongoose');
 const { Console } = require('console');
@@ -267,8 +269,13 @@ app.get('/tiles', authenticateTokenImport, async (req, res) => {//authenticateTo
         })
     });
     tiles["Neighbours"]=neighborsTiles
+    
+    await updateOccupancyMap(tiles,user._id.toString())
 
-    res.json({ success: true, tiles,OriginTile:user.OriginTile });
+    //pass tiles into ChunkManager registration, itll spit out the json of those tiles
+    const returnDict=ChunkManager.RegisterChunk(tiles)
+    console.log(returnDict)
+    res.json({ success: true, tiles: returnDict,OriginTile:user.OriginTile });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch tiles' });
   }
@@ -660,3 +667,17 @@ io.on('connection', (socket) => {
         socket.emit('MovementCommandResponse',responseObject);
     });
 });
+
+
+const TICK_RATE = (1000 / 60)/3; // 20 ticks per second
+
+function gameTick() {
+
+    // for (const [socketId, socket] of io.sockets.sockets) {
+    //     const playerId = socket.userId;
+    //     const visibleUnits = getUnitsForPlayer(playerId); // however you track this
+    //     socket.emit('TickUpdate', visibleUnits);
+    // }
+}
+
+setInterval(gameTick, TICK_RATE);

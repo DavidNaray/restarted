@@ -177,16 +177,5 @@ async function PointPlacementVerification(pixelCoord,Imglocation){
     }
 }
 
-//convert a pixel and chunk information into a real world position
-//implementation is almost there, its not relative to the users origin tile unless you have the params account for it
-async function getAbsolutePosition(chunkX, chunkY, [pixelX, pixelY]) {
-    const CHUNK_SIZE = 7.5;
-    const CHUNK_RESOLUTION = 1536;
-    const pxSize = CHUNK_SIZE / CHUNK_RESOLUTION;
-    return [
-        chunkX * CHUNK_SIZE + pixelX * pxSize - CHUNK_SIZE / 2,
-        chunkY * CHUNK_SIZE + pixelY * pxSize - CHUNK_SIZE / 2
-    ];
-}
 
 module.exports={PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight}
