@@ -1,4 +1,5 @@
 const TileScheme=require("../Schemas/Tile")
+const {confirmOwner}=require("./PathfindingFunctionality.js")
 
 async function validateUnitOwnership(selectedUnits,UserIdCommandee){
     var CHEATER=false;
@@ -44,10 +45,26 @@ async function validateUnitOwnership(selectedUnits,UserIdCommandee){
     return [CHEATER,originTiles];
 }
 
+async function validateUnitOwnershipTwo(selectedUnits,UserIdCommandee){
+    for (const [TileXYOrigin, UnitTypeEtc] of Object.entries(selectedUnits)) {
+        for (const [UnitType,valueDict] of Object.entries(UnitTypeEtc)) {
+            console.log(UnitType,valueDict.ServerIds,TileXYOrigin, "blem")
+            for(const UnitserverId of valueDict.ServerIds){
+                if(!confirmOwner(UserIdCommandee,TileXYOrigin,UnitserverId,UnitType)){
+                    return true;
+                }
+            }
+
+        }
+    }
+    return false//not a cheater
+}
+
+
 async function validateUnitPosition(){
     //when a unit is created its position is set to its deployment point
     //..... figure this out another time
 }
 
 
-module.exports={validateUnitOwnership};
+module.exports={validateUnitOwnership,validateUnitOwnershipTwo};

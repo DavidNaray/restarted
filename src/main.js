@@ -17,9 +17,9 @@ const TemplateSchemaImport=require("./Schemas/Template")
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
 const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
-const {validateUnitOwnership}=require("./modules/UnitPositionValidation.js")
+const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
 const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
-
+const {updatePixelLocAndOcc}=require("./modules/PathfindingFunctionality.js")
 const ChunkManager=require("./modules/CacheChunkInfo.js")
 const MovementOrderClass=require("./modules/MovementOrderClass.js")
 // console.log(ChunkManager,"?")
@@ -576,20 +576,21 @@ io.on('connection', (socket) => {
 
                 //add soldier to tile
                 // Ensure tile.units exists:
-                if (!tile.units) tile.units = new Map(); // Or {}
+                // if (!tile.units) tile.units = new Map(); // Or {}
                 
                 //ensure that the composite has a mapping
-                if (!tile.units.has(compositeKey)) {
-                    tile.units.set(compositeKey, { instances: new Map() });
-                }
+                // if (!tile.units.has(compositeKey)) {
+                //     tile.units.set(compositeKey, { instances: new Map() });
+                // }
 
-                tile.units.get(compositeKey).instances.set(freeIndice,{
-                    templateId:null,
-                    health:100,
-                    state:"Idle",
-                    position:values.pixelCoords//RequestMetaData.DeployPosition
-                })
+                // tile.units.get(compositeKey).instances.set(freeIndice,{
+                //     templateId:null,
+                //     health:100,
+                //     state:"Idle",
+                //     position:values.pixelCoords//RequestMetaData.DeployPosition
+                // })
 
+                updatePixelLocAndOcc(chunkX,chunkY,freeIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
 
                 //add to chosenServerIndices to notify user of development
                 chosenServerIndices.push(freeIndice)
@@ -598,20 +599,21 @@ io.on('connection', (socket) => {
                 // console.log(compositeKey,"compositeKEY!!!!")
 
                 // Ensure tile.units exists:
-                if (!tile.units) tile.units = new Map(); // Or {}
+                // if (!tile.units) tile.units = new Map(); // Or {}
                 
                 //ensure that the composite has a mapping
-                if (!tile.units.has(compositeKey)) {
-                    tile.units.set(compositeKey, { instances: new Map() });
-                }
+                // if (!tile.units.has(compositeKey)) {
+                //     tile.units.set(compositeKey, { instances: new Map() });
+                // }
 
-                tile.units.get(compositeKey).instances.set(TileTopIndice.toString(),{
-                    templateId:null,
-                    health:100,
-                    state:"Idle",
-                    position:values.pixelCoords//RequestMetaData.DeployPosition
-                })
+                // tile.units.get(compositeKey).instances.set(TileTopIndice.toString(),{
+                //     templateId:null,
+                //     health:100,
+                //     state:"Idle",
+                //     position:values.pixelCoords//RequestMetaData.DeployPosition
+                // })
 
+                updatePixelLocAndOcc(chunkX,chunkY,TileTopIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
                 //add to chosenServerIndices to notify user of development
                 chosenServerIndices.push(TileTopIndice)
                 TileTopIndice+=1
@@ -621,7 +623,7 @@ io.on('connection', (socket) => {
         tile.freeIndices=tileFreeIndices
         tile.topIndice=TileTopIndice
         tile.save()
-        console.log("chosen....",chosenServerIndices)
+        // console.log("chosen....",chosenServerIndices)
 
         const responseObject={
             "AssetClass":"Unit",
@@ -644,12 +646,12 @@ io.on('connection', (socket) => {
         const TargetTileXY=RequestMetaData.TargetTile
         const UserIdCommandee=RequestMetaData.userOwner
         const selectedUnits=RequestMetaData.SelectedUnits
-        
+        console.log("selectedUnits",selectedUnits["Unit"])
         //need to verify that the RequestMetaData.UserOwner (one commanding) shares Id of owner of unit of serverID
-        const response=await validateUnitOwnership(selectedUnits,UserIdCommandee)
-        
-        const CHEATER=response[0]
-        const originTiles=response[1]
+        // const response=await validateUnitOwnership(selectedUnits,UserIdCommandee)
+        const CHEATER=await validateUnitOwnershipTwo(selectedUnits["Unit"],UserIdCommandee)
+        // const CHEATER=response
+        // const originTiles=response[1]
         
         if(CHEATER){
             //perform kicking and ban basically, manipulating info is egregious offense
@@ -657,14 +659,15 @@ io.on('connection', (socket) => {
         //otherwise yay continue
 
         //the only thing valid is Unit assetClass so youre literally passing in
-        console.log(selectedUnits["Unit"],"pass in object")
+        // console.log(selectedUnits["Unit"],"pass in object")
         //of form tile->{unittype ->{serverIds:[] }}
 
 
         const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,destinationPoint)
         
         const newOrder=new MovementOrderClass(selectedUnits["Unit"],values.pixelCoords,values.chunkCoords)
-        newOrder.calculateMedian();
+        await newOrder.calculateMedian();
+        await newOrder.getClosestAccessiblePortal()
 
 
         const responseObject={

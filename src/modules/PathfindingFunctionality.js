@@ -13,7 +13,7 @@ const dimensions={
 const movementOrderObjects=[]//iterate over and progress movement orders
 
 const TilePixelOccupancyMap=new Map()//tile -> rgba data array, alpha for if pixel has unit on it
-const UnitPixelLocations=new Map()//tile -> {unit serverId -> [unitType,[pixels]]}
+const UnitPixelLocations=new Map()//tile -> {unit serverId -> [owner,unitType,[pixels]]}
 const UsersSeeingTileMap=new Map()
 
 
@@ -44,11 +44,11 @@ async function updateOccupancyMap(tile,UserId){
             // console.log("did fetch?",editRGBAData)
             tile.units.forEach((UnitsOwned, key) => {
                 const splitting=key.split(",")
-                // const unitOwner=splitting[0]
+                const unitOwner=splitting[0]
                 const unitType=splitting[1]
                 //use the unitType to adjust which pixels are set to 0 onload
                 UnitsOwned.instances.forEach((UnitMetaData, ServerIdUnit) => {
-                    collate.set(Number(ServerIdUnit),[unitType,UnitMetaData.position])
+                    collate.set(Number(ServerIdUnit),[unitOwner,unitType,UnitMetaData.position])
                     
                     const x=Number(UnitMetaData.position[0])
                     const y=Number(UnitMetaData.position[1])
@@ -88,4 +88,30 @@ async function getPixelLocationsForTile(tileKey){
     return UnitPixelLocations.get(tileKey)
 }
 
-module.exports={updateOccupancyMap,addMovementOrder,getPixelLocationsForTile}
+async function updatePixelLocAndOcc(chunkX,chunkY,serverId,UnitType,pixelCoords,owner){
+    //inserting of form tile-> userIdUnitType ->{serverId->metadata}
+    //UnitPixelLocations of form tile -> {unit serverId -> [unitType,[pixels]]}
+    const chunkentry=UnitPixelLocations.get(`${chunkX},${chunkY}`)
+    if(chunkentry){
+        chunkentry.set(Number(serverId),[owner,UnitType,pixelCoords])
+    }
+}
+
+async function confirmOwner(userId,tileKey,UnitSId,UnitType){
+    const tileEntry=UnitPixelLocations.get(tileKey).get(Number(UnitSId))
+    if(tileEntry){
+        const confirmOwnerId=tileEntry[0]==userId
+        // console.log(confirmOwnerId,tileEntry[0],userId)
+
+        const confirmUnitType=tileEntry[1]==UnitType
+        // console.log(confirmUnitType,tileEntry[1],UnitType)
+
+        if(confirmOwnerId && confirmUnitType){
+            return true
+        }
+    }
+    return false
+}
+
+
+module.exports={updateOccupancyMap,addMovementOrder,getPixelLocationsForTile,updatePixelLocAndOcc,confirmOwner}
