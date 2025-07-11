@@ -5,19 +5,16 @@ const sharp = require('sharp');
 //reading tiles abstract portal info...
 // const graphMap = convertMongoPortalGraphToMap(tile.AbstractMap);
 
-const TilePixelOccupancyMap=new Map()
-const UsersSeeingTileMap=new Map()
-//used to ping the correct sockets about the units that are moving in the tile
-//tile -> {userIds:[],unitIds:[]}
-//the userIds are the users that are online and currently see what is going on in that tile
-//unitIds are the units that have something changed about them, health position etc
 
-//TilePixelOccupancyMap is what is used by the server to calculate how units move, 
-    // if a unit moves then there should be a line to update unitIds in  UsersSeeingTileMap
-
-function calcFormationCenterPoint(selectedUnitsPositions){
-    //the median coordinate of selected units
+const dimensions={
+    "archer":[1,1]
 }
+
+const movementOrderObjects=[]//iterate over and progress movement orders
+
+const TilePixelOccupancyMap=new Map()//tile -> rgba data array, alpha for if pixel has unit on it
+const UnitPixelLocations=new Map()//tile -> {unit serverId -> [unitType,[pixels]]}
+const UsersSeeingTileMap=new Map()
 
 
 async function updateOccupancyMap(tile,UserId){
@@ -33,14 +30,36 @@ async function updateOccupancyMap(tile,UserId){
         .toBuffer({ resolveWithObject: true })
         .then(({ data, info }) => {
             const width = info.width;
-            const height = info.height;
-            const occupancy = new Uint32Array(width * height);
-            occupancy.fill(0); // 0 means no unit
+            // const height = info.height;
+            // const occupancy = new Uint32Array(width * height);
+            // occupancy.fill(0); // 0 means no unit
             
             TilePixelOccupancyMap.set(`${tile.x},${tile.y}`,{
-                walkMap:data,//access the colour by getting index and then looking it up +1,2,3 for rgba
-                UnitOccupancy:occupancy
+                walkMap:data,//access the colour by getting index and then looking it up +1,2,3 for rgba, alpha for unit occupancy
+                // UnitOccupancy:occupancy
             });
+
+            const collate=new Map()
+            const editRGBAData=TilePixelOccupancyMap.get(`${tile.x},${tile.y}`).walkMap
+            // console.log("did fetch?",editRGBAData)
+            tile.units.forEach((UnitsOwned, key) => {
+                const splitting=key.split(",")
+                // const unitOwner=splitting[0]
+                const unitType=splitting[1]
+                //use the unitType to adjust which pixels are set to 0 onload
+                UnitsOwned.instances.forEach((UnitMetaData, ServerIdUnit) => {
+                    collate.set(Number(ServerIdUnit),[unitType,UnitMetaData.position])
+                    
+                    const x=Number(UnitMetaData.position[0])
+                    const y=Number(UnitMetaData.position[1])
+                    const index = (y * width + x) * 4;
+                    // console.log(index)
+                    // console.log(editRGBAData[index + 3], "alpha")
+                    editRGBAData[index + 3]=0;//255 is default ie open, 0 is to say it is occupied
+                });
+            });
+            UnitPixelLocations.set(`${tile.x},${tile.y}`,collate)
+
         })
         .catch(err => {
             console.error(`Error loading tile image ${tile.x},${tile.y}:`, err);
@@ -51,9 +70,22 @@ async function updateOccupancyMap(tile,UserId){
         // const g = walkmap[index + 1];
         // const b = walkmap[index + 2];
         // const a = walkmap[index + 3];
+
+        //process the unit info of the tile
+        
+
+
     }else{
         UsersSeeingTileMap.get(`${tile.x},${tile.y}`).push(UserId)
     }
 }
 
-module.exports={updateOccupancyMap}
+async function addMovementOrder(TheObj){
+    movementOrderObjects.push(TheObj)
+}
+
+async function getPixelLocationsForTile(tileKey){
+    return UnitPixelLocations.get(tileKey)
+}
+
+module.exports={updateOccupancyMap,addMovementOrder,getPixelLocationsForTile}

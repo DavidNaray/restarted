@@ -19,8 +19,9 @@ const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPla
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership}=require("./modules/UnitPositionValidation.js")
 const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
-// const {updateOccupancyMap}=require("./modules/PathfindingFunctionality.js")
+
 const ChunkManager=require("./modules/CacheChunkInfo.js")
+const MovementOrderClass=require("./modules/MovementOrderClass.js")
 // console.log(ChunkManager,"?")
 
 const mongoose = require('mongoose');
@@ -635,8 +636,10 @@ io.on('connection', (socket) => {
     });
 
     socket.on('MovementCommand',async ({RequestMetaData}) => {
-        console.log(RequestMetaData)//.SelectedUnits.Unit)
-
+        // console.log(RequestMetaData)//.SelectedUnits.Unit)
+        const userId=socket.userId
+        const TheUser = await User.findOne({ _id: userId });
+        
         const destinationPoint=RequestMetaData.position
         const TargetTileXY=RequestMetaData.TargetTile
         const UserIdCommandee=RequestMetaData.userOwner
@@ -655,12 +658,15 @@ io.on('connection', (socket) => {
 
         //the only thing valid is Unit assetClass so youre literally passing in
         console.log(selectedUnits["Unit"],"pass in object")
+        //of form tile->{unittype ->{serverIds:[] }}
 
 
-        //run unit positionValidation that checks if units in the request matches where 
-        // that unit should be according to the server within a margin of error (drift from collisions)
-            //collisions notify the server but only in batches so there will be times a movement
-            //command may happen where a unit will have a mismatched position with the server hence the margin
+        const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,destinationPoint)
+        
+        const newOrder=new MovementOrderClass(selectedUnits["Unit"],values.pixelCoords,values.chunkCoords)
+        newOrder.calculateMedian();
+
+
         const responseObject={
             hello:"hello"
         }
