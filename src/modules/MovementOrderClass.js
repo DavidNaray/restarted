@@ -1,6 +1,7 @@
-const {addMovementOrder,getPixelLocationsForTile}=require("./PathfindingFunctionality.js")
+const {addMovementOrder,getPixelLocationsForTile,getDataOfTile}=require("./PathfindingFunctionality.js")
 const ChunkManager=require("./CacheChunkInfo.js")
 const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
+const {AstarPathCost}= require("./AbtractMapGeneration.js")
 
 class MovementOrder{
     constructor(selectedUnits,ClickedPixel,TargetChunk){
@@ -81,11 +82,11 @@ class MovementOrder{
         //PixelPoint of form [x,y]
         //texture is 1536x1536 and split into 48x48 subgrids starting at 0,0
 
-        const subgridX=Math.floor(PixelPoint[0]/48) -1
+        const subgridX=Math.floor(PixelPoint[0]/32)
         // console.log(subgridX)
-        const subgridY=Math.floor(PixelPoint[1]/48) -1
+        const subgridY=Math.floor(PixelPoint[1]/32)
 
-        return `${subgridX},${subgridY}`
+        return [subgridX,subgridY]//`${subgridX},${subgridY}`
     }
 
     async getClosestAccessiblePortal(){
@@ -98,10 +99,39 @@ class MovementOrder{
         const graphMap = convertMongoPortalGraphToMap(theAbstractMapForCenterPointTile);
         const subgridKey=this.determineSubgrid(this.OrderCenter)
 
-        const portalPixels=graphMap.get(subgridKey)
-        // console.log("comeon",portalPixels)
+        //get the array of portals for a subgrid
+        const portalPixels=graphMap.get(`${subgridKey[0]},${subgridKey[1]}`)
 
         //perform A* from OrderCenter to the different portalPixels and select the portal with the least cost
+        //since the direction is to the next portal after the one it is on
+        
+        //get the rgba data for the tile which is necessary for the pathfinding
+        const TheData=await getDataOfTile(`${x},${y}`)
+        //start pixel is where the median is, so orderCenter
+        const startPixel={
+            x:Number(this.OrderCenter[0]),
+            y:Number(this.OrderCenter[1])
+        }
+
+        let cheapestPortal={pixelVal:"",cost:Infinity};
+        for(const bing of portalPixels){
+            const [goalX,goalY]=bing[0].split(",")
+
+            const goalPixel={
+                x:Number(goalX),
+                y:Number(goalY)
+            }
+
+            const X=Number(subgridKey[0])
+            const Y=Number(subgridKey[1])
+
+            const cost=await AstarPathCost(TheData,startPixel,goalPixel,{x:X*32,y:Y*32},32,32)
+
+            if(cost< cheapestPortal.cost){cheapestPortal={pixelVal:goalPixel,cost:cost}}
+
+        }
+        // console.log("WOO, cheapest baby thats reachable!",cheapestPortal.pixelVal,cheapestPortal.cost)
+        return cheapestPortal;
 
     }
 }

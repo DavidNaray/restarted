@@ -161,21 +161,7 @@ async function extractRegion(rawData, channels, x, y, width, height) {
 }
 
 async function AstarPathCost(rawData,startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight) {
-    // const walkMapCanvas=this.walkMap;
-    // const ctx = walkMapCanvas.getContext('2d');
-    // const imgData = ctx.getImageData(segmentOrigin.x, segmentOrigin.y, segmentWidth, segmentHeight);
-    // const data = imgData.data;
-    
-    // const { data, info } = await sharp(Imglocation)//'walkmap.png'
-    // .ensureAlpha()
-    // .extract({
-    //     left: segmentOrigin.x,
-    //     top: segmentOrigin.y,
-    //     width: segmentWidth,
-    //     height: segmentHeight
-    // })
-    // .raw()
-    // .toBuffer({ resolveWithObject: true });
+
     const data=await extractRegion(rawData,4,segmentOrigin.x,segmentOrigin.y,segmentWidth,segmentHeight)
     // console.log("should be the data.....",data)
     function getTerrainCost(localX, localY) {
@@ -254,7 +240,7 @@ async function PortalConnectivity(Imglocation){
     const rawData=portalMapPlusDataPlusWidth[1]
     
     const abstractMap=new Map();
-    // console.log(portalMap.has("47,47"), "DOES IT HAVE IT !!!!!")//("47,47") since 48x48 subgrids, cant proceed until full set
+    
     for (const [key, portals] of portalMap.entries()) {
         // console.log(portals,key)
         const XY=key.split(',');
@@ -269,6 +255,7 @@ async function PortalConnectivity(Imglocation){
             for (let j = i + 1; j < portals.length; j++) {
                 
                 const goalPortal = portals[j];
+                // console.log("goalPortal structure: ",goalPortal)
                 let cost = await AstarPathCost(rawData,startPortal, goalPortal, {x:X*32,y:Y*32},32,32);
                 // console.log (cost )
                 if (cost !== Infinity) {
@@ -455,4 +442,4 @@ async function abstractMapAstar(start, goal,abstractMap) {//start, goal must be 
     return null; // No path found
 }
 
-module.exports={PortalConnectivity}
+module.exports={PortalConnectivity,AstarPathCost}

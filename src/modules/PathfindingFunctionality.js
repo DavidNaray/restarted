@@ -88,6 +88,11 @@ async function getPixelLocationsForTile(tileKey){
     return UnitPixelLocations.get(tileKey)
 }
 
+async function getDataOfTile(tileKey){
+    return TilePixelOccupancyMap.get(tileKey).walkMap
+}
+
+
 async function updatePixelLocAndOcc(chunkX,chunkY,serverId,UnitType,pixelCoords,owner){
     //inserting of form tile-> userIdUnitType ->{serverId->metadata}
     //UnitPixelLocations of form tile -> {unit serverId -> [unitType,[pixels]]}
@@ -114,4 +119,4 @@ async function confirmOwner(userId,tileKey,UnitSId,UnitType){
 }
 
 
-module.exports={updateOccupancyMap,addMovementOrder,getPixelLocationsForTile,updatePixelLocAndOcc,confirmOwner}
+module.exports={updateOccupancyMap,addMovementOrder,getPixelLocationsForTile,updatePixelLocAndOcc,confirmOwner,getDataOfTile}

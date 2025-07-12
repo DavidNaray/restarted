@@ -646,7 +646,7 @@ io.on('connection', (socket) => {
         const TargetTileXY=RequestMetaData.TargetTile
         const UserIdCommandee=RequestMetaData.userOwner
         const selectedUnits=RequestMetaData.SelectedUnits
-        console.log("selectedUnits",selectedUnits["Unit"])
+        // console.log("selectedUnits",selectedUnits["Unit"])
         //need to verify that the RequestMetaData.UserOwner (one commanding) shares Id of owner of unit of serverID
         // const response=await validateUnitOwnership(selectedUnits,UserIdCommandee)
         const CHEATER=await validateUnitOwnershipTwo(selectedUnits["Unit"],UserIdCommandee)

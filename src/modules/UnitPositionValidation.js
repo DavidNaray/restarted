@@ -48,7 +48,7 @@ async function validateUnitOwnership(selectedUnits,UserIdCommandee){
 async function validateUnitOwnershipTwo(selectedUnits,UserIdCommandee){
     for (const [TileXYOrigin, UnitTypeEtc] of Object.entries(selectedUnits)) {
         for (const [UnitType,valueDict] of Object.entries(UnitTypeEtc)) {
-            console.log(UnitType,valueDict.ServerIds,TileXYOrigin, "blem")
+            // console.log(UnitType,valueDict.ServerIds,TileXYOrigin, "blem")
             for(const UnitserverId of valueDict.ServerIds){
                 if(!confirmOwner(UserIdCommandee,TileXYOrigin,UnitserverId,UnitType)){
                     return true;
