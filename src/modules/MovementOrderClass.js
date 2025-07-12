@@ -1,7 +1,7 @@
 const {addMovementOrder,getPixelLocationsForTile,getDataOfTile}=require("./PathfindingFunctionality.js")
 const ChunkManager=require("./CacheChunkInfo.js")
 const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
-const {AstarPathCost}= require("./AbtractMapGeneration.js")
+const {AstarPathCost,abstractMapAstarMultiTileCapable}= require("./AbtractMapGeneration.js")
 
 class MovementOrder{
     constructor(selectedUnits,ClickedPixel,TargetChunk){
@@ -101,7 +101,7 @@ class MovementOrder{
 
         //get the array of portals for a subgrid
         const portalPixels=graphMap.get(`${subgridKey[0]},${subgridKey[1]}`)
-
+        // console.log("portalPixels",portalPixels)
         //perform A* from OrderCenter to the different portalPixels and select the portal with the least cost
         //since the direction is to the next portal after the one it is on
         
@@ -113,8 +113,9 @@ class MovementOrder{
             y:Number(this.OrderCenter[1])
         }
 
-        let cheapestPortal={pixelVal:"",cost:Infinity};
+        let cheapestPortal={pixelVal:"",cost:Infinity,chunk:{x:x,y:y},subgrid:{x:subgridKey[0],y:subgridKey[1]}};
         for(const bing of portalPixels){
+            // console.log(bing)
             const [goalX,goalY]=bing[0].split(",")
 
             const goalPixel={
@@ -127,12 +128,31 @@ class MovementOrder{
 
             const cost=await AstarPathCost(TheData,startPixel,goalPixel,{x:X*32,y:Y*32},32,32)
 
-            if(cost< cheapestPortal.cost){cheapestPortal={pixelVal:goalPixel,cost:cost}}
+            if(cost< cheapestPortal.cost){cheapestPortal={pixelVal:goalPixel,cost:cost,chunk:{x:x,y:y},subgrid:{x:subgridKey[0],y:subgridKey[1]}}}
 
         }
         // console.log("WOO, cheapest baby thats reachable!",cheapestPortal.pixelVal,cheapestPortal.cost)
         return cheapestPortal;
 
+    }
+
+    async PathFromStartPortalToEndSubgrid(CP){//CP:cheapest portal
+        // console.log("aight",CP)
+        // const CX=cheapestPortal
+        const startKey=`${CP.chunk.x},${CP.chunk.y}|${CP.subgrid.x},${CP.subgrid.y}|${CP.pixelVal.x},${CP.pixelVal.y}`
+        const goalSubgrid=this.determineSubgrid(this.destinationPoint)
+        const goalKey=`${this.targetChunk[0]},${this.targetChunk[1]}|${goalSubgrid[0]},${goalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
+        console.log("start,goal:",startKey,goalKey)
+
+        const x=this.chunkHoldingCenter[0]
+        const y=this.chunkHoldingCenter[1]
+        const startingAbstractMapArray=ChunkManager.getTile(x,y).AbstractMap;
+        const MapAbstractStarting = convertMongoPortalGraphToMap(startingAbstractMapArray);
+        // console.log(MapAbstractStarting)
+
+
+        const path=await abstractMapAstarMultiTileCapable(startKey,goalKey,MapAbstractStarting)
+        console.log("path?",path)
     }
 }
 

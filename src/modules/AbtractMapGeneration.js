@@ -1,5 +1,7 @@
 const sharp = require('sharp');
 const {MinHeap,PriorityQueue}=require("./MinH_PQ.js")
+const ChunkManager=require("./CacheChunkInfo.js")
+const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
 
 const walkMapWidth=1536//512*3
 const walkMapHeight=1536//512*3
@@ -442,4 +444,143 @@ async function abstractMapAstar(start, goal,abstractMap) {//start, goal must be 
     return null; // No path found
 }
 
-module.exports={PortalConnectivity,AstarPathCost}
+async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractMap) {
+    function loadChunkAbstractMap(tileKey) {
+        const [chunkX, chunkY] = tileKey.split(",").map(Number);
+        // console.log("really looking?",tileKey)
+        const abstractMapObject = ChunkManager.getTile(chunkX, chunkY).AbstractMap;
+        return abstractMapObject;
+    }
+
+    function parseChunkKey(fullKey) {
+        return fullKey.split('|')[0]; // "chunkX,chunkY"
+    }
+
+    function parseSubgridKey(fullKey) {
+        // return fullKey.split('|').slice(0, 2).join('|'); // "chunkX,chunkY|subgridX,subgridY"
+        return fullKey.split('|')[1];
+    }
+
+    function reconstructPath(cameFrom, current) {
+        // console.log("HELLO TRIES TO END")
+        const path = [current];
+        while (cameFrom.has(current)) {
+            current = cameFrom.get(current);
+            path.push(current);
+        }
+        return path.reverse();
+    }
+
+    function heuristic(a, b) {
+        const [, , pxA, pyA] = a.split('|').flatMap(s => s.split(',')).map(Number);
+        const [, , pxB, pyB] = b.split('|').flatMap(s => s.split(',')).map(Number);
+        return Math.hypot(pxA - pxB, pyA - pyB);
+    }
+
+    // Initialize the loaded chunk abstract maps with the start chunk
+    const loadedChunkMaps = new Map();
+    const startChunkKey = parseChunkKey(start);
+    loadedChunkMaps.set(startChunkKey, startChunkAbstractMap);
+
+    const openSet = new PriorityQueue(); // MinHeap by fScore
+    const cameFrom = new Map();
+    const gScore = new Map();
+    const fScore = new Map();
+    const visited = new Set();
+
+    gScore.set(start, 0);
+    fScore.set(start, heuristic(start, goal));
+    openSet.enqueue(start, fScore.get(start));
+    // console.log("After enqueue, isEmpty?", openSet.isEmpty());
+
+    while (!openSet.isEmpty()) {
+        const current = openSet.dequeue();
+        // console.log("Dequeued node:", current);
+        // if (current === null) {
+        //     console.log("Dequeued null! Stopping.");
+        //     break;
+        // }
+        if (visited.has(current)) continue;
+        visited.add(current);
+
+        if (current.split('|')[1] === goal.split('|')[1]) return reconstructPath(cameFrom, current);
+
+        const chunkKey = parseChunkKey(current);
+        const subgridKey = parseSubgridKey(current);
+
+        // Ensure the current chunk abstract map is loaded
+        if (!loadedChunkMaps.has(chunkKey)) {
+            const newMap = await loadChunkAbstractMap(chunkKey);
+            loadedChunkMaps.set(chunkKey, newMap);
+        }
+
+        // console.log("ChunkKey:", chunkKey);
+        // console.log("Loaded chunk maps keys:", Array.from(loadedChunkMaps.keys()));
+        // console.log("Graph for chunkKey:", loadedChunkMaps.get(chunkKey));
+
+        const graph = loadedChunkMaps.get(chunkKey);
+        if (!graph) continue;
+        else{"woahhh not in man, chunky!"}
+
+        const subgridMap = graph.get(subgridKey);
+        if (!subgridMap) continue;
+        else{"woahhh not in man"}
+
+        // console.log("subgridMap",subgridMap)
+
+        const neighbors = subgridMap.get(current.split('|')[2]);
+        if (!neighbors) continue;
+        else{"woahhh not in man, subgrid??/"}
+
+        // console.log(neighbors)
+        // console.log("Current:", current);
+        // console.log("Neighbors count:", neighbors.size);
+        // console.log("Neighbors keys:", Array.from(neighbors.keys()));
+
+        for (const [neighborPixel, cost] of Object.entries(neighbors)) {
+            const PixelPoint=neighborPixel.split(",")
+            const currentpixel=current.split('|')[2].split(",")
+            
+            const pixelXC=Number(currentpixel[0])
+            const pixelYC=Number(currentpixel[1])
+            const neighPX=Number(PixelPoint[0])
+            const neighPY=Number(PixelPoint[1])
+
+            var adjustmentX=0
+            var adjustmentY=0
+            //100 is arbitrary, its simply big enough to say "next chunk to right"
+            // console.log("hello",pixelXC-neighPX)
+            // if(pixelXC-neighPX >100){console.log("hello");adjustmentX=1}
+            // if(pixelXC-neighPX <-100){adjustmentX=-1}
+
+            // if(pixelYC-neighPY <-100){adjustmentY=1}
+            // if(pixelYC-neighPY >100){adjustmentY=-1}
+
+            const currentChunk=chunkKey.split(",")
+            const CCX=Number(currentChunk[0])
+            const CCY=Number(currentChunk[1])
+            
+            const newChunkX=CCX+adjustmentX
+            const newChunkY=CCY+adjustmentY
+
+
+            const subgridX=Math.floor(neighPX/32)
+            const subgridY=Math.floor(neighPY/32)
+
+            const neighborKey = `${newChunkX},${newChunkY}|${subgridX},${subgridY}|${neighborPixel}`;
+
+            const tentativeG = gScore.get(current) + cost;
+            if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)) {
+                cameFrom.set(neighborKey, current);
+                gScore.set(neighborKey, tentativeG);
+                const f = tentativeG + heuristic(neighborKey, goal);
+                fScore.set(neighborKey, f);
+                openSet.enqueue(neighborKey, f);
+            }
+        }
+    }
+
+    return null; // No path found
+}
+
+module.exports={PortalConnectivity,AstarPathCost,abstractMapAstarMultiTileCapable}

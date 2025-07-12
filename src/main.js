@@ -667,7 +667,9 @@ io.on('connection', (socket) => {
         
         const newOrder=new MovementOrderClass(selectedUnits["Unit"],values.pixelCoords,values.chunkCoords)
         await newOrder.calculateMedian();
-        await newOrder.getClosestAccessiblePortal()
+        const cheapestPortal=await newOrder.getClosestAccessiblePortal()
+        // console.log("huh?", cheapestPortal)
+        await newOrder.PathFromStartPortalToEndSubgrid(cheapestPortal)
 
 
         const responseObject={
