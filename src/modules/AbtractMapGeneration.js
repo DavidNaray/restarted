@@ -472,9 +472,15 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
     }
 
     function heuristic(a, b) {
-        const [, , pxA, pyA] = a.split('|').flatMap(s => s.split(',')).map(Number);
-        const [, , pxB, pyB] = b.split('|').flatMap(s => s.split(',')).map(Number);
-        return Math.hypot(pxA - pxB, pyA - pyB);
+        const [cxA, cyA, sxA, syA, pxA, pyA] = a.split('|').flatMap(s => s.split(',')).map(Number);
+        const [cxB, cyB, sxB, syB, pxB, pyB] = b.split('|').flatMap(s => s.split(',')).map(Number);
+
+        const worldXA = cxA * 1536 + pxA;
+        const worldYA = cyA * 1536 + pyA;
+        const worldXB = cxB * 1536 + pxB;
+        const worldYB = cyB * 1536 + pyB;
+
+        return Math.hypot(worldXA - worldXB, worldYA - worldYB);
     }
 
     // Initialize the loaded chunk abstract maps with the start chunk
@@ -495,11 +501,7 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
 
     while (!openSet.isEmpty()) {
         const current = openSet.dequeue();
-        // console.log("Dequeued node:", current);
-        // if (current === null) {
-        //     console.log("Dequeued null! Stopping.");
-        //     break;
-        // }
+
         if (visited.has(current)) continue;
         visited.add(current);
 
@@ -526,23 +528,52 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
         if (!subgridMap) continue;
         else{"woahhh not in man"}
 
-        // console.log("subgridMap",subgridMap)
 
         const neighbors = subgridMap.get(current.split('|')[2]);
         if (!neighbors) continue;
-        else{"woahhh not in man, subgrid??/"}
 
-        // console.log(neighbors)
-        // console.log("Current:", current);
-        // console.log("Neighbors count:", neighbors.size);
-        // console.log("Neighbors keys:", Array.from(neighbors.keys()));
+        const currentChunk=chunkKey.split(",")
+        const CCX=Number(currentChunk[0])
+        const CCY=Number(currentChunk[1])
+        
+        const currentpixel=current.split('|')[2].split(",")
+        const pixelXC=Number(currentpixel[0])
+        const pixelYC=Number(currentpixel[1])
+
+        const currentSubgrid=current.split('|')[1].split(",")
+        const SubgridXC=Number(currentSubgrid[0])
+        const SubgridYC=Number(currentSubgrid[1])
+
+        //check which edge the current pixel is on
+        var edges=[]
+        if(pixelXC==0){edges.push("left")}
+        else if(pixelXC==1535){edges="right"}//1535 since pixels start at 0
+        
+        if(pixelYC==0){edges.push("top")}
+        else if(pixelYC==1535){edges.push("bottom")}
+
+        //go over edges
+        if(edges.length>0){
+            console.log("yo",edges)
+        }
+        
+        for(const edge of edges){
+            switch(edge){
+                case "left":
+                    console.log("heya!")
+                    break;
+                case "right":
+                    break;
+                case "top":
+                    break;
+                case "bottom":
+                    break;
+            }
+        }
+
 
         for (const [neighborPixel, cost] of Object.entries(neighbors)) {
             const PixelPoint=neighborPixel.split(",")
-            const currentpixel=current.split('|')[2].split(",")
-            
-            const pixelXC=Number(currentpixel[0])
-            const pixelYC=Number(currentpixel[1])
             const neighPX=Number(PixelPoint[0])
             const neighPY=Number(PixelPoint[1])
 
@@ -556,13 +587,9 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
             // if(pixelYC-neighPY <-100){adjustmentY=1}
             // if(pixelYC-neighPY >100){adjustmentY=-1}
 
-            const currentChunk=chunkKey.split(",")
-            const CCX=Number(currentChunk[0])
-            const CCY=Number(currentChunk[1])
             
             const newChunkX=CCX+adjustmentX
             const newChunkY=CCY+adjustmentY
-
 
             const subgridX=Math.floor(neighPX/32)
             const subgridY=Math.floor(neighPY/32)
