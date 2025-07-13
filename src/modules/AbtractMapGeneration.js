@@ -165,7 +165,15 @@ async function extractRegion(rawData, channels, x, y, width, height) {
 
 async function AstarPathCost(rawData,startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight) {
 
-    const data=await extractRegion(rawData,4,segmentOrigin.x,segmentOrigin.y,segmentWidth,segmentHeight)
+    // const data=await extractRegion(rawData,4,segmentOrigin.x,segmentOrigin.y,segmentWidth,segmentHeight)
+    if (Buffer.isBuffer(rawData) && rawData.length === segmentWidth * segmentHeight * 4) {
+        // Already cropped region (e.g., 64×32, 32×64)
+        data = rawData;
+    } else {
+        // Full image buffer from sharp(raw). Need to extract subregion
+        data = await extractRegion(rawData, 4, segmentOrigin.x, segmentOrigin.y, segmentWidth, segmentHeight);
+    }
+
     // console.log("should be the data.....",data)
     function getTerrainCost(localX, localY) {
         if (localX < 0 || localX >= segmentWidth || localY < 0 || localY >= segmentHeight) return Infinity;
@@ -190,6 +198,14 @@ async function AstarPathCost(rawData,startPixel, goalPixel, segmentOrigin, segme
         x: goalPixel.x - segmentOrigin.x,
         y: goalPixel.y - segmentOrigin.y
     };
+    const sIndex = (start.y * segmentWidth + start.x) * 4;
+    if(data[sIndex]==0 && data[sIndex+1]==0 && data[sIndex+2]==0 && data[sIndex+3]==0){
+        console.log("copy offsetbug...")
+    }
+    const gIndex = (goal.y * segmentWidth + goal.x) * 4;
+    if(data[gIndex]==0 && data[gIndex+1]==0 && data[gIndex+2]==0 && data[gIndex+3]==0){
+        console.log("copy offsetbug 2...")
+    }
 
     const openSet = new MinHeap((a, b) => a.f - b.f);
     const cameFrom = new Map();
@@ -208,6 +224,7 @@ async function AstarPathCost(rawData,startPixel, goalPixel, segmentOrigin, segme
     ];
 
     while (!openSet.isEmpty()) {
+        // console.log("its trying")
         const current = openSet.pop();
         if (current.x === goal.x && current.y === goal.y) {
             // console.log("THIS IS THE COST!!!!!!!!",gScore[current.y][current.x])
@@ -231,6 +248,7 @@ async function AstarPathCost(rawData,startPixel, goalPixel, segmentOrigin, segme
         }
     }
 
+    // console.log("nopath found infinity,openSet is empty somehow")
     return Infinity; // No path found
 }
 
@@ -446,44 +464,165 @@ async function abstractMapAstar(start, goal,abstractMap) {//start, goal must be 
 }
 
 
+
+
 async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgridStart,direction,targetAbtractMap){
-    const dimensions={
-        "left":47,
-        "right":0,
-        "top":47,
-        "bottom":0
+    function combineSubgridRegions(regionA, regionB, direction) {
+        const width = (direction === "left" || direction === "right") ? 64 : 32;
+        const height = (direction === "top" || direction === "bottom") ? 64 : 32;
+        const channels = 4;
+
+        const combined = Buffer.alloc(width * height * channels);
+
+        const writeRegion = (src, offsetX, offsetY) => {
+            for (let y = 0; y < 32; y++) {
+                for (let x = 0; x < 32; x++) {
+                    const destX = offsetX + x;
+                    const destY = offsetY + y;
+
+                    const destIndex = (destY * width + destX) * channels;
+                    const srcIndex = (y * 32 + x) * channels;
+
+                    for (let c = 0; c < channels; c++) {
+                        combined[destIndex + c] = src[srcIndex + c];
+                    }
+                }
+            }
+        };
+
+        if (direction === "left") {
+            writeRegion(regionB, 0, 0);       // left subgrid from other chunk
+            writeRegion(regionA, 32, 0);      // current subgrid
+        } else if (direction === "right") {
+            writeRegion(regionA, 0, 0);       // current subgrid
+            writeRegion(regionB, 32, 0);      // right subgrid from other chunk
+        } else if (direction === "top") {
+            writeRegion(regionB, 0, 0);       // top subgrid from other chunk
+            writeRegion(regionA, 0, 32);      // current subgrid
+        } else if (direction === "bottom") {
+            writeRegion(regionA, 0, 0);       // current subgrid
+            writeRegion(regionB, 0, 32);      // bottom subgrid from other chunk
+        }
+
+        return {
+            buffer: combined,
+            width,
+            height
+        };
     }
-    // consol
+
     const dataA=await getDataOfTile(tileAKey);
     const dataB=await getDataOfTile(tileBKey);
-
-    console.log("dataA",tileAKey,tileBKey)
+    // console.log(dataA.le)
+    // console.log("dataA",tileAKey,tileBKey)
 
     const segmentXS=subgridStart[0]*32
     const segmentYS=subgridStart[1]*32
     const startSegmentExtract=await extractRegion(dataA,4,segmentXS,segmentYS,32,32)
+    // console.log(startSegmentExtract.length,"hmm, hopefully 4096")
+    
 
     var endSubgrid=[0,0]
+    //depending on direction 0,0 is on the start or the end, so pixel locations need to be shifted
+    const shifts={
+        startshiftX:0,
+        startshiftY:0,
+        endshiftX:0,
+        endshiftY:0
+    }
+
     switch(direction){
         case "left":
             endSubgrid=[47,subgridStart[1]]
+            shifts.startshiftX=32
             break;
         case "right":
             endSubgrid=[0,subgridStart[1]]
+            shifts.endshiftX=32
             break;
         case "top":
             endSubgrid=[subgridStart[0],47]
+            shifts.startshiftY=32
             break;
         case "bottom":
             endSubgrid=[subgridStart[0],0]
+            shifts.endshiftY=32
             break;
     }
 
     const XendSeg=endSubgrid[0]*32
     const YendSeg=endSubgrid[1]*32
-    const endSegmentExtract=extractRegion(dataB,4,XendSeg,YendSeg,32,32)
-    console.log("aight... we running")
+    const endSegmentExtract=await extractRegion(dataB,4,XendSeg,YendSeg,32,32)
+    // console.log("aight... we running")
     //return cost
+
+    const combined=combineSubgridRegions(startSegmentExtract,endSegmentExtract,direction)
+    const combinedIndex = (16 * combined.width + 32) * 4;
+    // console.log("Pixel at {x:32, y:16}:", 
+    //     combined.buffer[combinedIndex],
+    //     combined.buffer[combinedIndex + 1],
+    //     combined.buffer[combinedIndex + 2],
+    //     combined.buffer[combinedIndex + 3]
+    // );
+
+    const goalKey=`${endSubgrid[0]},${endSubgrid[1]}`
+    const portalsOfGoalSegment=targetAbtractMap.get(goalKey)
+
+    const startInput={
+        x:startPixel[0] - segmentXS +shifts.startshiftX,
+        y:startPixel[1] - segmentYS +shifts.startshiftY
+    }
+    //segment origin should be 00 since you want the whole buffer
+    const segmentOrigin={
+        x:0,
+        y:0
+    }
+    //iterate over the portals in the goal segment, if the portal shares the edge with the start, calc cost!
+    for (const [key, portals] of portalsOfGoalSegment.entries()){
+        // console.log("key",key)
+        const [keyx,keyy]=key.split(",")
+        // console.log(keyx,keyy,"keys components")
+        const goalInput={
+            x:Number(keyx) - XendSeg + shifts.endshiftX,
+            y:Number(keyy) - YendSeg + shifts.endshiftY
+        }
+        // console.log(startInput,goalInput,direction, "input pixels man")
+        switch(direction){
+            case "left":
+                if(Number(keyx)==1535){
+                    // startInput.x=startInput.x-1
+                    // console.log(combined.buffer,"buffman")
+                    const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,64,32)
+                    console.log("cost",cost)
+
+                }
+                break;
+            case "right":
+                if(Number(keyx)==0){
+                    
+                    const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,64,32)
+                    console.log("cost",cost)
+
+                }
+                break;
+            case "top":
+                if(Number(keyy)==1535){
+                    // startInput.y=startInput.y-1
+                    const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,32,64)
+                    console.log("cost",cost)
+ 
+                }
+                break;
+            case "bottom":
+                if(Number(keyy)==0){
+
+                    const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,32,64)
+                    console.log("cost",cost)
+
+                }
+                break;
+        }
+    }
 }
 
 
@@ -491,8 +630,15 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
     function loadChunkAbstractMap(tileKey) {
         const [chunkX, chunkY] = tileKey.split(",").map(Number);
         // console.log("really looking?",tileKey)
-        const abstractMapObject = ChunkManager.getTile(chunkX, chunkY).AbstractMap;
-        return abstractMapObject;
+        try{
+            const abstractMapObject = ChunkManager.getTile(chunkX, chunkY).AbstractMap;
+            const toReturnAB=convertMongoPortalGraphToMap(abstractMapObject)
+            return toReturnAB;
+        }catch(poppy){
+            return false
+        }
+        
+        
 
     }
 
@@ -610,16 +756,18 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
             const usingKey=`${CCX+deltas[edge][0]},${CCY+deltas[edge][1]}`
             var accessAbstractMap=loadedChunkMaps.get(usingKey)
             if(!accessAbstractMap){
-                console.log(usingKey, "we got this far man")
+                
                 //loadChunkAbstractMap should be the function to really dig for the information, tell the server to dig it up
                     //from the db if necessary, its not there only then can you ignore but whatever for now...
                 accessAbstractMap=await loadChunkAbstractMap(usingKey)
+                // console.log(usingKey,accessAbstractMap, "we got this far man")
+                //if false then its a dead end edge, skip, there are no neighbours to be had
                 if(accessAbstractMap==false){continue;}
                 loadedChunkMaps.set(usingKey,accessAbstractMap)
             }
 
             // const keyGoalTile=`${SubgridXC+deltas[edge][0]},${SubgridYC+deltas[edge][1]}`
-            await combineDataOfSubgridsForSearch(current.split('|')[0],usingKey,currentpixel,[SubgridXC,SubgridYC],edge,accessAbstractMap)
+            await combineDataOfSubgridsForSearch(current.split('|')[0],usingKey,[pixelXC,pixelYC],[SubgridXC,SubgridYC],edge,accessAbstractMap)
         }
 
 

@@ -5,7 +5,13 @@ class GlobalChunkManager {
         this.tiles = new Map();//tiles have utility
     }
     getTile(x, y) {
-        return this.tiles.get(`${x},${y}`);
+        try{
+            const toReturn=this.tiles.get(`${x},${y}`);
+            return toReturn
+        }catch(poppy){
+            return false
+        }
+        // return 
     }
     async RegisterChunk(tiles,userId){
         const returnDict={
