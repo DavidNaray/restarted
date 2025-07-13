@@ -89,7 +89,13 @@ async function getPixelLocationsForTile(tileKey){
 }
 
 async function getDataOfTile(tileKey){
-    return TilePixelOccupancyMap.get(tileKey).walkMap
+    try{
+        const dataToReturn=TilePixelOccupancyMap.get(tileKey).walkMap
+        return dataToReturn
+    }catch(poppy){
+        return false
+    }
+    
 }
 
 

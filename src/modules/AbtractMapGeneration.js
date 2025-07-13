@@ -2,6 +2,7 @@ const sharp = require('sharp');
 const {MinHeap,PriorityQueue}=require("./MinH_PQ.js")
 const ChunkManager=require("./CacheChunkInfo.js")
 const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
+const {getDataOfTile}=require("./PathfindingFunctionality.js")
 
 const walkMapWidth=1536//512*3
 const walkMapHeight=1536//512*3
@@ -444,12 +445,55 @@ async function abstractMapAstar(start, goal,abstractMap) {//start, goal must be 
     return null; // No path found
 }
 
+
+async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgridStart,direction,targetAbtractMap){
+    const dimensions={
+        "left":47,
+        "right":0,
+        "top":47,
+        "bottom":0
+    }
+    // consol
+    const dataA=await getDataOfTile(tileAKey);
+    const dataB=await getDataOfTile(tileBKey);
+
+    console.log("dataA",tileAKey,tileBKey)
+
+    const segmentXS=subgridStart[0]*32
+    const segmentYS=subgridStart[1]*32
+    const startSegmentExtract=await extractRegion(dataA,4,segmentXS,segmentYS,32,32)
+
+    var endSubgrid=[0,0]
+    switch(direction){
+        case "left":
+            endSubgrid=[47,subgridStart[1]]
+            break;
+        case "right":
+            endSubgrid=[0,subgridStart[1]]
+            break;
+        case "top":
+            endSubgrid=[subgridStart[0],47]
+            break;
+        case "bottom":
+            endSubgrid=[subgridStart[0],0]
+            break;
+    }
+
+    const XendSeg=endSubgrid[0]*32
+    const YendSeg=endSubgrid[1]*32
+    const endSegmentExtract=extractRegion(dataB,4,XendSeg,YendSeg,32,32)
+    console.log("aight... we running")
+    //return cost
+}
+
+
 async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractMap) {
     function loadChunkAbstractMap(tileKey) {
         const [chunkX, chunkY] = tileKey.split(",").map(Number);
         // console.log("really looking?",tileKey)
         const abstractMapObject = ChunkManager.getTile(chunkX, chunkY).AbstractMap;
         return abstractMapObject;
+
     }
 
     function parseChunkKey(fullKey) {
@@ -482,6 +526,8 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
 
         return Math.hypot(worldXA - worldXB, worldYA - worldYB);
     }
+
+
 
     // Initialize the loaded chunk abstract maps with the start chunk
     const loadedChunkMaps = new Map();
@@ -552,23 +598,28 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
         if(pixelYC==0){edges.push("top")}
         else if(pixelYC==1535){edges.push("bottom")}
 
-        //go over edges
-        if(edges.length>0){
-            console.log("yo",edges)
+        const deltas={
+            "left":[-1,0],
+            "right":[1,0],
+            "top":[0,1],
+            "bottom":[0,-1]
         }
         
         for(const edge of edges){
-            switch(edge){
-                case "left":
-                    console.log("heya!")
-                    break;
-                case "right":
-                    break;
-                case "top":
-                    break;
-                case "bottom":
-                    break;
+            
+            const usingKey=`${CCX+deltas[edge][0]},${CCY+deltas[edge][1]}`
+            var accessAbstractMap=loadedChunkMaps.get(usingKey)
+            if(!accessAbstractMap){
+                console.log(usingKey, "we got this far man")
+                //loadChunkAbstractMap should be the function to really dig for the information, tell the server to dig it up
+                    //from the db if necessary, its not there only then can you ignore but whatever for now...
+                accessAbstractMap=await loadChunkAbstractMap(usingKey)
+                if(accessAbstractMap==false){continue;}
+                loadedChunkMaps.set(usingKey,accessAbstractMap)
             }
+
+            // const keyGoalTile=`${SubgridXC+deltas[edge][0]},${SubgridYC+deltas[edge][1]}`
+            await combineDataOfSubgridsForSearch(current.split('|')[0],usingKey,currentpixel,[SubgridXC,SubgridYC],edge,accessAbstractMap)
         }
 
 
