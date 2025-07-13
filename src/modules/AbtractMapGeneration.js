@@ -577,6 +577,7 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
         x:0,
         y:0
     }
+    const neighbourObjs=[]
     //iterate over the portals in the goal segment, if the portal shares the edge with the start, calc cost!
     for (const [key, portals] of portalsOfGoalSegment.entries()){
         // console.log("key",key)
@@ -593,36 +594,37 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
                     // startInput.x=startInput.x-1
                     // console.log(combined.buffer,"buffman")
                     const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,64,32)
-                    console.log("cost",cost)
-
+                    // console.log("cost",cost)
+                    neighbourObjs.push([key,cost])
                 }
                 break;
             case "right":
                 if(Number(keyx)==0){
                     
                     const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,64,32)
-                    console.log("cost",cost)
-
+                    // console.log("cost",cost)
+                    neighbourObjs.push([key,cost])
                 }
                 break;
             case "top":
                 if(Number(keyy)==1535){
                     // startInput.y=startInput.y-1
                     const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,32,64)
-                    console.log("cost",cost)
- 
+                    // console.log("cost",cost)
+                    neighbourObjs.push([key,cost])
                 }
                 break;
             case "bottom":
                 if(Number(keyy)==0){
 
                     const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,32,64)
-                    console.log("cost",cost)
-
+                    // console.log("cost",cost)
+                    neighbourObjs.push([key,cost])
                 }
                 break;
         }
     }
+    return neighbourObjs
 }
 
 
@@ -724,6 +726,7 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
         const neighbors = subgridMap.get(current.split('|')[2]);
         if (!neighbors) continue;
 
+        // console.log("neighbors",neighbors)
         const currentChunk=chunkKey.split(",")
         const CCX=Number(currentChunk[0])
         const CCY=Number(currentChunk[1])
@@ -752,7 +755,10 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
         }
         
         for(const edge of edges){
-            
+            if (!(edge in deltas)) {
+                console.warn("Unexpected edge direction:", edge);
+                continue; // skip it to avoid crashing
+            }
             const usingKey=`${CCX+deltas[edge][0]},${CCY+deltas[edge][1]}`
             var accessAbstractMap=loadedChunkMaps.get(usingKey)
             if(!accessAbstractMap){
@@ -767,34 +773,45 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
             }
 
             // const keyGoalTile=`${SubgridXC+deltas[edge][0]},${SubgridYC+deltas[edge][1]}`
-            await combineDataOfSubgridsForSearch(current.split('|')[0],usingKey,[pixelXC,pixelYC],[SubgridXC,SubgridYC],edge,accessAbstractMap)
+            const adjNeighbours=await combineDataOfSubgridsForSearch(current.split('|')[0],usingKey,[pixelXC,pixelYC],[SubgridXC,SubgridYC],edge,accessAbstractMap)
+        
+            // console.log("adjNeighbours",adjNeighbours)
+            for (var i=0;i<adjNeighbours.length;i++){
+                const setKey=`${usingKey}|${adjNeighbours[i][0]}`
+                neighbors[setKey]=adjNeighbours[i][1]
+            }
         }
 
 
         for (const [neighborPixel, cost] of Object.entries(neighbors)) {
-            const PixelPoint=neighborPixel.split(",")
+            const breakdown=neighborPixel.split("|")
+            
+            var newChunkX=CCX
+            var newChunkY=CCY
+
+            var PixelPoint;
+            if(breakdown.length>1){
+                const breakit=breakdown[0].split(",")
+                // console.log("breakit",breakit)
+                newChunkX=Number(breakit[0])
+                newChunkY=Number(breakit[1])
+                PixelPoint=breakdown[1].split(",")//neighborPixel.split(",")
+                // console.log(breakdown,"PixelPoint",PixelPoint)
+            }else{
+                PixelPoint=breakdown[0].split(",")
+            }
+            
+            
             const neighPX=Number(PixelPoint[0])
             const neighPY=Number(PixelPoint[1])
-
-            var adjustmentX=0
-            var adjustmentY=0
-            //100 is arbitrary, its simply big enough to say "next chunk to right"
-            // console.log("hello",pixelXC-neighPX)
-            // if(pixelXC-neighPX >100){console.log("hello");adjustmentX=1}
-            // if(pixelXC-neighPX <-100){adjustmentX=-1}
-
-            // if(pixelYC-neighPY <-100){adjustmentY=1}
-            // if(pixelYC-neighPY >100){adjustmentY=-1}
-
             
-            const newChunkX=CCX+adjustmentX
-            const newChunkY=CCY+adjustmentY
+
 
             const subgridX=Math.floor(neighPX/32)
             const subgridY=Math.floor(neighPY/32)
 
-            const neighborKey = `${newChunkX},${newChunkY}|${subgridX},${subgridY}|${neighborPixel}`;
-
+            const neighborKey = `${newChunkX},${newChunkY}|${subgridX},${subgridY}|${neighPX},${neighPY}`;//neighborPixel
+            console.log("neighborKey",neighborKey)
             const tentativeG = gScore.get(current) + cost;
             if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)) {
                 cameFrom.set(neighborKey, current);
