@@ -19,7 +19,7 @@ const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPla
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
 const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
-const {updatePixelLocAndOcc}=require("./modules/PathfindingFunctionality.js")
+const {updatePixelLocAndOcc,ProgressOrders}=require("./modules/PathfindingFunctionality.js")
 const ChunkManager=require("./modules/CacheChunkInfo.js")
 const MovementOrderClass=require("./modules/MovementOrderClass.js")
 // console.log(ChunkManager,"?")
@@ -665,12 +665,13 @@ io.on('connection', (socket) => {
 
         const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,destinationPoint)
         
-        const newOrder=new MovementOrderClass(selectedUnits["Unit"],values.pixelCoords,values.chunkCoords)
-        await newOrder.calculateMedian();
-        const cheapestPortal=await newOrder.getClosestAccessiblePortal()
+        new MovementOrderClass(selectedUnits["Unit"],values.pixelCoords,values.chunkCoords)
+        // await newOrder.calculateMedian();
+        // const cheapestPortal=await newOrder.getClosestAccessiblePortal()
         // console.log("huh?", cheapestPortal)
-        await newOrder.PathFromStartPortalToEndSubgrid(cheapestPortal)
-
+        // const pathnodesCentral=await newOrder.PathFromStartPortalToEndSubgrid(cheapestPortal)
+        // await newOrder.getCombinedSubgridsDataForPath(pathnodesCentral)
+        // await newOrder.orderSetup()
 
         const responseObject={
             hello:"hello"
@@ -682,13 +683,14 @@ io.on('connection', (socket) => {
 
 const TICK_RATE = (1000 / 60)/3; // 20 ticks per second
 
-function gameTick() {
+async function gameTick() {
 
     // for (const [socketId, socket] of io.sockets.sockets) {
     //     const playerId = socket.userId;
     //     const visibleUnits = getUnitsForPlayer(playerId); // however you track this
     //     socket.emit('TickUpdate', visibleUnits);
     // }
+    await ProgressOrders();
 }
 
 setInterval(gameTick, TICK_RATE);

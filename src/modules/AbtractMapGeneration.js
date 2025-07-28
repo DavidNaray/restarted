@@ -390,82 +390,87 @@ async function PortalConnectivity(Imglocation){
 
 //above is creating the abstract map, finding the portals of the image
 //--------------------------------------
-//below making use of the abstract map, determining unit positions in terms of subgrids
+//combine 3 subgrids of the path into a big buffer and run A* over it
+async function TotalSubgridCombining(windowNodes){
+    const TILE_SIZE = 1536;   // Full tile size
+    const SUBGRID_SIZE = 32;  // Each subgrid
 
-async function DetermineSubgrid(UnitPosition){//determine which subgrid a unit belongs to
-    //walkmap is 1536, if we make subgrids 32 pixels in size, thats 48x48 subgrids 
+    // 1. Slice the path for the current window
+    // const windowNodes = pathNodes.slice(startIndex, startIndex + windowSize);
 
-    // UnitPosition of form [x, y, z]
-    const X=UnitPosition[0]
-    const Y=UnitPosition[2]
+    // 2. Parse nodes → get unique subgrid positions
+    const seen = new Set();
+    const positions = [];
 
-    // Convert world coordinates to pixel coordinates on walkMap
-    const imgX = Math.round(walkMapWidth / 2 + X * pixelsPerUnit);
-    const imgY = Math.round(walkMapHeight / 2 + Y * pixelsPerUnit);
+    for (const node of windowNodes) {
+        const [chunkPart, subgridPart] = node.split('|');
+        const [chunkX, chunkY] = chunkPart.split(',').map(Number);
+        const [sgX, sgY] = subgridPart.split(',').map(Number);
 
+        const key = `${chunkX},${chunkY},${sgX},${sgY}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            positions.push({
+                chunkX, chunkY, sgX, sgY,
+                worldX: chunkX * TILE_SIZE + sgX * SUBGRID_SIZE,
+                worldY: chunkY * TILE_SIZE + sgY * SUBGRID_SIZE
+            });
+        }
+    }
 
-    //first grid would be [0,0] last grid would be [47,47]
-    const SubGridgridAlong=Math.floor(imgX/subgridSize)
-    const SubGridgridDown=Math.floor(imgY/subgridSize)
+    if (positions.length === 0) {
+        return null; // No subgrids in this window
+    }
 
-    return SubGridgridAlong+","+SubGridgridDown
+    // 3. Compute bounding box
+    const minX = Math.min(...positions.map(p => p.worldX));
+    const minY = Math.min(...positions.map(p => p.worldY));
+    const maxX = Math.max(...positions.map(p => p.worldX));
+    const maxY = Math.max(...positions.map(p => p.worldY));
+    const width = (maxX - minX) + SUBGRID_SIZE;
+    const height = (maxY - minY) + SUBGRID_SIZE;
+
+    const combinedBuffer = Buffer.alloc(width * height * 4, 0); // RGBA black padding
+
+    // 4. Copy subgrid data into combined buffer
+    for (const pos of positions) {
+        const tileKey = `${pos.chunkX},${pos.chunkY}`;
+        const tileData = await getDataOfTile(tileKey); // full 1536x1536 RGBA buffer
+
+        const subgridData = await extractRegion(
+            tileData,
+            4,
+            pos.sgX * SUBGRID_SIZE,
+            pos.sgY * SUBGRID_SIZE,
+            SUBGRID_SIZE,
+            SUBGRID_SIZE
+        );
+
+        const destX = pos.worldX - minX;
+        const destY = pos.worldY - minY;
+
+        for (let y = 0; y < SUBGRID_SIZE; y++) {
+            const srcOffset = y * SUBGRID_SIZE * 4;
+            const destOffset = ((destY + y) * width + destX) * 4;
+            // subgridData.copy(combinedBuffer, destOffset, srcOffset, srcOffset + SUBGRID_SIZE * 4);
+            combinedBuffer.set(subgridData.subarray(srcOffset, srcOffset + SUBGRID_SIZE * 4), destOffset);
+        }
+    }
+
+    return {
+        buffer: combinedBuffer,
+        origin: { x: minX, y: minY },
+        width,
+        height,
+        // nextIndex: startIndex + windowSize // To move the window forward
+    };
 }
 
-async function abstractMapAstar(start, goal,abstractMap) {//start, goal must be pixels that are in the abstractMap
-    function reconstructPath(cameFrom, current) {
-        const path = [current];
-        while (cameFrom.has(current)) {
-            current = cameFrom.get(current);
-            path.push(current);
-        }
-        path.reverse();
-        return path;
-    }
-    function heuristic(nodeA, nodeB) {
-        // For example, Euclidean distance ignoring edge types
-        const [xA, yA] = nodeA.split(',').map(Number);
-        const [xB, yB] = nodeB.split(',').map(Number);
-        return Math.hypot(xA - xB, yA - yB);
-    }
-    // const graph=abstractMap;//this.abstractMap;
-
-    const openSet = new PriorityQueue(); // Min-heap keyed by f(n)
-    const cameFrom = new Map();
-    const gScore = new Map();
-
-    gScore.set(start, 0);
-    openSet.enqueue(start, heuristic(start, goal));
-
-    const visited = new Set();
-    while (!openSet.isEmpty()) {
-        const current = openSet.dequeue();
-        if (visited.has(current)) continue;
-        visited.add(current);
-
-        if (current === goal) {
-            return reconstructPath(cameFrom, current);
-        }
-
-        const neighbors = abstractMap.get(current) || new Map();
-
-        for (const [neighbor, cost] of neighbors.entries()) {
-            const tentativeG = gScore.get(current) + cost;
-
-            if (!gScore.has(neighbor) || tentativeG < gScore.get(neighbor)) {
-                cameFrom.set(neighbor, current);
-                gScore.set(neighbor, tentativeG);
-                const fScore = tentativeG + heuristic(neighbor, goal);
-                openSet.enqueue(neighbor, fScore);
-            }
-        }
-    }
-
-    return null; // No path found
-}
 
 
 
-
+//generate the path over the abstract map
+//combineDataOfSubgridsForSearch use to get cost over tile borders
 async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgridStart,direction,targetAbtractMap){
     function combineSubgridRegions(regionA, regionB, direction) {
         const width = (direction === "left" || direction === "right") ? 64 : 32;
@@ -626,7 +631,6 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
     }
     return neighbourObjs
 }
-
 
 async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractMap) {
     function loadChunkAbstractMap(tileKey) {
@@ -811,7 +815,7 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
             const subgridY=Math.floor(neighPY/32)
 
             const neighborKey = `${newChunkX},${newChunkY}|${subgridX},${subgridY}|${neighPX},${neighPY}`;//neighborPixel
-            console.log("neighborKey",neighborKey)
+            // console.log("neighborKey",neighborKey)
             const tentativeG = gScore.get(current) + cost;
             if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)) {
                 cameFrom.set(neighborKey, current);
@@ -826,4 +830,4 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
     return null; // No path found
 }
 
-module.exports={PortalConnectivity,AstarPathCost,abstractMapAstarMultiTileCapable}
+module.exports={PortalConnectivity,AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining}

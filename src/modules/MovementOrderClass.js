@@ -1,17 +1,19 @@
 const {addMovementOrder,getPixelLocationsForTile,getDataOfTile}=require("./PathfindingFunctionality.js")
 const ChunkManager=require("./CacheChunkInfo.js")
 const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
-const {AstarPathCost,abstractMapAstarMultiTileCapable}= require("./AbtractMapGeneration.js")
+const {AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining}= require("./AbtractMapGeneration.js")
 
 class MovementOrder{
     constructor(selectedUnits,ClickedPixel,TargetChunk){
         this.destinationPoint=ClickedPixel;
         this.targetChunk=TargetChunk;
-        this.UnitsInvolved=selectedUnits;//tile-> serverIds
+        this.UnitsInvolved=selectedUnits;//tile-> serverIds, becomes... tile -> id ->[type, pos]
         
         this.OrderCenter;
         this.chunkHoldingCenter;
         this.formationPoints=[]
+        
+        this.orderSetup()
         addMovementOrder(this)
     }
     //ChunkManager.getTile(x,y).AbstractMap
@@ -71,11 +73,12 @@ class MovementOrder{
         this.OrderCenter=[localX,localY];
         this.chunkHoldingCenter=[chunkX,chunkY]
 
-        console.log(this.OrderCenter,this.chunkHoldingCenter)
+        // console.log(this.OrderCenter,this.chunkHoldingCenter)
     }
 
-    createFormation(){
+    createFormation(){//called every time the order center moves/calculated
         //take the OrderCenter and go over the units, generating the offsets for them to make the formation
+
     }
 
     determineSubgrid(PixelPoint){
@@ -89,10 +92,10 @@ class MovementOrder{
         return [subgridX,subgridY]//`${subgridX},${subgridY}`
     }
 
-    async getClosestAccessiblePortal(){
+    async getClosestAccessiblePortal(point){
         // const [x,y]=this.chunkHoldingCenter
-        const x=this.chunkHoldingCenter[0]
-        const y=this.chunkHoldingCenter[1]
+        const x=point.chunkX//this.chunkHoldingCenter[0]
+        const y=point.chunkY//this.chunkHoldingCenter[1]
         const theAbstractMapForCenterPointTile=ChunkManager.getTile(x,y).AbstractMap;
         //theAbstractMapForCenterPointTile is an array, this is because mongoDB doesnt support map, must convert
 
@@ -109,8 +112,8 @@ class MovementOrder{
         const TheData=await getDataOfTile(`${x},${y}`)
         //start pixel is where the median is, so orderCenter
         const startPixel={
-            x:Number(this.OrderCenter[0]),
-            y:Number(this.OrderCenter[1])
+            x:point.x,//Number(this.OrderCenter[0]),
+            y:point.y//Number(this.OrderCenter[1])
         }
 
         let cheapestPortal={pixelVal:"",cost:Infinity,chunk:{x:x,y:y},subgrid:{x:subgridKey[0],y:subgridKey[1]}};
@@ -152,7 +155,79 @@ class MovementOrder{
 
 
         const path=await abstractMapAstarMultiTileCapable(startKey,goalKey,MapAbstractStarting)
-        console.log("path?",path)
+        // console.log("path?",path)
+        return path;
+    }
+
+    async getCombinedSubgridsDataForPath(pathnodes,point){
+        //startPoint is of form chunk|subgrid|pixel
+
+        var startIndex = 0
+        var windowSize = 3
+        const windowNodes = pathnodes.slice(startIndex, startIndex + windowSize);
+
+        const bufferRes=await TotalSubgridCombining(windowNodes)
+
+        const endsplit=windowNodes.pop().split("|")
+        const [endXpix,endYpix]=endsplit[2].split(",")
+        const [endXChunk,endYChunk]=endsplit[0].split(",")
+        
+        const endX=1536*Number(endXChunk)+Number(endXpix)
+        const endY=1536*Number(endYChunk)+Number(endYpix)
+
+        const startX=1536*point.chunkX+point.x
+        const startY=1536*point.chunkY+point.y
+        const unitPositionPixel={x:startX,y:startY};
+        const endPixel={x:endX,y:endY}
+        
+        //convert the coordinates into a global space and then subtract the origin which will localise it to the buffer
+        const localStart = {
+            x: unitPositionPixel.x - bufferRes.origin.x,
+            y: unitPositionPixel.y - bufferRes.origin.y
+        };
+
+        const localGoal = {
+            x: endPixel.x - bufferRes.origin.x,
+            y: endPixel.y - bufferRes.origin.y
+        };
+        
+
+        // console.log(localStart,localGoal,bufferRes.origin,bufferRes.width,bufferRes.height)
+        const costplease=await AstarPathCost(
+            bufferRes.buffer,
+            unitPositionPixel,endPixel,
+            bufferRes.origin,
+            bufferRes.width,
+            bufferRes.height
+        )
+        console.log("costplease",costplease)
+    }
+
+    async orderSetup(){
+        await this.calculateMedian();
+
+
+    }
+
+
+    async ProgressMovement(){
+        //calc path for the order central
+        const centerpoint={
+            chunkX:this.chunkHoldingCenter[0],chunkY:this.chunkHoldingCenter[1],
+            x:Number(this.OrderCenter[0]),y:Number(this.OrderCenter[1])
+        }
+        const cheapestPortal=await this.getClosestAccessiblePortal(centerpoint)//closest to order center point
+        const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortal)
+        //have to append the actual clicked on point to the end of the path
+        const subby=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
+        const finalformatted=`${this.targetChunk[0]},${this.targetChunk[1]}|${subby[0]},${subby[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
+        // console.log("finalformatted",finalformatted)
+        pathnodesCentral.push(finalformatted)
+        await this.getCombinedSubgridsDataForPath(pathnodesCentral,centerpoint)
+
+        //calc the formation since those points have to move with the central
+
+        //calc the paths for the units to their formation points updating the occupancy etc
     }
 }
 

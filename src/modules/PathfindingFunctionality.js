@@ -84,6 +84,12 @@ async function addMovementOrder(TheObj){
     movementOrderObjects.push(TheObj)
 }
 
+async function ProgressOrders(){
+    for(const order of movementOrderObjects){
+        order.ProgressMovement();
+    }
+}
+
 async function getPixelLocationsForTile(tileKey){
     return UnitPixelLocations.get(tileKey)
 }
@@ -125,4 +131,6 @@ async function confirmOwner(userId,tileKey,UnitSId,UnitType){
 }
 
 
-module.exports={updateOccupancyMap,addMovementOrder,getPixelLocationsForTile,updatePixelLocAndOcc,confirmOwner,getDataOfTile}
+module.exports={updateOccupancyMap,addMovementOrder,getPixelLocationsForTile,updatePixelLocAndOcc,confirmOwner,getDataOfTile,
+    ProgressOrders
+}
