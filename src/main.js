@@ -20,6 +20,7 @@ const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
 const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
 const {updatePixelLocAndOcc,ProgressOrders}=require("./modules/PathfindingFunctionality.js")
+const {getTheMessage,killEntry}=require("./modules/TickMessages.js")
 const ChunkManager=require("./modules/CacheChunkInfo.js")
 const MovementOrderClass=require("./modules/MovementOrderClass.js")
 // console.log(ChunkManager,"?")
@@ -347,6 +348,7 @@ app.get('/{*any}',(req,res)=>{//handles urls not the explicitly defined, wanted 
 })
 
 
+const userSockets = new Map(); // userId -> Set of socket IDs
 
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -356,6 +358,11 @@ io.use((socket, next) => {
 });
 
 io.on('connection', (socket) => {
+
+    if (!userSockets.has(socket.userId)) {
+        userSockets.set(socket.userId, new Set());
+    }
+    userSockets.get(socket.userId).add(socket.id);
 
     socket.on('requestWoodUpdate', () => {
         // console.log(`Resources requested by player: ${playerId}`);
@@ -525,7 +532,7 @@ io.on('connection', (socket) => {
         
         const TheUser = await User.findOne({ _id: userId });
         const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,passIn)
-        console.log("wonder what ill get",values.chunkCoords,values.pixelCoords)
+        // console.log("wonder what ill get",values.chunkCoords,values.pixelCoords)
         const tileX=values.chunkCoords[0]
         const tileY=values.chunkCoords[1]
         const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
@@ -678,6 +685,15 @@ io.on('connection', (socket) => {
         }
         socket.emit('MovementCommandResponse',responseObject);
     });
+
+    // Handle disconnect
+    socket.on("disconnect", () => {
+        const sockets = userSockets.get(socket.userId);
+        if (sockets) {
+            sockets.delete(socket.id);
+            if (sockets.size === 0) userSockets.delete(socket.userId);
+        }
+    });
 });
 
 
@@ -691,6 +707,18 @@ async function gameTick() {
     //     socket.emit('TickUpdate', visibleUnits);
     // }
     await ProgressOrders();
+
+    
+    //get the messages, go through it 
+    const messages=await getTheMessage()
+    // console.log("hi?",messages)
+    for (const [userIdent, TheirMessage] of messages) {
+        const TheirSocket=userSockets.get(userIdent)
+        // console.log("TheirMessage",TheirMessage)
+        io.to(TheirSocket).emit('TickUpdate', TheirMessage);
+        await killEntry(userIdent)
+    }
+
 }
 
 setInterval(gameTick, TICK_RATE);

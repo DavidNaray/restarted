@@ -509,6 +509,10 @@ async function AstarPathCostPathIncluded(rawData, startPixel, goalPixel, segment
     const gScore = Array.from({ length: segmentHeight }, () => Array(segmentWidth).fill(Infinity));
     const fScore = Array.from({ length: segmentHeight }, () => Array(segmentWidth).fill(Infinity));
 
+    if (start.x < 0 || start.x >= segmentWidth || start.y < 0 || start.y >= segmentHeight) {
+        throw new Error(`Start out of bounds: start=(${start.x},${start.y}), segment=(0..${segmentWidth-1}, 0..${segmentHeight-1}), origin=${segmentOrigin.x},${segmentOrigin.y}`);
+    }
+
     gScore[start.y][start.x] = 0;
     fScore[start.y][start.x] = heuristic(start.x, start.y, goal.x, goal.y);
 
@@ -769,6 +773,11 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
     }
 
     function heuristic(a, b) {
+        if (!a || !b) {
+            console.warn("heuristic received undefined input", { a, b });
+            return Infinity; // or some large cost
+        }
+
         const [cxA, cyA, sxA, syA, pxA, pyA] = a.split('|').flatMap(s => s.split(',')).map(Number);
         const [cxB, cyB, sxB, syB, pxB, pyB] = b.split('|').flatMap(s => s.split(',')).map(Number);
 
@@ -847,7 +856,7 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
         //check which edge the current pixel is on
         var edges=[]
         if(pixelXC==0){edges.push("left")}
-        else if(pixelXC==1535){edges="right"}//1535 since pixels start at 0
+        else if(pixelXC==1535){edges.push("right")}//1535 since pixels start at 0
         
         if(pixelYC==0){edges.push("top")}
         else if(pixelYC==1535){edges.push("bottom")}

@@ -10,7 +10,7 @@ const dimensions={
     "archer":[1,1]
 }
 
-const movementOrderObjects=[]//iterate over and progress movement orders
+const movementOrderObjects=new Map()//iterate over and progress movement orders
 
 const TilePixelOccupancyMap=new Map()//tile -> rgba data array, alpha for if pixel has unit on it
 const UnitPixelLocations=new Map()//tile -> {unit serverId -> [owner,unitType,[pixels]]}
@@ -81,13 +81,24 @@ async function updateOccupancyMap(tile,UserId){
 }
 
 async function addMovementOrder(TheObj){
-    movementOrderObjects.push(TheObj)
+    // movementOrderObjects.push(TheObj)
+    const itsId=movementOrderObjects.size
+    movementOrderObjects.set(itsId,TheObj)
+    TheObj.ident=itsId
+}
+
+async function removeMovementOrder(theObj){
+    movementOrderObjects.delete(theObj.ident)
 }
 
 async function ProgressOrders(){
-    for(const order of movementOrderObjects){
+    for(const [key,order] of movementOrderObjects){
         order.ProgressMovement();
     }
+}
+
+async function getUserIdArrayForTile(tilekey){
+    return UsersSeeingTileMap.get(tilekey);
 }
 
 async function getPixelLocationsForTile(tileKey){
@@ -132,5 +143,5 @@ async function confirmOwner(userId,tileKey,UnitSId,UnitType){
 
 
 module.exports={updateOccupancyMap,addMovementOrder,getPixelLocationsForTile,updatePixelLocAndOcc,confirmOwner,getDataOfTile,
-    ProgressOrders
+    ProgressOrders,getUserIdArrayForTile,removeMovementOrder
 }
