@@ -466,7 +466,108 @@ async function TotalSubgridCombining(windowNodes){
     };
 }
 
+async function AstarPathCostPathIncluded(rawData, startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight) {
+    // If start == goal, no move needed
+    if (startPixel.x === goalPixel.x && startPixel.y === goalPixel.y) {
+        return [0, null]; // cost = 0, no next pixel, already at destination
+    }
+    
+    let data;
+    if (Buffer.isBuffer(rawData) && rawData.length === segmentWidth * segmentHeight * 4) {
+        data = rawData; // Already cropped region
+    } else {
+        data = await extractRegion(rawData, 4, segmentOrigin.x, segmentOrigin.y, segmentWidth, segmentHeight);
+    }
 
+    function getTerrainCost(localX, localY) {
+        if (localX < 0 || localX >= segmentWidth || localY < 0 || localY >= segmentHeight) return Infinity;
+        const index = (localY * segmentWidth + localX) * 4;
+        const r = data[index], g = data[index + 1], b = data[index + 2];
+
+        if (r === 255 && g === 255 && b === 255) return 1;     // White → Normal
+        if (r === 255 && g === 255 && b === 0)   return 1.5;   // Yellow → Shallow water
+        return Infinity;                                      // Others → Impassable
+    }
+
+    function heuristic(x1, y1, x2, y2) {
+        const dx = x2 - x1, dy = y2 - y1;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    const start = {
+        x: startPixel.x - segmentOrigin.x,
+        y: startPixel.y - segmentOrigin.y
+    };
+    const goal = {
+        x: goalPixel.x - segmentOrigin.x,
+        y: goalPixel.y - segmentOrigin.y
+    };
+
+    const openSet = new MinHeap((a, b) => a.f - b.f);
+    const cameFrom = new Map();
+
+    const gScore = Array.from({ length: segmentHeight }, () => Array(segmentWidth).fill(Infinity));
+    const fScore = Array.from({ length: segmentHeight }, () => Array(segmentWidth).fill(Infinity));
+
+    gScore[start.y][start.x] = 0;
+    fScore[start.y][start.x] = heuristic(start.x, start.y, goal.x, goal.y);
+
+    openSet.push({ x: start.x, y: start.y, f: fScore[start.y][start.x] });
+
+    const directions = [
+        [0, -1], [1, 0], [0, 1], [-1, 0],    // 4-way
+        [1, -1], [1, 1], [-1, 1], [-1, -1]  // 8-way
+    ];
+
+    while (!openSet.isEmpty()) {
+        const current = openSet.pop();
+        if (current.x === goal.x && current.y === goal.y) {
+            const totalCost = gScore[current.y][current.x];
+
+            // Trace back one step: goal → start
+            let node = `${goal.x},${goal.y}`;
+            let prev = cameFrom.get(node);
+
+            // If goal is the same as start, no move needed
+            if (!prev) {
+                return [totalCost, null];
+            }
+
+            // Walk back until prev = start
+            while (prev && prev !== `${start.x},${start.y}`) {
+                node = prev;
+                prev = cameFrom.get(node);
+            }
+
+            // node now holds the first move after start
+            const [nx, ny] = node.split(',').map(Number);
+            const nextPixel = {
+                x: nx + segmentOrigin.x,
+                y: ny + segmentOrigin.y
+            };
+
+            return [totalCost, nextPixel];
+        }
+
+        for (const [dx, dy] of directions) {
+            const nx = current.x + dx, ny = current.y + dy;
+            if (nx < 0 || nx >= segmentWidth || ny < 0 || ny >= segmentHeight) continue;
+
+            const cost = getTerrainCost(nx, ny);
+            if (cost === Infinity) continue;
+
+            const tentativeG = gScore[current.y][current.x] + cost;
+            if (tentativeG < gScore[ny][nx]) {
+                cameFrom.set(`${nx},${ny}`, `${current.x},${current.y}`);
+                gScore[ny][nx] = tentativeG;
+                fScore[ny][nx] = tentativeG + heuristic(nx, ny, goal.x, goal.y);
+                openSet.push({ x: nx, y: ny, f: fScore[ny][nx] });
+            }
+        }
+    }
+
+    return [Infinity, null]; // No path found
+}
 
 
 //generate the path over the abstract map
@@ -830,4 +931,4 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
     return null; // No path found
 }
 
-module.exports={PortalConnectivity,AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining}
+module.exports={PortalConnectivity,AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining,AstarPathCostPathIncluded}

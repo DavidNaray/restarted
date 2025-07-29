@@ -1,7 +1,7 @@
 const {addMovementOrder,getPixelLocationsForTile,getDataOfTile}=require("./PathfindingFunctionality.js")
 const ChunkManager=require("./CacheChunkInfo.js")
 const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
-const {AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining}= require("./AbtractMapGeneration.js")
+const {AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining,AstarPathCostPathIncluded}= require("./AbtractMapGeneration.js")
 
 class MovementOrder{
     constructor(selectedUnits,ClickedPixel,TargetChunk){
@@ -13,6 +13,8 @@ class MovementOrder{
         this.chunkHoldingCenter;
         this.formationPoints=[]
         
+        this._progressMovementRunning=false
+
         this.orderSetup()
         addMovementOrder(this)
     }
@@ -79,6 +81,13 @@ class MovementOrder{
     createFormation(){//called every time the order center moves/calculated
         //take the OrderCenter and go over the units, generating the offsets for them to make the formation
 
+        //for now just make the target the orderc center
+        for (let [key, value] of this.UnitsInvolved) {
+            for (let [unitId, valueunit] of value) {
+                valueunit[2]=`${this.chunkHoldingCenter[0]},${this.chunkHoldingCenter[1]}|${this.determineSubgrid(this.OrderCenter)[0]},${this.determineSubgrid(this.OrderCenter)[1]}|${this.OrderCenter[0]},${this.OrderCenter[1]}`
+            }
+            
+        }
     }
 
     determineSubgrid(PixelPoint){
@@ -139,16 +148,17 @@ class MovementOrder{
 
     }
 
-    async PathFromStartPortalToEndSubgrid(CP){//CP:cheapest portal
+    async PathFromStartPortalToEndSubgrid(CP,goalKey){//CP:cheapest portal
         // console.log("aight",CP)
         // const CX=cheapestPortal
         const startKey=`${CP.chunk.x},${CP.chunk.y}|${CP.subgrid.x},${CP.subgrid.y}|${CP.pixelVal.x},${CP.pixelVal.y}`
-        const goalSubgrid=this.determineSubgrid(this.destinationPoint)
-        const goalKey=`${this.targetChunk[0]},${this.targetChunk[1]}|${goalSubgrid[0]},${goalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
-        console.log("start,goal:",startKey,goalKey)
+        // const goalSubgrid=this.determineSubgrid(this.destinationPoint)
+        // const goalKey=`${this.targetChunk[0]},${this.targetChunk[1]}|${goalSubgrid[0]},${goalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
+        
+        // console.log("start,goal:",startKey,goalKey)
 
-        const x=this.chunkHoldingCenter[0]
-        const y=this.chunkHoldingCenter[1]
+        const x=CP.chunk.x//this.chunkHoldingCenter[0]
+        const y=CP.chunk.y//this.chunkHoldingCenter[1]
         const startingAbstractMapArray=ChunkManager.getTile(x,y).AbstractMap;
         const MapAbstractStarting = convertMongoPortalGraphToMap(startingAbstractMapArray);
         // console.log(MapAbstractStarting)
@@ -193,42 +203,110 @@ class MovementOrder{
         
 
         // console.log(localStart,localGoal,bufferRes.origin,bufferRes.width,bufferRes.height)
-        const costplease=await AstarPathCost(
+        const costplease=await AstarPathCostPathIncluded(
             bufferRes.buffer,
-            unitPositionPixel,endPixel,
-            bufferRes.origin,
+            localStart,localGoal,
+            {x:0,y:0},
             bufferRes.width,
             bufferRes.height
         )
-        console.log("costplease",costplease)
+        // console.log("costplease",costplease)
+        if(costplease[1]!=null){
+            // console.log("pos",bufferRes.origin.x+costplease[1].x,bufferRes.origin.y+costplease[1].y)
+            return {x:bufferRes.origin.x+costplease[1].x,y:bufferRes.origin.y+costplease[1].y}
+        }else{
+            //path not possible or at destination already
+            return false
+        }
     }
 
     async orderSetup(){
+        //calc the center of the order
         await this.calculateMedian();
-
+        this.createFormation()
 
     }
 
 
     async ProgressMovement(){
-        //calc path for the order central
-        const centerpoint={
-            chunkX:this.chunkHoldingCenter[0],chunkY:this.chunkHoldingCenter[1],
-            x:Number(this.OrderCenter[0]),y:Number(this.OrderCenter[1])
+        
+        if (this._progressMovementRunning) return;
+        this._progressMovementRunning = true;
+        // console.log("=== ProgressMovement START ===", Date.now());
+        try{
+            //all units need to reach their formation positions before centerpoint moves
+            var allowCenterMove=true
+            for (let [key, value] of this.UnitsInvolved) {
+                const [keyX,keyY]=key.split(",")
+                for (let [unitId, valueunit] of value) {
+                    const formationPoint=valueunit[2]//of form chunk|subgrid|pixel
+                    // console.log("formationPoint: ",formationPoint)
+                    // const subbys=this.determineSubgrid(valueunit[1])
+                    // const alteredStart=`${keyX},${keyY}|${subbys[0]},${subbys[1]}|${valueunit[1][0]},${valueunit[1][1]}`
+
+
+                    const startpoint={
+                        chunkX:Number(keyX),chunkY:Number(keyY),
+                        x:Number(valueunit[1][0]),y:Number(valueunit[1][1])
+                    }
+                    // console.log("formationpoint:",startpoint,formationPoint,valueunit[1])
+                    const cheapestPortalToPoint=await this.getClosestAccessiblePortal(startpoint)//closest to order center point
+                    const pathnodesForUnit=await this.PathFromStartPortalToEndSubgrid(cheapestPortalToPoint,formationPoint)
+                    pathnodesForUnit.push(formationPoint)
+                    const globalNextForUnit=await this.getCombinedSubgridsDataForPath(pathnodesForUnit,startpoint)
+
+                    if(globalNextForUnit!=false){
+                        valueunit[1]=[globalNextForUnit.x % 1536,globalNextForUnit.y % 1536];
+                        allowCenterMove=false
+                    }else{
+                        //unit sitting at formation point
+                        // allowCenterMove=true
+
+                    }
+                }
+            }
+
+            if(allowCenterMove){
+                //calc path for the order central
+                const centerpoint={
+                    chunkX:this.chunkHoldingCenter[0],chunkY:this.chunkHoldingCenter[1],
+                    x:Number(this.OrderCenter[0]),y:Number(this.OrderCenter[1])
+                }
+                const cheapestPortal=await this.getClosestAccessiblePortal(centerpoint)//closest to order center point
+                const goalSubgrid=this.determineSubgrid(this.destinationPoint)
+                const goalKey=`${this.targetChunk[0]},${this.targetChunk[1]}|${goalSubgrid[0]},${goalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
+                
+                const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortal,goalKey)
+                //have to append the actual clicked on point to the end of the path
+                const subby=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
+                const finalformatted=`${this.targetChunk[0]},${this.targetChunk[1]}|${subby[0]},${subby[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
+                pathnodesCentral.push(finalformatted)
+
+                const globalNext=await this.getCombinedSubgridsDataForPath(pathnodesCentral,centerpoint)
+                if(globalNext!=false){
+                    console.log("to the next!", globalNext)
+                    this.chunkHoldingCenter=[Math.floor(globalNext.x / 1536),Math.floor(globalNext.y / 1536)]
+                    this.OrderCenter=[globalNext.x % 1536,globalNext.y % 1536]
+                    
+                    this.createFormation()
+                }else{
+                    //if this calls then every unit is now in position since the order center should only move forward
+                    //when all units have reached their formation positions
+                    console.log("at destination or invalid, yipee")
+                }
+            
+                //calc the formation since those points have to move with the central
+                
+            }
+        }finally {
+            this._progressMovementRunning = false;
         }
-        const cheapestPortal=await this.getClosestAccessiblePortal(centerpoint)//closest to order center point
-        const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortal)
-        //have to append the actual clicked on point to the end of the path
-        const subby=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
-        const finalformatted=`${this.targetChunk[0]},${this.targetChunk[1]}|${subby[0]},${subby[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
-        // console.log("finalformatted",finalformatted)
-        pathnodesCentral.push(finalformatted)
-        await this.getCombinedSubgridsDataForPath(pathnodesCentral,centerpoint)
 
-        //calc the formation since those points have to move with the central
+        
 
-        //calc the paths for the units to their formation points updating the occupancy etc
     }
+
+    
 }
 
 module.exports=MovementOrder
