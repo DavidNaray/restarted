@@ -336,7 +336,7 @@ class MovementOrder{
                 const globalNext=await this.getTheNextPixel(CX,CY,PX,PY,goalkey);
                 // const globalNext=await this.getCombinedSubgridsDataForPath(pathnodesCentral,centerpoint)
                 if(globalNext!=false){
-                    // console.log("to the next!", globalNext)
+                    console.log("to the next!", globalNext)
                     this.chunkHoldingCenter=[Math.floor(globalNext.x / 1536),Math.floor(globalNext.y / 1536)]
                     this.OrderCenter=[globalNext.x % 1536,globalNext.y % 1536]
                     

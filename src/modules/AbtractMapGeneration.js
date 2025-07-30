@@ -33,7 +33,11 @@ async function generatePortalMap(Imglocation) {//generate the portals of the sub
         const r = data[index];
         const g = data[index + 1];
         const b = data[index + 2];
-        return (r === 255 && g === 255 && (b === 255 || b === 0)); // white or yellow
+        // console.log(typeof r,r,typeof g,g,typeof b,b)
+        // if((r == Number(255) && g == Number(255) &&  b == Number(0))){
+        //     console.log("does actually see b=0",(r === 255 && g === 255 && (b === 255 || b === 0)))
+        // }
+        return (r === Number(255) && g === Number(255) && (b === Number(255) || b === Number(0))); // white or yellow
     }
 
     function detectPortalsForSubgrid(subgridX, subgridY) {
@@ -73,6 +77,22 @@ async function generatePortalMap(Imglocation) {//generate the portals of the sub
             }
 
             if (lastWasWalkable && walkableStart !== -1) {
+                // const runLength = subgridSize - walkableStart;
+                // const candidates = [];
+                // for (let j = walkableStart; j < subgridSize; j++) {
+                //     let x, y;
+                //     switch (edge) {
+                //         case 'top':    x = startX + j; y = startY; break;
+                //         case 'bottom': x = startX + j; y = startY + subgridSize - 1; break;
+                //         case 'left':   x = startX; y = startY + j; break;
+                //         case 'right':  x = startX + subgridSize - 1; y = startY + j; break;
+                //     }
+                //     if (isWalkable(x, y)) candidates.push({ x, y });
+                // }
+                // if (candidates.length > 0) {
+                //     const mid = candidates[Math.floor(candidates.length / 2)];
+                //     portals.push({ x: mid.x, y: mid.y, edge });
+                // }
                 const portalMid = walkableStart + Math.floor((subgridSize - walkableStart) / 2);
                 edgePixels.push(portalMid);
             }
@@ -180,6 +200,9 @@ async function AstarPathCost(rawData,startPixel, goalPixel, segmentOrigin, segme
         const index = (localY * segmentWidth + localX) * 4;
         const r = data[index], g = data[index + 1], b = data[index + 2];
 
+        if(b!=255 && b!=0){
+            console.log("crossing issue!",b)
+        }
         if (r === 255 && g === 255 && b === 255) return 1;     // White → Normal
         if (r === 255 && g === 255 && b === 0)   return 1.5;   // Yellow → Shallow water
         return Infinity;                                      // Red/Black or anything else → Impassable
@@ -306,6 +329,8 @@ async function PortalConnectivity(Imglocation){
                                 const goalPAbove=goalPortalAbove.x +","+goalPortalAbove.y
                                 if (cost !== Infinity) {
                                     await addEdgeToAbstractGraph(abstractMap,key,starty, goalPAbove, cost);
+
+                                    // await addEdgeToAbstractGraph(abstractMap,key,goalPAbove,starty, cost);
                                 }
                             }
                         }
@@ -328,6 +353,8 @@ async function PortalConnectivity(Imglocation){
                                 const goalPBelow=goalPortalBelow.x +","+goalPortalBelow.y//+","+goalPortalBelow.edge
                                 if (cost !== Infinity) {
                                     await addEdgeToAbstractGraph(abstractMap,key,starty, goalPBelow, cost);
+
+                                    // await addEdgeToAbstractGraph(abstractMap,key,goalPBelow,starty , cost);
                                 }
                             }
                         }
@@ -349,6 +376,8 @@ async function PortalConnectivity(Imglocation){
                                 const goalPLeft=goalPortalLeft.x +","+goalPortalLeft.y//+","+goalPortalLeft.edge
                                 if (cost !== Infinity) {
                                     await addEdgeToAbstractGraph(abstractMap,key,starty, goalPLeft, cost);
+
+                                    // await addEdgeToAbstractGraph(abstractMap,key,goalPLeft,starty , cost);
                                 }
                             }
                         }  
@@ -369,6 +398,8 @@ async function PortalConnectivity(Imglocation){
                                 const goalPRight=goalPortalRight.x +","+goalPortalRight.y//+","+goalPortalRight.edge
                                 if (cost !== Infinity) {
                                     await addEdgeToAbstractGraph(abstractMap,key,starty, goalPRight, cost);
+
+                                    // await addEdgeToAbstractGraph(abstractMap,key,goalPRight, starty, cost);
                                 }
                             }
                         }
@@ -483,9 +514,12 @@ async function AstarPathCostPathIncluded(rawData, startPixel, goalPixel, segment
         if (localX < 0 || localX >= segmentWidth || localY < 0 || localY >= segmentHeight) return Infinity;
         const index = (localY * segmentWidth + localX) * 4;
         const r = data[index], g = data[index + 1], b = data[index + 2];
-
-        if (r === 255 && g === 255 && b === 255) return 1;     // White → Normal
-        if (r === 255 && g === 255 && b === 0)   return 1.5;   // Yellow → Shallow water
+        // if(b==Number(0)){
+        // console.log(b, "mmmmmmmmmm.")
+        // }
+        
+        if (r == Number(255) && g == Number(255) && b == Number(255)) return 1;     // White → Normal
+        if (r == Number(255) && g == Number(255) && b == Number(0)){   return 1.5};   // Yellow → Shallow water
         return Infinity;                                      // Others → Impassable
     }
 
