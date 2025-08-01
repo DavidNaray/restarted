@@ -189,4 +189,15 @@ export class TileInstancePool {
     transferInstance(targetTile, index, objectType, targetMap){
 
     }
+    moveUnit(serverId,NewPositiontransform){
+        const relevantInfo=this.ServerId_To_ObjTypeAndInstId_Mapping.get(serverId);
+        const theInstanceObjectType=relevantInfo[0]
+        const theUnitsInstanceI=relevantInfo[1]
+        let mesh=this.instanceGroups.get(theInstanceObjectType)
+        mesh.setMatrixAt(theUnitsInstanceI, NewPositiontransform);
+        mesh.instanceMatrix.needsUpdate = true;
+        mesh.computeBoundingSphere();
+        requestRenderIfNotRequested();
+    }
+
 }

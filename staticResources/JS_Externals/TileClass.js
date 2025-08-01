@@ -248,6 +248,7 @@ export class Tile{
 
     async addToScene(Obj_Identifier,MetaData){
         const rawPosition=MetaData.position//these are in pixel coords for this tile
+        // console.log("so called rawpos:", rawPosition)
         // console.log("raw position: ",rawPosition)
         const xyz=superHeightMapTexture.getXYZ(-this.offSet[0],-this.offSet[1],rawPosition)//MetaData.position
         // console.log("FIRING FIRING",xyz)
@@ -258,6 +259,18 @@ export class Tile{
         transform.compose(position, quaternion, scale);
 
         this.instancePooling.GeneralAddInstance(Obj_Identifier,transform,MetaData);//.metaData
+    }
+
+    moveUnit(pixelLocation,theserverId){
+        const xyz=superHeightMapTexture.getXYZ(-this.offSet[0],-this.offSet[1],pixelLocation)//MetaData.position
+        // console.log("FIRING FIRING",xyz)
+        const transform = new THREE.Matrix4();
+        const position = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
+        const quaternion = new THREE.Quaternion();  // No rotation
+        const scale = new THREE.Vector3(0.2, 0.2, 0.2);
+        transform.compose(position, quaternion, scale);
+
+        this.instancePooling.moveUnit(theserverId,transform)
     }
 
     async objectLoad(assetId,MetaData,AssetClass){

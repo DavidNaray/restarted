@@ -192,6 +192,20 @@ function HandleSocketResponses(socket){
     socket.on('MovementCommandResponse', (response) => {
         console.log(response,"hm.....")
     });
+
+    socket.on("TickUpdate",(response)=>{
+        console.log("ummmm",response)
+        //loop over positions
+        const positions=response.positions
+        for(const unitmove of positions){
+            // console.log("unitmove",unitmove)
+            const whichTileUnits=globalmanager.getTile(unitmove.ChunkX,unitmove.ChunkY)
+            // console.log(whichTileUnits,"so its got the tile")
+            const UnitServerId=unitmove.unitId
+
+            whichTileUnits.moveUnit([unitmove.x,unitmove.y],UnitServerId)
+        }
+    })
 }
 
 function HandleInitialEmits(socket){

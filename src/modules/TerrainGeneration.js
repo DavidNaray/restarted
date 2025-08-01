@@ -379,10 +379,12 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                     terrainR = 50;
                     terrainG = 90;
                     terrainB = 100;
-                    r = 255; g = 255; b = 0; // Yellow
+                    r = 255; g = 255; b =0; // Yellow
 
                 } else {
-                    r = 0; g = 0; b = 255;   // Blue
+                    r = 0; 
+                    g = 0; 
+                    b = 0//255;   // Blue
                     // console.log(val + "depth")
                     if((val-5)>=0){
                         val=val-5;
@@ -405,7 +407,7 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                     terrainR = 50;
                     terrainG = 90;
                     terrainB = 100;
-                    r = 255; g = 255; b = 0; // Yellow
+                    r = 255; g = 255; b =0; // Yellow
 
                 } else {
                     r = 0; g = 0; b = 255;   // Blue

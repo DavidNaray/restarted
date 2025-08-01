@@ -103,6 +103,36 @@ class MovementOrder{
     }
 
     async getClosestAccessiblePortal(point){
+        function isWalkableColor(r, g, b) {
+            return r == Number(255) && g == Number(255) && (b == Number(255) || b == Number(0));
+        }
+
+        function findClosestWalkablePixel(goalPixel, data, segmentWidth, segmentHeight) {
+            if (goalPixel.x >= 0 && goalPixel.x < segmentWidth && goalPixel.y >= 0 && goalPixel.y < segmentHeight) {
+                const idx = (goalPixel.y * segmentWidth + goalPixel.x) * 4;
+                const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+                if (isWalkableColor(r, g, b)) {
+                    return { x: goalPixel.x, y: goalPixel.y };
+                }
+            }
+
+            const maxRadius = 10; // You can tune this
+            for (let radius = 1; radius <= maxRadius; radius++) {
+                for (let dy = -radius; dy <= radius; dy++) {
+                    for (let dx = -radius; dx <= radius; dx++) {
+                        const nx = goalPixel.x + dx;
+                        const ny = goalPixel.y + dy;
+                        if (nx < 0 || nx >= segmentWidth || ny < 0 || ny >= segmentHeight) continue;
+                        const idx = (ny * segmentWidth + nx) * 4;
+                        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+                        if (isWalkableColor(r, g, b)) {
+                            return { x: nx, y: ny,chunkX: point.chunkX,chunkY:point.chunkY};
+                        }
+                    }
+                }
+            }
+            return null; // No walkable found (rare, means it's surrounded by blue)
+        }
         // const [x,y]=this.chunkHoldingCenter
         const x=point.chunkX//this.chunkHoldingCenter[0]
         const y=point.chunkY//this.chunkHoldingCenter[1]
@@ -110,7 +140,7 @@ class MovementOrder{
         //theAbstractMapForCenterPointTile is an array, this is because mongoDB doesnt support map, must convert
 
         const graphMap = convertMongoPortalGraphToMap(theAbstractMapForCenterPointTile);
-        const subgridKey=this.determineSubgrid(this.OrderCenter)
+        const subgridKey=this.determineSubgrid([point.x,point.y])//this.OrderCenter)
 
         //get the array of portals for a subgrid
         const portalPixels=graphMap.get(`${subgridKey[0]},${subgridKey[1]}`)
@@ -135,7 +165,11 @@ class MovementOrder{
                 x:Number(goalX),
                 y:Number(goalY)
             }
-
+            // const fuzzyGoalPixel = findClosestWalkablePixel(goalPixel, TheData, 1536, 1536);
+            // if (!fuzzyGoalPixel) {
+            //     // No reachable pixel near portal, skip this portal
+            //     continue;
+            // }
             const X=Number(subgridKey[0])
             const Y=Number(subgridKey[1])
 
@@ -174,51 +208,75 @@ class MovementOrder{
         //startPoint is of form chunk|subgrid|pixel
 
         var startIndex = 0
-        var windowSize = 3
-        const windowNodes = pathnodes.slice(startIndex, startIndex + windowSize);
-        
-        // Ensure unit's current subgrid is included
-        const currentSubgridKey = `${point.chunkX},${point.chunkY}|${this.determineSubgrid([point.x, point.y]).join(",")}|${point.x},${point.y}`;
-        // if (!windowNodes.includes(currentSubgridKey)) {
-        //     windowNodes.unshift(currentSubgridKey);
-        // }
-        // if(windowNodes.length>1){
-            // windowNodes[0]=currentSubgridKey
-        // }
-        // windowNodes.push(pathnodes.pop())
-        // console.log("windowNodes",windowNodes,pathnodes)
-        // console.log("goalKey",goalKey)
-        const bufferRes=await TotalSubgridCombining(windowNodes)
+        var windowSize = 5
+        // pathnodes.push(goalKey)
+        var localGoal=false
+        var localStart;
+        var bufferRes;
+        while(localGoal==false){
+            const windowNodes = pathnodes.slice(startIndex, startIndex + windowSize);
+            
+            // Ensure unit's current subgrid is included
+            const currentSubgridKey = `${point.chunkX},${point.chunkY}|${this.determineSubgrid([point.x, point.y]).join(",")}|${point.x},${point.y}`;
 
-        const endsplit=windowNodes.pop().split("|")
-        const [endXpix,endYpix]=endsplit[2].split(",")
-        const [endXChunk,endYChunk]=endsplit[0].split(",")
-        
-        const endX=1536*Number(endXChunk)+Number(endXpix)
-        const endY=1536*Number(endYChunk)+Number(endYpix) 
+            // windowNodes.unshift(currentSubgridKey)
+            windowNodes[0]=currentSubgridKey//replace first since it shares the same subgrid as the point 
+            // console.log(windowNodes.length)
+            bufferRes=await TotalSubgridCombining(windowNodes)
 
-        const startX=1536*point.chunkX+point.x
-        const startY=1536*point.chunkY+point.y
-        const unitPositionPixel={x:startX,y:startY};
-        const endPixel={x:endX,y:endY}
-        
-        //convert the coordinates into a global space and then subtract the origin which will localise it to the buffer
-        const localStart = {
-            x: unitPositionPixel.x - bufferRes.origin.x,
-            y: unitPositionPixel.y - bufferRes.origin.y
-        };
+            const endsplit=windowNodes.pop().split("|")
+            const [endXpix,endYpix]=endsplit[2].split(",")
+            const [endXChunk,endYChunk]=endsplit[0].split(",")
+            
+            const endX=1536*Number(endXChunk)+Number(endXpix)
+            const endY=1536*Number(endYChunk)+Number(endYpix) 
 
-        const localGoal = {
-            x: endPixel.x - bufferRes.origin.x,
-            y: endPixel.y - bufferRes.origin.y
-        };
+            const startX=1536*point.chunkX+point.x
+            const startY=1536*point.chunkY+point.y
+            const unitPositionPixel={x:startX,y:startY};
+            const endPixel={x:endX,y:endY}
+            
+            function isWalkableColor(r, g, b) {
+                return r == Number(255) && g == Number(255) && (b == Number(255) || b == Number(0));
+            }
+
+
+            //convert the coordinates into a global space and then subtract the origin which will localise it to the buffer
+            localStart = {
+                x: Math.floor(unitPositionPixel.x - bufferRes.origin.x) ,
+                y: Math.floor(unitPositionPixel.y - bufferRes.origin.y)
+            };
+
+            localGoal = {
+                x: Math.floor(endPixel.x - bufferRes.origin.x),
+                y: Math.floor(endPixel.y - bufferRes.origin.y) 
+            };
+
+            const idxg = (localGoal.y * bufferRes.width + localGoal.x) * 4;
+            const rg = bufferRes.buffer[idxg], gg = bufferRes.buffer[idxg + 1], bg = bufferRes.buffer[idxg + 2];
+            if (!isWalkableColor(rg, gg, bg)) {
+                // return [Infinity,null]//{ x: goalPixel.x, y: goalPixel.y };
+                localGoal=false
+                //remove that node from the path
+                const indexremove=windowNodes.length -1
+                pathnodes.splice(indexremove,1)
+
+            }
+        }
         
+
         if (localStart.x < 0 || localStart.y < 0 || localStart.x >= bufferRes.width || localStart.y >= bufferRes.height) {
             console.error("Local start out of bounds:", localStart, "Buffer origin:", bufferRes.origin, "Buffer size:", bufferRes.width, bufferRes.height);
             // return false or handle gracefully
             return false;
         }
+        if (localGoal.x < 0 || localGoal.y < 0 || localGoal.x >= bufferRes.width || localGoal.y >= bufferRes.height) {
+            console.error("Local goal out of bounds:", localGoal, "Buffer origin:", bufferRes.origin, "Buffer size:", bufferRes.width, bufferRes.height);
+            // return false or handle gracefully
+            return false;
+        }
         // console.log(localStart,localGoal,bufferRes.origin,bufferRes.width,bufferRes.height)
+        console.log("width, height bruh",bufferRes.width,bufferRes.height)
         const costplease=await AstarPathCostPathIncluded(
             bufferRes.buffer,
             localStart,localGoal,
@@ -252,6 +310,11 @@ class MovementOrder{
         
         const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortal,goalKey)
         // console.log("pathnodesCentral",pathnodesCentral)
+        if(pathnodesCentral==null || pathnodesCentral==false){
+            console.log("path impossible, killing order")
+            // await removeMovementOrder(this)
+            return false;
+        }
         //have to append the actual clicked on point to the end of the path
         // const subby=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
         // const finalformatted=`${this.targetChunk[0]},${this.targetChunk[1]}|${subby[0]},${subby[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
@@ -310,7 +373,7 @@ class MovementOrder{
 
                             //get the userids array for the tile
                             const thoseIds=await getUserIdArrayForTile(chunkUnit)
-                            await unitPositionChangeForUsers(thoseIds,{ChunkX:xPart,ChunkY:yPart,x:pixelsUnit[0],y:pixelsUnit[1]})
+                            await unitPositionChangeForUsers(thoseIds,{unitId:unitId,ChunkX:xPart,ChunkY:yPart,x:pixelsUnit[0],y:pixelsUnit[1]})
                         }else{console.log("on top of formation")}
                     }
                 }
@@ -319,7 +382,7 @@ class MovementOrder{
                 return mutate
             }
 
-            // allowCenterMove=await unitPart()
+            allowCenterMove=await unitPart()
 
             
             
@@ -343,13 +406,13 @@ class MovementOrder{
                     //calc the formation since those points have to move with the central since central moved
                     this.createFormation()
                     
-                    // await unitPart()
+                    await unitPart()
             
                     // if(!allowCenterMove){this.UnitsInvolved=freshMap;this.createFormation()}
 
                 }else{                    
                     //center reached the end so kill the order from the list
-                    console.log("destination reache or invalid, removing order",this.targetChunk,this.destinationPoint,this.chunkHoldingCenter,this.OrderCenter)
+                    console.log("destination reache or invalid, removing order",globalNext,this.targetChunk,this.destinationPoint,this.chunkHoldingCenter,this.OrderCenter)
                     // console.log()
                     await removeMovementOrder(this)
                 }

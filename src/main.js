@@ -714,8 +714,13 @@ async function gameTick() {
     // console.log("hi?",messages)
     for (const [userIdent, TheirMessage] of messages) {
         const TheirSocket=userSockets.get(userIdent)
-        // console.log("TheirMessage",TheirMessage)
-        io.to(TheirSocket).emit('TickUpdate', TheirMessage);
+        // console.log("TheirMessage",TheirMessage,TheirSocket)
+        // const iterator = TheirSocket.values();
+        for (const value of TheirSocket) {
+            // console.log(value);
+            io.to(value).emit('TickUpdate', TheirMessage);
+        }
+        
         await killEntry(userIdent)
     }
 
