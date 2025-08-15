@@ -753,6 +753,7 @@ async function AstarPathCostPathIncluded(rawData, startPixel, goalPixel, segment
 //generate the path over the abstract map
 //combineDataOfSubgridsForSearch use to get cost over tile borders
 async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgridStart,direction,targetAbtractMap){
+    // console.log("trying to make a conenction over chunk borders")
     function combineSubgridRegions(regionA, regionB, direction) {
         const width = (direction === "left" || direction === "right") ? 64 : 32;
         const height = (direction === "top" || direction === "bottom") ? 64 : 32;
@@ -838,19 +839,12 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
 
     const XendSeg=endSubgrid[0]
     const YendSeg=endSubgrid[1]
-    console.log("end and start.... ",[XendSeg,YendSeg],[segmentXS,segmentYS])
+    // console.log("end and start.... ",[XendSeg,YendSeg],[segmentXS,segmentYS])
     const endSegmentExtract=dataB.get(`${XendSeg},${YendSeg}`).get("buffer")//await extractRegion(dataB,4,XendSeg,YendSeg,32,32)
     // console.log("aight... we running")
     //return cost
 
     const combined=combineSubgridRegions(startSegmentExtract,endSegmentExtract,direction)
-    const combinedIndex = (16 * combined.width + 32) * 4;
-    // console.log("Pixel at {x:32, y:16}:", 
-    //     combined.buffer[combinedIndex],
-    //     combined.buffer[combinedIndex + 1],
-    //     combined.buffer[combinedIndex + 2],
-    //     combined.buffer[combinedIndex + 3]
-    // );
 
     const goalKey=`${endSubgrid[0]},${endSubgrid[1]}`
     const portalsOfGoalSegment=targetAbtractMap.get(goalKey).get("connections")
@@ -867,9 +861,10 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
     const neighbourObjs=[]
     //iterate over the portals in the goal segment, if the portal shares the edge with the start, calc cost!
     for (const [key, portals] of portalsOfGoalSegment.entries()){
-        // console.log("key",key)
+        
         const [keyx,keyy]=key.split(",")
-        // console.log(keyx,keyy,"keys components")
+
+        //key is the portal that is within the goal subgrid, portals is the array of portals that connect to it
         const goalInput={
             x:Number(keyx) - XendSeg*32 + shifts.endshiftX,
             y:Number(keyy) - YendSeg*32 + shifts.endshiftY
@@ -877,65 +872,57 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
         // console.log(startInput,goalInput,direction, "input pixels man")
         switch(direction){
             case "left":
-                if(Number(keyx)==1535){
+                if(Number(keyx)>32){
                     // startInput.x=startInput.x-1
                     // console.log(combined.buffer,"buffman")
                     const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,64,32)
                     // console.log("cost",cost)
                     // neighbourObjs.push([key,cost])
-                    // Only add if reachable
-                    if (cost === Infinity) {
-                        neighbourObjs.push([key, Infinity]); // Or some huge cost to discourage but allow fallback
-                    } else {
+                    // Only add if reachable else {
+                    if (cost != Infinity) {
                         neighbourObjs.push([key, cost]);
                     }
                 }
                 break;
             case "right":
-                if(Number(keyx)==0){
+                if(Number(keyx)<1512){//1536-32=1512
                     
                     const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,64,32)
                     // console.log("cost",cost)
                     // neighbourObjs.push([key,cost])
                     // Only add if reachable
-                    if (cost === Infinity) {
-                        neighbourObjs.push([key, 9999]); // Or some huge cost to discourage but allow fallback
-                    } else {
+                    if (cost != Infinity) {
                         neighbourObjs.push([key, cost]);
                     }
                 }
                 break;
             case "top":
-                if(Number(keyy)==1535){
+                if(Number(keyy)>32){
                     // startInput.y=startInput.y-1
                     const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,32,64)
                     // console.log("cost",cost)
                     // neighbourObjs.push([key,cost])
                     // Only add if reachable
-                    if (cost === Infinity) {
-                        neighbourObjs.push([key, 9999]); // Or some huge cost to discourage but allow fallback
-                    } else {
+                    if (cost != Infinity) {
                         neighbourObjs.push([key, cost]);
                     }
                 }
                 break;
             case "bottom":
-                if(Number(keyy)==0){
+                if(Number(keyy)<1512){
 
                     const cost=await AstarPathCost(combined.buffer,startInput,goalInput,segmentOrigin,32,64)
                     // console.log("cost",cost)
                     // neighbourObjs.push([key,cost])
                     // Only add if reachable
-                    if (cost === Infinity) {
-                        neighbourObjs.push([key, 9999]); // Or some huge cost to discourage but allow fallback
-                    } else {
+                    if (cost != Infinity) {
                         neighbourObjs.push([key, cost]);
                     }
                 }
                 break;
         }
     }
-    console.log("neighbourObjs",neighbourObjs,"neighbourObjs")
+    // console.log("neighbourObjs",neighbourObjs,"neighbourObjs")
     return neighbourObjs
 }
 
@@ -943,19 +930,6 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
     // console.log("gets here, ",start,goal)
     const TILE_SIZE = 1536;
     const SUBGRID_SIZE = 32;
-
-    function isWalkableInData(chunkData, width, height, x, y) {
-        if (x < 0 || y < 0 || x >= width || y >= height) {console.log("bounds issue");return false};
-        const idx = (y * width + x) * 4;
-        const r = chunkData[idx];
-        const g = chunkData[idx + 1];
-        const b = chunkData[idx + 2];
-        // console.log(`Pixel (${x},${y}) RGB: (${r},${g},${b})`);
-        const isWhite = r > Number(240) && g > Number(240) && b > Number(240);   // near white
-        const isYellow = r > Number(240) && g > Number(240) && b < Number(15);   // near yellow
-        // console.log("isWhite",isWhite,"isYellow",isYellow)
-        return isWhite || isYellow;
-    }
 
     async function loadChunkAbstractMap(tileKey) {
         const [chunkX, chunkY] = tileKey.split(",").map(Number);
@@ -1057,10 +1031,10 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
 
         // Check for cross-chunk adjacency edges
         const edges = [];
-        if (pixelXC === 0) edges.push("left");
-        else if (pixelXC === TILE_SIZE - 1) edges.push("right");
-        if (pixelYC === 0) edges.push("top");
-        else if (pixelYC === TILE_SIZE - 1) edges.push("bottom");
+        if (SubgridXC === 0) edges.push("left");
+        else if (pixelXC === 47) edges.push("right");
+        if (SubgridYC === 0) edges.push("top");
+        else if (SubgridYC === 47) edges.push("bottom");
 
         const deltas = {
             "left": [-1, 0],
@@ -1090,8 +1064,10 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
             );
 
             for (const [portalKey, cost] of adjNeighbours) {
+                // console.log("portalKey",portalKey,"cost",cost)
                 const setKey = `${adjChunkKey}|${portalKey}`;
-                neighbors[setKey] = cost;
+                // neighbors[setKey] = cost;
+                neighbors.set(setKey, cost);
             }
         }
 
@@ -1112,6 +1088,7 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
                 newChunkX = cx;
                 newChunkY = cy;
                 PixelPoint = breakdown[1].split(",");
+                // console.log("bruh come on, ",newChunkX,newChunkY,PixelPoint,"PixelPoint")
             } else {
                 console.warn("Unexpected neighbor key format:", neighborPixel);
                 continue;

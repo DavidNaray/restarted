@@ -651,6 +651,7 @@ io.on('connection', (socket) => {
         tile.save()
         // console.log("chosen....",chosenServerIndices)
 
+        console.log("deploting units in chunk",values.chunkCoords)
         const responseObject={
             "AssetClass":"Unit",
             "position":values.pixelCoords,//RequestMetaData.DeployPosition,
