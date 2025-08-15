@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 
 const cookieParser = require('cookie-parser');
 const bcrypt = require('bcrypt');
-
+const bson = require('bson');
 
 const Coordfinder=require("./modules/NextChunkCoord")
 const genTerrain=require("./modules/TerrainGeneration")
@@ -103,13 +103,20 @@ app.post('/Register-user', async (req, res) => {
     const chunkX=pos[0];
     const chunkY=pos[1];
     // console.log(chunkX,chunkY, "HOPEFULLY STILL CHANGES")
-    genTerrain.generateHeightmap(chunkX,chunkY)//function that creates terrain
+    await genTerrain.generateHeightmap(chunkX,chunkY)//function that creates terrain
 
     const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+chunkX.toString()+chunkY.toString()+".png"
     console.log("WalkMapLocation",WalkMapLocation)
     //abstractMapForTile is a map() of portals, 
     // the key is the start portal, the value is a map of endportal -> cost to get there from the start portal (first key)
-    const abstractMapForTile=await PortalConnectivity(WalkMapLocation)
+    var abstractMapForTile;
+    try{
+        abstractMapForTile=await PortalConnectivity(WalkMapLocation,true)
+    }catch(eb){
+        console.log("Error in abstract map generation:", eb);
+    }
+    
+    console.log(abstractMapForTile,"not the abstract map failing cus ur seeing this",)
     // const AbstractMapForSchema=convertMapToMongoDoc(abstractMapForTile)
     // console.log("Size of abstract map in KB:", Buffer.byteLength(JSON.stringify(AbstractMapForSchema)) / 1024);
     // console.log(AbstractMapForSchema)
@@ -144,8 +151,18 @@ app.post('/Register-user', async (req, res) => {
     // tile.AbstractMap=convertMapToMongoDoc(abstractMapForTile)
     // tile.markModified('AbstractMap');
     try {
-        tile.AbstractMap = convertMapToMongoDoc(abstractMapForTile);
-        tile.markModified('AbstractMap');
+        if(abstractMapForTile){
+            const abstractMapDoc= convertMapToMongoDoc(abstractMapForTile);
+            const doc = { AbstractMap: abstractMapDoc };
+
+            const size = bson.calculateObjectSize(doc);
+            
+            console.log('Mongo document size in bytes:', size);
+
+            tile.AbstractMap=abstractMapDoc;
+            tile.markModified('AbstractMap');
+        }
+
         await tile.save();
         console.log("✅ Tile saved successfully");
     } catch (err) {
@@ -154,7 +171,9 @@ app.post('/Register-user', async (req, res) => {
     // await tile.save();
 
     user.OriginTile=[chunkX,chunkY]
+    console.log("before save")
     await user.save();
+    console.log("after save")
 
 
     console.log("ITS ON REGISTER MAN!!")

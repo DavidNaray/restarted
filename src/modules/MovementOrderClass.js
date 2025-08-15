@@ -15,9 +15,10 @@ class MovementOrder{
         this.formationPoints=[]
         
         this._progressMovementRunning=false
-
-        this.orderSetup()
+        
         addMovementOrder(this)
+        this.validateclickedPoint()
+        
     }
     //ChunkManager.getTile(x,y).AbstractMap
     async calculateMedian(){
@@ -103,79 +104,54 @@ class MovementOrder{
     }
 
     async getClosestAccessiblePortal(point){
-        function isWalkableColor(r, g, b) {
-            return r == Number(255) && g == Number(255) && (b == Number(255) || b == Number(0));
-        }
 
-        function findClosestWalkablePixel(goalPixel, data, segmentWidth, segmentHeight) {
-            if (goalPixel.x >= 0 && goalPixel.x < segmentWidth && goalPixel.y >= 0 && goalPixel.y < segmentHeight) {
-                const idx = (goalPixel.y * segmentWidth + goalPixel.x) * 4;
-                const r = data[idx], g = data[idx + 1], b = data[idx + 2];
-                if (isWalkableColor(r, g, b)) {
-                    return { x: goalPixel.x, y: goalPixel.y };
-                }
-            }
-
-            const maxRadius = 10; // You can tune this
-            for (let radius = 1; radius <= maxRadius; radius++) {
-                for (let dy = -radius; dy <= radius; dy++) {
-                    for (let dx = -radius; dx <= radius; dx++) {
-                        const nx = goalPixel.x + dx;
-                        const ny = goalPixel.y + dy;
-                        if (nx < 0 || nx >= segmentWidth || ny < 0 || ny >= segmentHeight) continue;
-                        const idx = (ny * segmentWidth + nx) * 4;
-                        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
-                        if (isWalkableColor(r, g, b)) {
-                            return { x: nx, y: ny,chunkX: point.chunkX,chunkY:point.chunkY};
-                        }
-                    }
-                }
-            }
-            return null; // No walkable found (rare, means it's surrounded by blue)
-        }
         // const [x,y]=this.chunkHoldingCenter
         const x=point.chunkX//this.chunkHoldingCenter[0]
         const y=point.chunkY//this.chunkHoldingCenter[1]
-        const theAbstractMapForCenterPointTile=ChunkManager.getTile(x,y).AbstractMap;
+        const graphMap=await getDataOfTile(`${x},${y}`)//ChunkManager.getTile(x,y).AbstractMap;
         //theAbstractMapForCenterPointTile is an array, this is because mongoDB doesnt support map, must convert
 
-        const graphMap = convertMongoPortalGraphToMap(theAbstractMapForCenterPointTile);
+        // const graphMap = theAbstractMapForCenterPointTile//convertMongoPortalGraphToMap(theAbstractMapForCenterPointTile);
+        // console.log("converted!!!!!!!!,: ",graphMap,"!!!!!!")
         const subgridKey=this.determineSubgrid([point.x,point.y])//this.OrderCenter)
 
         //get the array of portals for a subgrid
-        const portalPixels=graphMap.get(`${subgridKey[0]},${subgridKey[1]}`)
+        const portalPixels=graphMap.get(`${subgridKey[0]},${subgridKey[1]}`).get("connections")
         // console.log("portalPixels",portalPixels)
         //perform A* from OrderCenter to the different portalPixels and select the portal with the least cost
         //since the direction is to the next portal after the one it is on
         
         //get the rgba data for the tile which is necessary for the pathfinding
-        const TheData=await getDataOfTile(`${x},${y}`)
+        const TheData=graphMap.get(`${subgridKey[0]},${subgridKey[1]}`).get("buffer")//await getDataOfTile(`${x},${y}`)
+        // console.log(TheData,"within getClosestAccessiblePortal")
         //start pixel is where the median is, so orderCenter
         const startPixel={
-            x:point.x,//Number(this.OrderCenter[0]),
-            y:point.y//Number(this.OrderCenter[1])
+            x:point.x - 32*Number(subgridKey[0]),//Number(this.OrderCenter[0]),
+            y:point.y - 32*Number(subgridKey[1])//Number(this.OrderCenter[1])
         }
 
         let cheapestPortal={pixelVal:"",cost:Infinity,chunk:{x:x,y:y},subgrid:{x:subgridKey[0],y:subgridKey[1]}};
         for(const bing of portalPixels){
-            // console.log(bing)
+            // console.log("bing",bing)
             const [goalX,goalY]=bing[0].split(",")
 
+
+            
             const goalPixel={
-                x:Number(goalX),
-                y:Number(goalY)
+                x:Number(goalX) - 32*Number(subgridKey[0]),
+                y:Number(goalY) - 32*Number(subgridKey[1])
             }
             // const fuzzyGoalPixel = findClosestWalkablePixel(goalPixel, TheData, 1536, 1536);
             // if (!fuzzyGoalPixel) {
             //     // No reachable pixel near portal, skip this portal
             //     continue;
             // }
-            const X=Number(subgridKey[0])
-            const Y=Number(subgridKey[1])
+            // const X=Number(subgridKey[0])
+            // const Y=Number(subgridKey[1])
+            // console.log(Buffer.isBuffer(TheData),"should be a buffer....")
+            const cost=await AstarPathCost(TheData,startPixel,goalPixel,{x:0,y:0},32,32)
 
-            const cost=await AstarPathCost(TheData,startPixel,goalPixel,{x:X*32,y:Y*32},32,32)
-
-            if(cost< cheapestPortal.cost){cheapestPortal={pixelVal:goalPixel,cost:cost,chunk:{x:x,y:y},subgrid:{x:subgridKey[0],y:subgridKey[1]}}}
+            if(cost< cheapestPortal.cost){cheapestPortal={pixelVal:{x:Number(goalX),y:Number(goalY)},cost:cost,chunk:{x:x,y:y},subgrid:{x:subgridKey[0],y:subgridKey[1]}}}
 
         }
         // console.log("WOO, cheapest baby thats reachable!",cheapestPortal.pixelVal,cheapestPortal.cost)
@@ -183,10 +159,43 @@ class MovementOrder{
 
     }
 
-    async PathFromStartPortalToEndSubgrid(CP,goalKey){//CP:cheapest portal
+    async validateclickedPoint(){
+        
+        const y=this.destinationPoint[1]
+        const x=this.destinationPoint[0]
+        
+        const subgridX=Math.floor(x/32)
+        const subgridY=Math.floor(y/32)
+
+        const localisedX=x-32*subgridX
+        const localisedY=y-32*subgridY
+        
+        var data=await getDataOfTile(`${this.targetChunk[0]},${this.targetChunk[1]}`)
+        // console.log("target chunk man, ",data,"....")
+        data=data.get(`${subgridX},${subgridY}`).get("buffer")
+        // console.log(Buffer.isBuffer(data),"data...")
+
+        const index = (localisedY * 32 + localisedX) * 4;
+        // console.log(data,"data",index,localisedY,localisedX)
+        const r = data[index], g = data[index + 1], b = data[index + 2];
+
+        if(r === Number(255) && g === Number(255) && (b === Number(255) || b === Number(0))){
+            console.log(r,g,b,"valid",subgridX,subgridY)
+            console.log("ok, destination point actually valid")
+            await this.orderSetup()
+        }else{
+            //remove the order...
+            console.log(r,g,b,"invalid",subgridX,subgridY,data)
+            console.log("ok, destination point not valid")
+            await removeMovementOrder(this)
+        }
+    }
+
+    async PathFromStartPortalToEndSubgrid(CP,goal){//CP:cheapest portal
         // console.log("aight",CP)
         // const CX=cheapestPortal
         const startKey=`${CP.chunk.x},${CP.chunk.y}|${CP.subgrid.x},${CP.subgrid.y}|${CP.pixelVal.x},${CP.pixelVal.y}`
+        const goalKey=`${goal.chunk.x},${goal.chunk.y}|${goal.subgrid.x},${goal.subgrid.y}|${goal.pixelVal.x},${goal.pixelVal.y}`
         // const goalSubgrid=this.determineSubgrid(this.destinationPoint)
         // const goalKey=`${this.targetChunk[0]},${this.targetChunk[1]}|${goalSubgrid[0]},${goalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
         
@@ -194,36 +203,42 @@ class MovementOrder{
 
         const x=CP.chunk.x//this.chunkHoldingCenter[0]
         const y=CP.chunk.y//this.chunkHoldingCenter[1]
-        const startingAbstractMapArray=ChunkManager.getTile(x,y).AbstractMap;
-        const MapAbstractStarting = convertMongoPortalGraphToMap(startingAbstractMapArray);
+        const startingAbstractMap=await getDataOfTile(`${x},${y}`)//ChunkManager.getTile(x,y).AbstractMap;
+        // const MapAbstractStarting = convertMongoPortalGraphToMap(startingAbstractMapArray);
         // console.log(MapAbstractStarting)
 
 
-        const path=await abstractMapAstarMultiTileCapable(startKey,goalKey,MapAbstractStarting)
-        // console.log("path?",path)
+        const path=await abstractMapAstarMultiTileCapable(startKey,goalKey,startingAbstractMap)
+        // console.log("path?",path,goalKey)
         return path;
     }
 
     async getCombinedSubgridsDataForPath(pathnodes,point,goalKey){
         //startPoint is of form chunk|subgrid|pixel
-
+        const currentSubgridKey = `${point.chunkX},${point.chunkY}|${this.determineSubgrid([point.x, point.y]).join(",")}|${point.x},${point.y}`;
         var startIndex = 0
-        var windowSize = 5
-        // pathnodes.push(goalKey)
+        var windowSize = 3
+        // pathnodes.push(goalKey)//actual clicked on final point
+        
+        // pathnodes.unshift(currentSubgridKey) //add the point the unit is actually on rn
+        pathnodes[0]=currentSubgridKey
+        pathnodes[pathnodes.length-1]=goalKey
         var localGoal=false
         var localStart;
         var bufferRes;
         while(localGoal==false){
-            const windowNodes = pathnodes.slice(startIndex, startIndex + windowSize);
-            
+            const windowNodes = [... new Set(pathnodes.slice(startIndex, startIndex + windowSize))];
+            localGoal=true
             // Ensure unit's current subgrid is included
-            const currentSubgridKey = `${point.chunkX},${point.chunkY}|${this.determineSubgrid([point.x, point.y]).join(",")}|${point.x},${point.y}`;
+            
 
             // windowNodes.unshift(currentSubgridKey)
-            windowNodes[0]=currentSubgridKey//replace first since it shares the same subgrid as the point 
+            // windowNodes[0]=currentSubgridKey//replace first since it shares the same subgrid as the point 
             // console.log(windowNodes.length)
+            // windowNodes.push(goalKey)
             bufferRes=await TotalSubgridCombining(windowNodes)
-
+            // console.log("windowNodes",windowNodes)
+            // console.log("bufferRes!",bufferRes)
             const endsplit=windowNodes.pop().split("|")
             const [endXpix,endYpix]=endsplit[2].split(",")
             const [endXChunk,endYChunk]=endsplit[0].split(",")
@@ -237,7 +252,7 @@ class MovementOrder{
             const endPixel={x:endX,y:endY}
             
             function isWalkableColor(r, g, b) {
-                return r == Number(255) && g == Number(255) && (b == Number(255) || b == Number(0));
+                return r === Number(255) && g === Number(255) && (b === Number(255) || b === Number(0));
             }
 
 
@@ -248,21 +263,35 @@ class MovementOrder{
             };
 
             localGoal = {
-                x: Math.floor(endPixel.x - bufferRes.origin.x),
+                x: Math.floor(endPixel.x - bufferRes.origin.x) ,
                 y: Math.floor(endPixel.y - bufferRes.origin.y) 
             };
-
+                
             const idxg = (localGoal.y * bufferRes.width + localGoal.x) * 4;
             const rg = bufferRes.buffer[idxg], gg = bufferRes.buffer[idxg + 1], bg = bufferRes.buffer[idxg + 2];
             if (!isWalkableColor(rg, gg, bg)) {
                 // return [Infinity,null]//{ x: goalPixel.x, y: goalPixel.y };
+                // endPixel,rg,gg,bg,localGoal,bufferRes,
+                console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
                 localGoal=false
-                //remove that node from the path
-                const indexremove=windowNodes.length -1
-                pathnodes.splice(indexremove,1)
-
+                windowSize+=1
+                if(pathnodes.length==0 || windowSize==pathnodes.length){
+                    console.log("zamn buddy")
+                    return false;
+                }
             }
         }
+                //         
+        //         //remove that node from the path
+        //         const indexremove=windowNodes.length -1
+        //         
+        //         pathnodes.splice(indexremove,1)
+        //         if(pathnodes.length==0 || windowSize>pathnodes.length){
+        //             return false;
+        //         }
+
+        //     }
+        // }
         
 
         if (localStart.x < 0 || localStart.y < 0 || localStart.x >= bufferRes.width || localStart.y >= bufferRes.height) {
@@ -276,7 +305,7 @@ class MovementOrder{
             return false;
         }
         // console.log(localStart,localGoal,bufferRes.origin,bufferRes.width,bufferRes.height)
-        console.log("width, height bruh",bufferRes.width,bufferRes.height)
+        // console.log("width, height bruh",bufferRes.width,bufferRes.height)
         const costplease=await AstarPathCostPathIncluded(
             bufferRes.buffer,
             localStart,localGoal,
@@ -285,7 +314,7 @@ class MovementOrder{
             bufferRes.height
         )
         // console.log("costplease",costplease)
-        if(costplease[1]===null){return false}
+        if(costplease[1]===null){return false}//console.log("cost is null man");
         // console.log("pos",bufferRes.origin.x+costplease[1].x,bufferRes.origin.y+costplease[1].y)
         return {x:bufferRes.origin.x+costplease[1].x,y:bufferRes.origin.y+costplease[1].y}
         
@@ -296,29 +325,92 @@ class MovementOrder{
         await this.calculateMedian();
         this.createFormation()
 
+        //get the path for the order central
+        const CX=this.chunkHoldingCenter[0]
+        const CY=this.chunkHoldingCenter[1]
+        const PX=Number(this.OrderCenter[0])
+        const PY=Number(this.OrderCenter[1])
+
+        const StartSubgrid=this.determineSubgrid([PX,PY])
+        const StartKey=`${CX},${CY}|${StartSubgrid[0]},${StartSubgrid[1]}|${PX},${PY}`
+
+        const GoalSubgrid=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
+        const goalkey=`${this.targetChunk[0]},${this.targetChunk[1]}|${GoalSubgrid[0]},${GoalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
+
+
+        const breakgoal=goalkey.split("|")
+        const goalCC=breakgoal[0].split(",")
+        const goalPC=breakgoal[2].split(",")
+
+        if(goalPC[0]==undefined || goalPC[1]==undefined){console.log(goalPC,"path impossible, killing order");return false;}
+        
+        const centerpoint={
+            chunkX:CX,chunkY:CY,
+            x:PX,y:PY
+        }
+        const Goalpoint={
+            chunkX:Number(goalCC[0]),chunkY:Number(goalCC[1]),
+            x:Number(goalPC[0]),y:Number(goalPC[1])
+        }
+
+        const cheapestPortal=await this.getClosestAccessiblePortal(centerpoint)
+        const cheapestPortalGoal=await this.getClosestAccessiblePortal(Goalpoint)
+        // console.log(cheapestPortal,cheapestPortal, "bruh, goals")
+
+        const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortal,cheapestPortalGoal)
+        if(pathnodesCentral==null || pathnodesCentral==false){
+            console.log("path impossible, killing order")
+            // await removeMovementOrder(this)
+            return false;
+        }
+        //replace the start with the actual starting pixel
+        pathnodesCentral[0]=StartKey
+        pathnodesCentral[pathnodesCentral.length -1]=goalkey
+        console.log("actual first path....",pathnodesCentral)
     }
 
 
     async getTheNextPixel(CX,CY,PX,PY,goalKey){
         const centerpoint={
             chunkX:CX,chunkY:CY,
+            // subgridX:0,subgridY:0,
             x:PX,y:PY
         }
         const cheapestPortal=await this.getClosestAccessiblePortal(centerpoint)//closest to order center point
+
+        const breakgoal=goalKey.split("|")
+        const goalCC=breakgoal[0].split(",")
+        const goalPC=breakgoal[2].split(",")
+        if(goalPC[0]==undefined || goalPC[1]==undefined){
+            console.log("path impossible, killing order")
+            return false;
+        }
+        const cheapestPortalGoal=await this.getClosestAccessiblePortal({
+            chunkX:Number(goalCC[0]),chunkY:Number(goalCC[1]),
+            // subgridX:0,subgridY:0,
+            x:Number(goalPC[0]),y:Number(goalPC[1])
+        })
         // const goalSubgrid=this.determineSubgrid(this.destinationPoint)
         // const goalKey=`${this.targetChunk[0]},${this.targetChunk[1]}|${goalSubgrid[0]},${goalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
+        // const WSG=this.determineSubgrid([PX,PY])
+        // const instead=`${CX},${CY}|${WSG[0]},${WSG[1]}|${PX},${PX}`
+        // let instead={pixelVal:{x:PX,y:PY},cost:1,chunk:{x:CX,y:CY},subgrid:{x:WSG[0],y:WSG[1]}};
+        const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortal,cheapestPortalGoal)//cheapestPortal
         
-        const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortal,goalKey)
         // console.log("pathnodesCentral",pathnodesCentral)
         if(pathnodesCentral==null || pathnodesCentral==false){
             console.log("path impossible, killing order")
             // await removeMovementOrder(this)
             return false;
         }
+        // if(pathnodesCentral[pathnodesCentral.length-1]==goalKey ){//stops units from oscillating
+        //     console.log("made it, killing potential oscillation")
+        //     return false;
+        // }
         //have to append the actual clicked on point to the end of the path
         // const subby=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
         // const finalformatted=`${this.targetChunk[0]},${this.targetChunk[1]}|${subby[0]},${subby[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
-        pathnodesCentral.push(goalKey)
+        // pathnodesCentral.push(goalKey)
 
         // ✅ Prepend the unit's actual position
         // const unitSubgrid = this.determineSubgrid([centerpoint.x, centerpoint.y]);
@@ -374,7 +466,9 @@ class MovementOrder{
                             //get the userids array for the tile
                             const thoseIds=await getUserIdArrayForTile(chunkUnit)
                             await unitPositionChangeForUsers(thoseIds,{unitId:unitId,ChunkX:xPart,ChunkY:yPart,x:pixelsUnit[0],y:pixelsUnit[1]})
-                        }else{console.log("on top of formation")}
+                        }else{
+                            // console.log("on top of formation")
+                        }
                     }
                 }
                 // return freshMap
@@ -399,7 +493,7 @@ class MovementOrder{
                 const globalNext=await this.getTheNextPixel(CX,CY,PX,PY,goalkey);
                 // const globalNext=await this.getCombinedSubgridsDataForPath(pathnodesCentral,centerpoint)
                 if(globalNext!=false){
-                    console.log("to the next!", globalNext)
+                    // console.log("to the next!", globalNext)
                     this.chunkHoldingCenter=[Math.floor(globalNext.x / 1536),Math.floor(globalNext.y / 1536)]
                     this.OrderCenter=[globalNext.x % 1536,globalNext.y % 1536]
                     

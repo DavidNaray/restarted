@@ -13,7 +13,7 @@ const pixelsPerUnit = walkMapWidth / worldTileSize;
 
 const subgridSize=32;
 
-async function generatePortalMap(Imglocation) {
+async function generatePortalMapOriginal(Imglocation,debug=false) {
     // Load the walkmap
     const { data, info } = await sharp(Imglocation)
         .ensureAlpha()
@@ -27,22 +27,49 @@ async function generatePortalMap(Imglocation) {
 
     // Walkable check (white or yellow)
     function isWalkable(x, y) {
+
         if (x < 0 || y < 0 || x >= info.width || y >= info.height) return false;
         const index = (y * info.width + x) * 4;
         const r = data[index], g = data[index + 1], b = data[index + 2];
-        return (r === 255 && g === 255 && (b === 255 || b === 0));
+
+        const isWhite = r > Number(240) && g > Number(240) && b > Number(240);   // near white
+        const isYellow = r > Number(240) && g > Number(240) && b < Number(15);   // near yellow
+        return isWhite || isYellow;
     }
 
     // Detect portals for one subgrid
     function detectPortalsForSubgrid(subgridX, subgridY) {
+        if(subgridX<0 || subgridX>47){
+            console.log("due, what the elly")
+        }
         const startX = subgridX * subgridSize;
         const startY = subgridY * subgridSize;
 
         const portals = [];
 
-        // Helper: process one edge
+        // Existing edge processing logic...
         function processEdge(edge, fixedCoord, variableStart, variableEnd, horizontal) {
             let segmentStart = null;
+
+            function pushPortal(start, end) {
+                const mid = Math.floor((start + end) / 2);
+
+                // Scan from mid outward for a valid pixel
+                for (let offset = 0; offset <= (end - start) / 2; offset++) {
+                    const candidates = [mid - offset, mid + offset];
+                    for (const pos of candidates) {
+                        if (pos < start || pos > end) continue;
+
+                        const portalX = horizontal ? pos : fixedCoord;
+                        const portalY = horizontal ? fixedCoord : pos;
+
+                        if (isWalkable(portalX, portalY)) {
+                            portals.push({ x: portalX, y: portalY, edge });
+                            return;
+                        }
+                    }
+                }
+            }
 
             for (let i = variableStart; i <= variableEnd; i++) {
                 const x = horizontal ? i : fixedCoord;
@@ -52,24 +79,17 @@ async function generatePortalMap(Imglocation) {
                     if (segmentStart === null) segmentStart = i;
                 } else {
                     if (segmentStart !== null) {
-                        const mid = Math.floor((segmentStart + i - 1) / 2);
-                        const portalX = horizontal ? mid : fixedCoord;
-                        const portalY = horizontal ? fixedCoord : mid;
-                        portals.push({ x: portalX, y: portalY, edge });
+                        pushPortal(segmentStart, i - 1);
                         segmentStart = null;
                     }
                 }
             }
 
             if (segmentStart !== null) {
-                const mid = Math.floor((segmentStart + variableEnd) / 2);
-                const portalX = horizontal ? mid : fixedCoord;
-                const portalY = horizontal ? fixedCoord : mid;
-                portals.push({ x: portalX, y: portalY, edge });
+                pushPortal(segmentStart, variableEnd);
             }
         }
 
-        // Process edges: top, bottom, left, right
         processEdge('top', startY, startX, startX + subgridSize - 1, true);
         processEdge('bottom', startY + subgridSize - 1, startX, startX + subgridSize - 1, true);
         processEdge('left', startX, startY, startY + subgridSize - 1, false);
@@ -89,7 +109,147 @@ async function generatePortalMap(Imglocation) {
     return [portalMap, data];
 }
 
-async function addEdgeToAbstractGraph(abstractMap,subgrid,start, end, cost){
+async function generatePortalMap(Imglocation,debug=false) {
+    const { data, info } = await sharp(Imglocation)
+        .ensureAlpha()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+
+    const gridCols = Math.ceil(info.width / subgridSize);
+    const gridRows = Math.ceil(info.height / subgridSize);
+
+    const portalMap = new Map();
+
+    function isWalkable(x, y) {
+        if (x < 0 || y < 0 || x >= info.width || y >= info.height) return false;
+        const index = (y * info.width + x) * 4;
+        const r = data[index], g = data[index + 1], b = data[index + 2];
+
+        
+        const isWhite = r > 240 && g > 240 && b > 240;   // near white
+        const isYellow = r > 240 && g > 240 && b < 15;   // near yellow
+        // if(isYellow){
+        //     console.log("seeing yellow!!!")
+        // }
+        return isWhite || isYellow;
+    }
+
+    function floodFillSubgrid(subgridX, subgridY) {
+        const startX = subgridX * subgridSize;
+        const startY = subgridY * subgridSize;
+
+        const visited = new Uint8Array(subgridSize * subgridSize);
+        const regions = [];
+
+        const directions = [
+            [1, 0], [-1, 0], [0, 1], [0, -1]
+        ];
+
+        function idx(x, y) {
+            return y * subgridSize + x;
+        }
+
+        for (let y = 0; y < subgridSize; y++) {
+            for (let x = 0; x < subgridSize; x++) {
+                const globalX = startX + x;
+                const globalY = startY + y;
+                const index = idx(x, y);
+
+                if (visited[index] || !isWalkable(globalX, globalY)) continue;
+
+                // Start new region
+                const stack = [[x, y]];
+                visited[index] = 1;
+
+                let pixels = [];
+
+                while (stack.length) {
+                    const [cx, cy] = stack.pop();
+                    const gx = startX + cx;
+                    const gy = startY + cy;
+
+                    pixels.push([gx, gy]);
+
+                    for (const [dx, dy] of directions) {
+                        const nx = cx + dx;
+                        const ny = cy + dy;
+                        if (nx < 0 || ny < 0 || nx >= subgridSize || ny >= subgridSize) continue;
+
+                        const nIndex = idx(nx, ny);
+                        if (!visited[nIndex] && isWalkable(startX + nx, startY + ny)) {
+                            visited[nIndex] = 1;
+                            stack.push([nx, ny]);
+                        }
+                    }
+                }
+
+                // Compute approximate center
+                let avgX = Math.floor(pixels.reduce((sum, p) => sum + p[0], 0) / pixels.length);
+                let avgY = Math.floor(pixels.reduce((sum, p) => sum + p[1], 0) / pixels.length);
+
+                // Ensure the center is walkable, otherwise pick nearest walkable from region
+                if (!isWalkable(avgX, avgY)) {
+                    let minDist = Infinity;
+                    let bestPixel = pixels[0];
+                    for (const [px, py] of pixels) {
+                        const dx = px - avgX;
+                        const dy = py - avgY;
+                        const dist = dx * dx + dy * dy;
+                        if (dist < minDist) {
+                            minDist = dist;
+                            bestPixel = [px, py];
+                        }
+                    }
+                    avgX = bestPixel[0];
+                    avgY = bestPixel[1];
+                }
+                // Final safety check (optional but good practice)
+                if (!isWalkable(avgX, avgY)) {
+                    console.error(`Unexpected: fallback picked non-walkable pixel at (${avgX},${avgY})`);
+                }
+                regions.push({
+                    x: avgX,
+                    y: avgY
+                });
+                
+                // If debug mode, paint this pixel orange
+                // if (debug) {
+                //     const idxRGBA = (avgY * info.width + avgX) * 4;
+                //     data[idxRGBA] = 255;     // R
+                //     data[idxRGBA + 1] = 165; // G
+                //     data[idxRGBA + 2] = 0;   // B
+                //     data[idxRGBA + 3] = 255; // A
+                // }
+            }
+        }
+
+        return regions;
+
+    }
+
+    for (let gridY = 0; gridY < gridRows; gridY++) {
+        for (let gridX = 0; gridX < gridCols; gridX++) {
+            // if(gridX==9){
+            //     console.log(gridY)
+            // }
+            
+            const regions = floodFillSubgrid(gridX, gridY);
+            portalMap.set(`${gridX},${gridY}`, regions);
+        }
+    }
+
+    // if (debug) {
+    //     console.log("?,should be oing something",Imglocation)
+    //     await sharp(data, {
+    //         raw: { width: info.width, height: info.height, channels: 4 }
+    //     })
+    //     .toFile(Imglocation); // overwrite original image
+    // }
+
+    return [portalMap, data,debug];
+}
+
+async function addEdgeToAbstractGraph(abstractMap,subgrid,start, end, cost,subgridBuffer){
 
     //abstractmap structure should be subgrid -> (start -> (end->cost))
 
@@ -99,8 +259,15 @@ async function addEdgeToAbstractGraph(abstractMap,subgrid,start, end, cost){
         abstractMap.set(subgrid,new Map())
         SubgridRecord=abstractMap.get(subgrid)
     }
+    if(!SubgridRecord.has("buffer")){
+        SubgridRecord.set("buffer",subgridBuffer)
+    }
 
-    const StartTarget=SubgridRecord.get(start)
+    if(!SubgridRecord.has("connections")){
+        SubgridRecord.set("connections",new Map())
+    }
+
+    const StartTarget=SubgridRecord.get("connections").get(start)
     // const existsStart=abstractMap.get(subgrid).has(start)
     if(StartTarget){
         
@@ -110,7 +277,7 @@ async function addEdgeToAbstractGraph(abstractMap,subgrid,start, end, cost){
     }else{
         const valueSet=new Map();
         valueSet.set(end,cost)
-        SubgridRecord.set(start,valueSet)
+        SubgridRecord.get("connections").set(start,valueSet)
 
     }
 
@@ -132,32 +299,131 @@ async function addEdgeToAbstractGraph(abstractMap,subgrid,start, end, cost){
 }
 
 async function extractRegion(rawData, channels, x, y, width, height) {
-  const region = new Uint8Array(width * height * channels);
+//   const region = new Uint8Array(width * height * channels);
 
-  for (let row = 0; row < height; row++) {
-    const srcStart = ((y + row) * walkMapWidth + x) * channels;
-    const srcEnd = srcStart + width * channels;
+//   for (let row = 0; row < height; row++) {
+//     const srcStart = ((y + row) * walkMapWidth + x) * channels;
+//     const srcEnd = srcStart + width * channels;
 
-    const dstStart = row * width * channels;
+//     const dstStart = row * width * channels;
 
-    region.set(rawData.subarray(srcStart, srcEnd), dstStart);
-  }
+//     region.set(rawData.subarray(srcStart, srcEnd), dstStart);
+//   }
 
-  return region;
+//   return region;
+    const region = Buffer.alloc(width * height * channels);
+
+    for (let row = 0; row < height; row++) {
+        const srcStart = ((y + row) * walkMapWidth + x) * channels;
+        const srcEnd = srcStart + width * channels;
+        const dstStart = row * width * channels;
+
+        rawData.copy(region, dstStart, srcStart, srcEnd);
+    }
+
+    return region;
 }
 
-async function AstarPathCost(rawData,startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight) {
-    const data = (Buffer.isBuffer(rawData) && rawData.length === segmentWidth * segmentHeight * 4)
-        ? rawData
-        : await extractRegion(rawData, 4, segmentOrigin.x, segmentOrigin.y, segmentWidth, segmentHeight);
+async function combineSegmentsOG(bufferOne, bufferTwo, direction) {
+  const channels = 4;
+
+  let combinedWidth, combinedHeight;
+
+  switch(direction) {
+    case "startTop":
+    case "startBottom":
+      combinedWidth = 32;
+      combinedHeight = 64; // stacking vertically
+      break;
+    case "startLeft":
+    case "startRight":
+      combinedWidth = 64; // stacking horizontally
+      combinedHeight = 32;
+      break;
+    default:
+      throw new Error("Invalid direction: " + direction);
+  }
+
+  const combinedBuffer = Buffer.alloc(combinedWidth * combinedHeight * channels);
+
+  function copyBuffer(src, dest, destWidth, destHeight, destX, destY) {
+    for (let y = 0; y < 32; y++) {
+      for (let x = 0; x < 32; x++) {
+        const srcIdx = (y * 32 + x) * channels;
+        const destIdx = ((destY + y) * destWidth + (destX + x)) * channels;
+        for (let c = 0; c < channels; c++) {
+          combinedBuffer[destIdx + c] = src[srcIdx + c];
+        }
+      }
+    }
+  }
+
+  if (direction === "startTop") {
+    copyBuffer(bufferOne, combinedBuffer, combinedWidth, combinedHeight, 0, 0);
+    copyBuffer(bufferTwo, combinedBuffer, combinedWidth, combinedHeight, 0, 32);
+  } else if (direction === "startBottom") {
+    copyBuffer(bufferTwo, combinedBuffer, combinedWidth, combinedHeight, 0, 0);
+    copyBuffer(bufferOne, combinedBuffer, combinedWidth, combinedHeight, 0, 32);
+  } else if (direction === "startLeft") {
+    copyBuffer(bufferOne, combinedBuffer, combinedWidth, combinedHeight, 0, 0);
+    copyBuffer(bufferTwo, combinedBuffer, combinedWidth, combinedHeight, 32, 0);
+  } else if (direction === "startRight") {
+    copyBuffer(bufferTwo, combinedBuffer, combinedWidth, combinedHeight, 0, 0);
+    copyBuffer(bufferOne, combinedBuffer, combinedWidth, combinedHeight, 32, 0);
+  }
+
+  return [combinedBuffer,combinedWidth, combinedHeight];
+}
+
+async function combineSegments(bufA, bufB, posA, posB) {
+    // posA and posB are the WORLD coords of the top-left corner of each buffer in pixels
+    const SUBGRID_SIZE = 32;
+
+    const minX = Math.min(posA.x, posB.x);
+    const minY = Math.min(posA.y, posB.y);
+
+    const maxX = Math.max(posA.x, posB.x);
+    const maxY = Math.max(posA.y, posB.y);
+
+    const width  = 32+(maxX - minX);
+    const height = 32+(maxY - minY);
+    // console.log(width,height,"?")
+    const combined = Buffer.alloc(width * height * 4, 0);
+
+    function copyBuffer(src, srcW, srcH, destX, destY) {
+        for (let y = 0; y < srcH; y++) {
+            const srcOffset = y * srcW * 4;
+            const destOffset = ((destY + y) * width + destX) * 4;
+            combined.set(src.subarray(srcOffset, srcOffset + srcW * 4), destOffset);
+        }
+    }
+
+    // Place each buffer at correct position relative to minX/minY
+    
+    // console.log(posA.x - minX, posA.y - minY)
+    // console.log(posB.x - minX, posB.y - minY)
+    copyBuffer(bufA, 32, 32, posA.x - minX, posA.y - minY);
+    copyBuffer(bufB, 32, 32, posB.x - minX, posB.y - minY);
+
+    return {
+        buffer: combined,
+        origin: { x: minX, y: minY },
+        width,
+        height
+    };
+}
+async function AstarPathCostOG(rawData,startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight,flag=false) {
+    const data=rawData;
 
     function getTerrainCost(x, y) {
         if (x < 0 || x >= segmentWidth || y < 0 || y >= segmentHeight) return Infinity;
         const index = (y * segmentWidth + x) * 4;
         const r = data[index], g = data[index + 1], b = data[index + 2];
 
-        if (r == Number(255) && g == Number(255) && b == Number(255)) return 1;      // White → Normal
-        if (r == Number(255) && g == Number(255) && b == Number(0)) {return 1.5};      // Yellow → Shallow water
+        if (r === Number(255) && g === Number(255) && b === Number(255)) return 1;      // White → Normal
+        if (r === Number(255) && g === Number(255) && b === Number(0)) {return 1};      // Yellow → Shallow water
+        if (r === Number(255) && g === Number(165) && b === Number(0)) {return 1};      // orange -> portal colour
+        if (r === Number(128) && g === Number(0) && b === Number(128)) {return 1};      // Purple → path from portals
         return Infinity;                                        // Everything else → Blocked
     }
 
@@ -166,209 +432,451 @@ async function AstarPathCost(rawData,startPixel, goalPixel, segmentOrigin, segme
         return Math.sqrt(dx * dx + dy * dy);
     }
 
-    const start = { x: startPixel.x - segmentOrigin.x, y: startPixel.y - segmentOrigin.y };
-    const goal = { x: goalPixel.x - segmentOrigin.x, y: goalPixel.y - segmentOrigin.y };
+    const start = { x: startPixel.x , y: startPixel.y  };
+    const goal = { x: goalPixel.x , y: goalPixel.y  };
 
+    // const size = segmentWidth * segmentHeight;
     const openSet = new MinHeap((a, b) => a.f - b.f);
+    const cameFrom = new Map(); // Maps index to previous index
 
-    const size = segmentWidth * segmentHeight;
-    const gScore = new Float32Array(size).fill(Infinity);
-    const fScore = new Float32Array(size).fill(Infinity);
 
-    const startIndex = start.y * segmentWidth + start.x;
+    // console.log(`A* from local start (${start.x},${start.y}) to goal (${goal.x},${goal.y}) in segment origin (${segmentOrigin.x},${segmentOrigin.y}) size (${segmentWidth},${segmentHeight})`);
+    if (start.x < 0 || start.x >= segmentWidth || start.y < 0 || start.y >= segmentHeight ||
+        goal.x < 0 || goal.x >= segmentWidth || goal.y < 0 || goal.y >= segmentHeight) {
+        console.log("Start or goal outside segment bounds!");
+        return Infinity;
+    }
+
+   
+    // const gScore = new Float32Array(size).fill(Infinity);
+    // const fScore = new Float32Array(size).fill(Infinity);
+    const gScore = Array.from({ length: segmentHeight }, () => Array(segmentWidth).fill(Infinity));
+    const fScore = Array.from({ length: segmentHeight }, () => Array(segmentWidth).fill(Infinity));
+
+    // const startIndex = start.y * segmentWidth + start.x;
     const goalIndex = goal.y * segmentWidth + goal.x;
 
-    gScore[startIndex] = 0;
-    fScore[startIndex] = heuristic(start.x, start.y, goal.x, goal.y);
+    gScore[start.y][start.x] = 0;
+    fScore[start.y][start.x] = heuristic(start.x, start.y, goal.x, goal.y);
 
-    openSet.push({ index: startIndex, x: start.x, y: start.y, f: fScore[startIndex] });
+    openSet.push({ x: start.x, y: start.y, f: fScore[start.y][start.x] });
 
     const directions = [
-        [0, -1], [1, 0], [0, 1], [-1, 0], // 4-way
-        [1, -1], [1, 1], [-1, 1], [-1, -1] // 8-way
+        [0, -1], [1, 0], [0, 1], [-1, 0],    // 4-way
+        [1, -1], [1, 1], [-1, 1], [-1, -1]  // 8-way
     ];
 
     while (!openSet.isEmpty()) {
         const current = openSet.pop();
-        if (current.index === goalIndex) return gScore[current.index];
+        
+        if (current.x === goal.x && current.y === goal.y) {
+            const totalCost = gScore[current.y][current.x];
+
+            if(flag){
+                // Reconstruct path
+                const path = [];
+                // Trace back one step: goal → start
+                let node = `${goal.x},${goal.y}`;
+                let prev = cameFrom.get(node);
+
+                // If goal is the same as start, no move needed
+                if (!prev) {return [totalCost, null];}
+                path.push(node)
+                path.push(prev)
+
+                while (prev && prev !== `${start.x},${start.y}`) {
+                    node = prev;
+                    prev = cameFrom.get(node);
+                    path.push(prev)
+                }
+                path.reverse();
+                return { cost: totalCost, path: path};
+            }else{
+                return totalCost
+            }
+            
+        
+        };
 
         for (const [dx, dy] of directions) {
             const nx = current.x + dx, ny = current.y + dy;
             if (nx < 0 || nx >= segmentWidth || ny < 0 || ny >= segmentHeight) continue;
 
-            // Diagonal check
-            if (Math.abs(dx) + Math.abs(dy) === 2) {
+            const cost = getTerrainCost(nx, ny);
+            if (cost === Infinity) continue;
+
+            const tentativeG = gScore[current.y][current.x] + cost;
+            if (tentativeG < gScore[ny][nx]) {
+                cameFrom.set(`${nx},${ny}`, `${current.x},${current.y}`);
+                gScore[ny][nx] = tentativeG;
+                fScore[ny][nx] = tentativeG + heuristic(nx, ny, goal.x, goal.y);
+                openSet.push({ x: nx, y: ny, f: fScore[ny][nx] });
+            }
+        }
+    }
+
+    return flag ? { cost: Infinity, path: [] } : Infinity;//Infinity;
+}
+async function AstarPathCostmmm(rawData, startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight, flag = false) {
+    const data = rawData;
+
+    function getTerrainCost(x, y) {
+        const idx = (y * segmentWidth + x) * 4;
+        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+        if (r === 255 && g === 255 && b === 255) return 1;   // White
+        if (r === 255 && g === 255 && b === 0) return 1;     // Yellow
+        if (r === 255 && g === 165 && b === 0) return 1;     // Orange
+        if (r === 128 && g === 0 && b === 128) return 1;     // Purple
+        return Infinity;
+    }
+
+    function heuristic(x1, y1, x2, y2) {
+        const dx = x2 - x1, dy = y2 - y1;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    const startX = startPixel.x, startY = startPixel.y;
+    const goalX = goalPixel.x, goalY = goalPixel.y;
+
+    if (
+        startX < 0 || startX >= segmentWidth || startY < 0 || startY >= segmentHeight ||
+        goalX < 0 || goalX >= segmentWidth || goalY < 0 || goalY >= segmentHeight
+    ) {
+        return flag ? { cost: Infinity, path: [] } : Infinity;
+    }
+
+    const size = segmentWidth * segmentHeight;
+    const gScore = new Float32Array(size).fill(Infinity);
+    const fScore = new Float32Array(size).fill(Infinity);
+    const cameFromX = new Int16Array(size).fill(-1);
+    const cameFromY = new Int16Array(size).fill(-1);
+
+    function idx(x, y) { return y * segmentWidth + x; }
+
+    const startIdx = idx(startX, startY);
+    const goalIdx = idx(goalX, goalY);
+
+    gScore[startIdx] = 0;
+    fScore[startIdx] = heuristic(startX, startY, goalX, goalY);
+
+    const openSet = new MinHeap((a, b) => a.f - b.f);
+    openSet.push({ x: startX, y: startY, f: fScore[startIdx] });
+
+    const directions = [
+        [0, -1, 1], [1, 0, 1], [0, 1, 1], [-1, 0, 1],
+        [1, -1, Math.SQRT2], [1, 1, Math.SQRT2], [-1, 1, Math.SQRT2], [-1, -1, Math.SQRT2]
+    ];
+    const closedSet = new Uint8Array(size); // 0 = not visited, 1 = visited
+    while (!openSet.isEmpty()) {
+        const current = openSet.pop();
+        const curIdx = idx(current.x, current.y);
+
+        if (closedSet[curIdx]) continue; // Already processed
+        closedSet[curIdx] = 1;
+        
+        if (current.x === goalX && current.y === goalY) {
+            const totalCost = gScore[curIdx];
+            if (!flag) return totalCost;
+
+            // Reconstruct path
+            const path = [];
+            let cx = goalX, cy = goalY;
+            while (!(cx === startX && cy === startY)) {
+                path.push(`${cx},${cy}`);
+                const prevX = cameFromX[idx(cx, cy)];
+                const prevY = cameFromY[idx(cx, cy)];
+                if (prevX === -1) break;
+                cx = prevX;
+                cy = prevY;
+            }
+            path.push(`${startX},${startY}`);
+            path.reverse();
+            return { cost: totalCost, path };
+        }
+
+        for (const [dx, dy, moveCost] of directions) {
+            const nx = current.x + dx, ny = current.y + dy;
+            if (nx < 0 || nx >= segmentWidth || ny < 0 || ny >= segmentHeight) continue;
+
+            const tCost = getTerrainCost(nx, ny);
+            if (tCost === Infinity) continue;
+
+            const nIdx = idx(nx, ny);
+            const tentativeG = gScore[curIdx] + tCost * moveCost;
+            if (tentativeG < gScore[nIdx]) {
+                cameFromX[nIdx] = current.x;
+                cameFromY[nIdx] = current.y;
+                gScore[nIdx] = tentativeG;
+                fScore[nIdx] = tentativeG + heuristic(nx, ny, goalX, goalY);
+                openSet.push({ x: nx, y: ny, f: fScore[nIdx] });
+            }
+        }
+    }
+
+    return flag ? { cost: Infinity, path: [] } : Infinity;
+}
+async function AstarPathCost(rawData, startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight, flag = false) {
+    const data = rawData;
+
+    function getTerrainCost(x, y) {
+        const idx = (y * segmentWidth + x) * 4;
+        const r = data[idx], g = data[idx + 1], b = data[idx + 2];
+        if (r === 255 && g === 255 && b === 255) return 1;   // White
+        if (r === 255 && g === 255 && b === 0) return 1;     // Yellow
+        if (r === 255 && g === 165 && b === 0) return 1;     // Orange
+        if (r === 128 && g === 0 && b === 128) return 1;     // Purple
+        return Infinity;
+    }
+
+    function heuristic(x1, y1, x2, y2) {
+        const dx = x2 - x1, dy = y2 - y1;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    const startX = startPixel.x, startY = startPixel.y;
+    const goalX = goalPixel.x, goalY = goalPixel.y;
+
+    if (
+        startX < 0 || startX >= segmentWidth || startY < 0 || startY >= segmentHeight ||
+        goalX < 0 || goalX >= segmentWidth || goalY < 0 || goalY >= segmentHeight
+    ) {
+        return flag ? { cost: Infinity, path: [] } : Infinity;
+    }
+
+    const size = segmentWidth * segmentHeight;
+    const gScore = new Float32Array(size).fill(Infinity);
+    const fScore = new Float32Array(size).fill(Infinity);
+    const cameFromX = new Int16Array(size).fill(-1);
+    const cameFromY = new Int16Array(size).fill(-1);
+    const closedSet = new Uint8Array(size); // 0 = not visited, 1 = visited
+
+    function idx(x, y) { return y * segmentWidth + x; }
+
+    const startIdx = idx(startX, startY);
+    const goalIdx = idx(goalX, goalY);
+
+    gScore[startIdx] = 0;
+    fScore[startIdx] = heuristic(startX, startY, goalX, goalY);
+
+    const openSet = new MinHeap((a, b) => a.f - b.f);
+    openSet.push({ x: startX, y: startY, f: fScore[startIdx] });
+
+    const directions = [
+        [0, -1, 1], [1, 0, 1], [0, 1, 1], [-1, 0, 1],
+        [1, -1, Math.SQRT2], [1, 1, Math.SQRT2], [-1, 1, Math.SQRT2], [-1, -1, Math.SQRT2]
+    ];
+
+    while (!openSet.isEmpty()) {
+        const current = openSet.pop();
+        const curIdx = idx(current.x, current.y);
+
+        if (closedSet[curIdx]) continue; // already processed
+        closedSet[curIdx] = 1;
+
+        if (current.x === goalX && current.y === goalY) {
+            const totalCost = gScore[curIdx];
+            if (!flag) return totalCost;
+
+            // Reconstruct path
+            const path = [];
+            let cx = goalX, cy = goalY, guard = 0;
+            while (!(cx === startX && cy === startY)) {
+                path.push(`${cx},${cy}`);
+                const prevX = cameFromX[idx(cx, cy)];
+                const prevY = cameFromY[idx(cx, cy)];
+                if (prevX === -1 || ++guard > size) break;
+                cx = prevX;
+                cy = prevY;
+            }
+            path.push(`${startX},${startY}`);
+            path.reverse();
+            return { cost: totalCost, path };
+        }
+
+        for (const [dx, dy, moveCost] of directions) {
+            const nx = current.x + dx, ny = current.y + dy;
+            if (nx < 0 || nx >= segmentWidth || ny < 0 || ny >= segmentHeight) continue;
+
+            // Prevent diagonal corner cutting
+            if (dx !== 0 && dy !== 0) {
                 if (getTerrainCost(current.x + dx, current.y) === Infinity ||
                     getTerrainCost(current.x, current.y + dy) === Infinity) {
                     continue;
                 }
             }
 
-            const cost = getTerrainCost(nx, ny);
-            if (cost === Infinity) continue;
+            const tCost = getTerrainCost(nx, ny);
+            if (tCost === Infinity) continue;
 
-            const neighborIndex = ny * segmentWidth + nx;
-            const tentativeG = gScore[current.index] + cost;
-            if (tentativeG < gScore[neighborIndex]) {
-                gScore[neighborIndex] = tentativeG;
-                fScore[neighborIndex] = tentativeG + heuristic(nx, ny, goal.x, goal.y);
-                openSet.push({ index: neighborIndex, x: nx, y: ny, f: fScore[neighborIndex] });
+            const nIdx = idx(nx, ny);
+            const tentativeG = gScore[curIdx] + tCost * moveCost;
+            if (tentativeG < gScore[nIdx]) {
+                cameFromX[nIdx] = current.x;
+                cameFromY[nIdx] = current.y;
+                gScore[nIdx] = tentativeG;
+                fScore[nIdx] = tentativeG + heuristic(nx, ny, goalX, goalY);
+                openSet.push({ x: nx, y: ny, f: fScore[nIdx] });
             }
         }
     }
 
-    return Infinity;
+    return flag ? { cost: Infinity, path: [] } : Infinity;
 }
-
 //now to build the connectivity of portals within a subsection
-async function PortalConnectivity(Imglocation){
+async function PortalConnectivity(Imglocation,debug=false){
+
     // For subgrid (X,Y)
     // console.log("hello?")
-    const portalMapPlusDataPlusWidth=await generatePortalMap(Imglocation);
+    const portalMapPlusDataPlusWidth=await generatePortalMap(Imglocation,debug);
     const portalMap=portalMapPlusDataPlusWidth[0]
     const rawData=portalMapPlusDataPlusWidth[1]
     
     const abstractMap=new Map();
-    
-    for (const [key, portals] of portalMap.entries()) {
-        // console.log(portals,key)
-        const XY=key.split(',');
+    // console.log(portalMap)    
+    const visited=new Set();
+    for (const [subgridKey, portals] of portalMap.entries()) {
+        // console.log(subgridKey)
+        visited.add(subgridKey);//since it connects to all ajacent subgrids, we can skip it, when something connects to it
+        const subgridXY=subgridKey.split(',');
         // console.log(portals)
-        const X=Number(XY[0])
-        const Y=Number(XY[1])
-        // console.log(X*32,Y*32)
+        const subgridX=Number(subgridXY[0])
+        const subgridY=Number(subgridXY[1])
+
+
+        const adjacentGrids=[ 
+            [subgridX,(subgridY-1),"startBottom"] , [subgridX,(subgridY+1),"startTop"] , 
+            [(subgridX-1),subgridY,"startRight"] , [(subgridX+1),subgridY,"startLeft"] 
+        ]
+        //portals within a subgrid do not connect to each other since they represent open regions 
+        // that are disconnected from each other
+        //however that does not mean they cant connect to portals in adjacent subgrids
         for (let i = 0; i < portals.length; i++) {
             const startPortal = portals[i];
             const starty=startPortal.x +","+startPortal.y
-            //this loop makes sure each portal node in a subgrid has its cost measured to each other node in the subgrid
-            for (let j = i + 1; j < portals.length; j++) {
-                
-                const goalPortal = portals[j];
-                // console.log("goalPortal structure: ",goalPortal)
-                let cost = await AstarPathCost(rawData,startPortal, goalPortal, {x:X*32,y:Y*32},32,32);
-                // console.log (cost )
-                if (cost !== Infinity) {
-                    
-                    const goaly=goalPortal.x +","+goalPortal.y
-                    //adds edge relationship with other portals in the subgrid
-                    await addEdgeToAbstractGraph(abstractMap,key,starty, goaly, cost);
-                    await addEdgeToAbstractGraph(abstractMap,key,goaly, starty, cost);
+            
+            // const startkey=`${0},${0}|${Math.floor(startPortal.x/32)},${Math.floor(startPortal.y/32)}|${startPortal.x},${startPortal.y}`
+            for(const dirAdj of adjacentGrids){
+                if(visited.has(dirAdj[0]+","+dirAdj[1])){
+                    continue; //skip if we already visited this subgrid
                 }
-                
+                const accessSubgrid=portalMap.get(dirAdj[0]+","+dirAdj[1])
+                if(accessSubgrid){
+
+                    for (const goalPortalAdj of accessSubgrid) {
+                        // console.log(goalPortalAdj,dirAdj[0]*32,dirAdj[1]*32,dirAdj[2],dirAdj[3])
+                        const goalPAdj=goalPortalAdj.x +","+goalPortalAdj.y
+
+                        const extractedstart=Buffer.from(await extractRegion(rawData,4,subgridX*32,subgridY*32,32,32))
+                        const extractedend=Buffer.from(await extractRegion(rawData,4,dirAdj[0]*32,dirAdj[1]*32,32,32))
+
+                        const entry={x:subgridX*32,y:subgridY*32}
+                        const exit={x:dirAdj[0]*32,y:dirAdj[1]*32}
+                        var combinedbuffer;
+                        try{
+                            combinedbuffer=await combineSegments(extractedstart,extractedend,entry,exit)//dirAdj[2])
+                        }catch(e){
+                            console.log("Error combining segments",e)
+                        }
+                        
+
+                        const originX = combinedbuffer.origin.x//Math.min(subgridX, dirAdj[0]) * 32;
+                        const originY = combinedbuffer.origin.y//Math.min(subgridY, dirAdj[1]) * 32;
+                        const originstart={x:startPortal.x - originX,y:startPortal.y - originY}
+                        const originend={x:goalPortalAdj.x - originX,y:goalPortalAdj.y - originY}
+                        
+                        try{
+                            // console.log("start cost calc",originstart,originend);
+                            let costy=await AstarPathCost(
+                                combinedbuffer.buffer,//[0],
+                                originstart,
+                                originend,
+                                {x:0,y:0},
+                                combinedbuffer.width,
+                                combinedbuffer.height,
+                                debug
+                            )
+                            // console.log("end cost calc",costy);
+                            if(debug){
+                                const extractedCost=costy.cost;
+                                if (extractedCost !== Infinity) {
+                                    const extractedPath=costy.path;
+                                    // console.log("extractedPath",extractedPath)
+
+                                    // Path is in local coords of combinedbuffer
+                                    for (const point of extractedPath) {
+                                        // console.log(x,y,"extractedPath coords")
+                                        const [x,y]=point.split(",").map(Number);
+                                        // const x=
+                                        // const y=point[1]
+                                        // console.log(x,y,"extractedPath coords")
+                                        
+                                        const globalX = originX + x;
+                                        const globalY = originY + y;
+                                        const idx = (globalY * 1536 + globalX) * 4;
+                                        rawData[idx] = 128;   // R
+                                        rawData[idx+1] = 0;   // G
+                                        rawData[idx+2] = 128; // B
+                                        rawData[idx+3] = 255; // Alpha
+                                    }
+
+                                    const [firstX,firstY]=extractedPath[0].split(",").map(Number);
+                                    const [LastX,LastY]=extractedPath[extractedPath.length-1].split(",").map(Number);
+                                    const startIdx = ((originY+firstY) * 1536 + (originX+firstX)) * 4;
+                                    const endIdx = ((originY+LastY) * 1536 + (originX+LastX)) * 4;
+                                    rawData[startIdx] = 255;   // R
+                                    rawData[startIdx+1] = 165;   // G
+                                    rawData[startIdx+2] = 0; // B
+                                    rawData[startIdx+3] = 255; // Alpha
+                                    
+                                    rawData[endIdx] = 255;   // R
+                                    rawData[endIdx+1] = 165;   // G
+                                    rawData[endIdx+2] = 0; // B
+                                    rawData[endIdx+3] = 255; // Alpha
+
+                                    await addEdgeToAbstractGraph(abstractMap,subgridKey,starty, goalPAdj, extractedCost,extractedstart);
+                                    await addEdgeToAbstractGraph(abstractMap,`${dirAdj[0]},${dirAdj[1]}`,goalPAdj,starty, extractedCost,extractedend);
+                                }
+                            }else{
+                                if (costy !== Infinity) {
+                                    await addEdgeToAbstractGraph(abstractMap,subgridKey,starty, goalPAdj, costy,extractedstart);
+                                    await addEdgeToAbstractGraph(abstractMap,`${dirAdj[0]},${dirAdj[1]}`,goalPAdj,starty, costy,extractedend);
+                                }
+                            }
+
+                        }catch(b){
+                            console.log("error here...",b)
+                        }
+
+                        
+                    }
+                }
             }
-            // deal with connectivity to nodes in the adjacent grid
-            switch(startPortal.edge){
-                case "top":
-                    //for now, if Y is 0 then it skips but otherwise this means it has to check the next tile
-                    if(Y==0){break};
-
-                    // console.log(X+","+(Y-1), "SHOULD BE above")
-                    const aboveSubgrid=portalMap.get(X+","+(Y-1))
-                    if(aboveSubgrid){
-                        for (const goalPortalAbove of aboveSubgrid) {
-                            // console.log(goalPortalAbove)
-                            if(goalPortalAbove.edge=="bottom"){
-                                // console.log(value)
-                                let cost = await AstarPathCost(rawData,startPortal, goalPortalAbove, {x:X*32,y:(Y-1)*32},32,64);//32*2
-                                // console.log(cost)
-                                const goalPAbove=goalPortalAbove.x +","+goalPortalAbove.y
-                                if (cost !== Infinity) {
-                                    await addEdgeToAbstractGraph(abstractMap,key,starty, goalPAbove, cost);
-
-                                    // await addEdgeToAbstractGraph(abstractMap,key,goalPAbove,starty, cost);
-                                }
-                            }
-                        }
-                    }
-
-                    break;
-                case "bottom":
-                    // console.log(key)
-                    //for now, if Y is 47 then it skips but otherwise this means it has to check the next tile
-                    
-                    if(Y==47){break};
-                    // const YNext=Y+1 
-
-                    const BelowSubgrid=portalMap.get(X+","+(Y+1))
-                    if(BelowSubgrid){//subgrid locations with no portals dont actually exist in PortalMap
-                        for (const goalPortalBelow of BelowSubgrid) {
-                            if(goalPortalBelow.edge=="top"){
-                                //{x:X*32,y:(Y)*32} because the startPortal is the top subgrid matching topedge of below
-                                let cost = await AstarPathCost(rawData,startPortal, goalPortalBelow, {x:X*32,y:(Y)*32},32,64);//32*2
-                                const goalPBelow=goalPortalBelow.x +","+goalPortalBelow.y//+","+goalPortalBelow.edge
-                                if (cost !== Infinity) {
-                                    await addEdgeToAbstractGraph(abstractMap,key,starty, goalPBelow, cost);
-
-                                    // await addEdgeToAbstractGraph(abstractMap,key,goalPBelow,starty , cost);
-                                }
-                            }
-                        }
-                    }
-
-                    break;
-                case "left":
-                    //that means the startPortal is the "right" subgrid
-                        //origin is that of the (X-1)*32
-                    if(X==0){break};
-
-                    const LeftSubgrid=portalMap.get((X-1)+","+Y);
-                    if(LeftSubgrid){
-                        for (const goalPortalLeft of LeftSubgrid) {
-                            // console.log(goalPortalAbove)
-                            if(goalPortalLeft.edge=="right"){
-                                // console.log(value)
-                                let cost = await AstarPathCost(rawData,startPortal, goalPortalLeft, {x:(X-1)*32,y:Y*32},64,32);//32*2
-                                const goalPLeft=goalPortalLeft.x +","+goalPortalLeft.y//+","+goalPortalLeft.edge
-                                if (cost !== Infinity) {
-                                    await addEdgeToAbstractGraph(abstractMap,key,starty, goalPLeft, cost);
-
-                                    // await addEdgeToAbstractGraph(abstractMap,key,goalPLeft,starty , cost);
-                                }
-                            }
-                        }  
-                    }
-
-
-                    break;
-                case "right":
-                    if(X==47){break};
-
-                    const RightSubgrid=portalMap.get((X+1)+","+Y);
-                    if(RightSubgrid){
-                        for (const goalPortalRight of RightSubgrid) {
-                            // console.log(goalPortalAbove)
-                            if(goalPortalRight.edge=="left"){
-                                // console.log(value)
-                                let cost = await AstarPathCost(rawData,startPortal, goalPortalRight, {x:X*32,y:Y*32},64,32);//32*2
-                                const goalPRight=goalPortalRight.x +","+goalPortalRight.y//+","+goalPortalRight.edge
-                                if (cost !== Infinity) {
-                                    await addEdgeToAbstractGraph(abstractMap,key,starty, goalPRight, cost);
-
-                                    // await addEdgeToAbstractGraph(abstractMap,key,goalPRight, starty, cost);
-                                }
-                            }
-                        }
-                    }
-
-                    break;
-                default:
-                    console.log("hmm, this shouldnt be running")
-                    break;
-            }
-
         }
-    }
+        // if(portals.length==0){
+        //     // console.log("damn, no portals ig",subgridKey)
 
-    
+        // }
+        
+    }
+    if(debug){
+        await sharp(rawData, {
+            raw: {
+                width: 1536,
+                height: 1536,
+                channels: 4
+            }
+        }).toFile(Imglocation);
+    }
     console.log("YIPEE abstractmap creates")
+    // console.log(abstractMap)
     return abstractMap;
 }
 
 //above is creating the abstract map, finding the portals of the image
 //--------------------------------------
 //combine 3 subgrids of the path into a big buffer and run A* over it
-async function TotalSubgridCombining(windowNodes){
-        const TILE_SIZE = 1536;
+async function TotalSubgridCombining(windowNodes, InputTileData=null){
+    const TILE_SIZE = 1536;
     const SUBGRID_SIZE = 32;
 
     // Parse nodes → unique subgrids
@@ -376,7 +884,8 @@ async function TotalSubgridCombining(windowNodes){
     const positions = [];
 
     for (const node of windowNodes) {
-        const [chunkPart, subgridPart] = node.split('|');
+        const [chunkPart, subgridPart,pixelPart] = node.split('|');
+        // console.log("subgridPart",subgridPart)
         const [chunkX, chunkY] = chunkPart.split(',').map(Number);
         const [sgX, sgY] = subgridPart.split(',').map(Number);
 
@@ -393,36 +902,43 @@ async function TotalSubgridCombining(windowNodes){
 
     if (positions.length === 0) return null;
 
-    // Compute bounding box (aligned to SUBGRID_SIZE)
-    let minX = Math.min(...positions.map(p => p.worldX));
-    let minY = Math.min(...positions.map(p => p.worldY));
-    let maxX = Math.max(...positions.map(p => p.worldX));
-    let maxY = Math.max(...positions.map(p => p.worldY));
+    let minX = Math.floor(Math.min(...positions.map(p => p.worldX)) / SUBGRID_SIZE) * SUBGRID_SIZE;
+    let minY = Math.floor(Math.min(...positions.map(p => p.worldY)) / SUBGRID_SIZE) * SUBGRID_SIZE;
+    let maxX = (Math.floor(Math.max(...positions.map(p => p.worldX)) / SUBGRID_SIZE)) * SUBGRID_SIZE;
+    let maxY = (Math.floor(Math.max(...positions.map(p => p.worldY)) / SUBGRID_SIZE)) * SUBGRID_SIZE;
 
-    const originX = Math.floor(minX / SUBGRID_SIZE) * SUBGRID_SIZE;
-    const originY = Math.floor(minY / SUBGRID_SIZE) * SUBGRID_SIZE;
+    // Add extra subgrid padding
+    const EXTRA_SUBGRIDS = 0; // Adds 64px on each side if SUBGRID_SIZE = 32
+    const originX = minX//Math.max(0, minX - (EXTRA_SUBGRIDS * SUBGRID_SIZE));
+    const originY = minY//Math.max(0, minY - (EXTRA_SUBGRIDS * SUBGRID_SIZE));
 
-    const countX = Math.ceil((maxX - originX + SUBGRID_SIZE) / SUBGRID_SIZE);
-    const countY = Math.ceil((maxY - originY + SUBGRID_SIZE) / SUBGRID_SIZE);
-
-    const width = countX * SUBGRID_SIZE;
-    const height = countY * SUBGRID_SIZE;
-
+    const width = (maxX - minX)*32 +32//+ (EXTRA_SUBGRIDS * 2 * SUBGRID_SIZE);
+    const height = (maxY - minY)*32 +32 //+ (EXTRA_SUBGRIDS * 2 * SUBGRID_SIZE);
+    // const width = countX //* SUBGRID_SIZE;
+    // const height = countY //* SUBGRID_SIZE;
+    // console.log("buffer ",width,height)
     const combinedBuffer = Buffer.alloc(width * height * 4, 0);
 
     // Copy each subgrid into combined buffer
     for (const pos of positions) {
         const tileKey = `${pos.chunkX},${pos.chunkY}`;
-        const tileData = await getDataOfTile(tileKey); // Full 1536×1536 RGBA
+        var tileData;
+        if(InputTileData==null){
+            tileData = await getDataOfTile(tileKey); // Full abstract map
+        }else{
+            tileData=InputTileData
+        }
+        
 
-        const subgridData = await extractRegion(
-            tileData,
-            4,
-            pos.sgX * SUBGRID_SIZE,
-            pos.sgY * SUBGRID_SIZE,
-            SUBGRID_SIZE,
-            SUBGRID_SIZE
-        );
+        // const subgridData = await extractRegion(
+        //     tileData,
+        //     4,
+        //     pos.sgX * SUBGRID_SIZE,
+        //     pos.sgY * SUBGRID_SIZE,
+        //     SUBGRID_SIZE,
+        //     SUBGRID_SIZE
+        // );
+        const subgridData=tileData.get(`${pos.sgX},${pos.sgY}`).get("buffer")
 
         const destX = pos.worldX - originX;
         const destY = pos.worldY - originY;
@@ -442,14 +958,19 @@ async function TotalSubgridCombining(windowNodes){
     };
 }
 
+
+
+
 async function AstarPathCostPathIncluded(rawData, startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight) {
     // If start == goal, no move needed
-    if (startPixel.x === goalPixel.x && startPixel.y === goalPixel.y) {
-        return [0, null]; // cost = 0, no next pixel, already at destination
-    }
+    // if (startPixel.x === goalPixel.x && startPixel.y === goalPixel.y) {
+    //     console.log("reached final grid, stick",)
+    //     return [startPixel]//null // cost = 0, no next pixel, already at destination
+    // }
     
     let data;
-    if (Buffer.isBuffer(rawData) && rawData.length === segmentWidth * segmentHeight * 4) {
+    if (Buffer.isBuffer(rawData) && rawData.length === segmentWidth * segmentHeight * 4) {//
+        // console.log("ok")
         data = rawData; // Already cropped region
     } else {
         console.log("extracting?")
@@ -457,49 +978,24 @@ async function AstarPathCostPathIncluded(rawData, startPixel, goalPixel, segment
     }
 
     function isWalkableColor(r, g, b) {
-        return r == Number(255) && g == Number(255) && (b == Number(255) || b == Number(0));
+        return r === Number(255) && g === Number(255) && (b === Number(255) || b === Number(0));
     }
 
-    function findClosestWalkablePixel(goalPixel, data, segmentWidth, segmentHeight) {
-        if (goalPixel.x >= 0 && goalPixel.x < segmentWidth && goalPixel.y >= 0 && goalPixel.y < segmentHeight) {
-            const idx = (goalPixel.y * segmentWidth + goalPixel.x) * 4;
-            const r = data[idx], g = data[idx + 1], b = data[idx + 2];
-            if (isWalkableColor(r, g, b)) {
-                return { x: goalPixel.x, y: goalPixel.y };
-            }
-        }
 
-        const maxRadius = 10; // You can tune this
-        for (let radius = 1; radius <= maxRadius; radius++) {
-            for (let dy = -radius; dy <= radius; dy++) {
-                for (let dx = -radius; dx <= radius; dx++) {
-                    const nx = goalPixel.x + dx;
-                    const ny = goalPixel.y + dy;
-                    if (nx < 0 || nx >= segmentWidth || ny < 0 || ny >= segmentHeight) continue;
-                    const idx = (ny * segmentWidth + nx) * 4;
-                    const r = data[idx], g = data[idx + 1], b = data[idx + 2];
-                    if (isWalkableColor(r, g, b)) {
-                        return { x: nx, y: ny };
-                    }
-                }
-            }
-        }
-        return null; // No walkable found (rare, means it's surrounded by blue)
-    }
-    // const adjustedGoal=findClosestWalkablePixel(goalPixel, data, segmentWidth, segmentHeight)
-    // if (!adjustedGoal) {
-    //     return [Infinity, null]; // Surrounded by water or impassable
-    // }
-    // goalPixel = adjustedGoal;
     const idxg = (goalPixel.y * segmentWidth + goalPixel.x) * 4;
     const rg = data[idxg], gg = data[idxg + 1], bg = data[idxg + 2];
     if (!isWalkableColor(rg, gg, bg)) {
         return [Infinity,null]//{ x: goalPixel.x, y: goalPixel.y };
     }
 
-    const goalIndex = (goalPixel.y * segmentWidth + goalPixel.x) * 4;
-    const r = data[goalIndex], g = data[goalIndex + 1], b = data[goalIndex + 2];
-    console.log("Goal pixel color:",goalPixel, r, g, b);
+
+
+    // const startIndex = (startPixel.y * segmentWidth + startPixel.x) * 4;
+    // const r = data[startIndex], g = data[startIndex + 1], b = data[startIndex + 2];
+    // if(r==Number(0) && g==Number(0) && b==Number(0)){
+    //     console.log("oh, tragedy")
+    // }
+    // console.log("Goal pixel color:",goalPixel, r, g, b);
 
     function getTerrainCost(localX, localY) {
         if (localX < 0 || localX >= segmentWidth || localY < 0 || localY >= segmentHeight) return Infinity;
@@ -509,8 +1005,8 @@ async function AstarPathCostPathIncluded(rawData, startPixel, goalPixel, segment
         // console.log(b, "mmmmmmmmmm.")
         // }
         
-        if (r == Number(255) && g == Number(255) && b == Number(255)) return 1;     // White → Normal
-        if (r == Number(255) && g == Number(255) && b == Number(0)){   return 1.5};   // Yellow → Shallow water
+        if (r === Number(255) && g === Number(255) && b === Number(255)) return 1;     // White → Normal
+        if (r === Number(255) && g === Number(255) && b === Number(0)){   return 1};   // Yellow → Shallow water
         return Infinity;                                      // Others → Impassable
     }
 
@@ -520,13 +1016,15 @@ async function AstarPathCostPathIncluded(rawData, startPixel, goalPixel, segment
     }
 
     const start = {
-        x: startPixel.x - segmentOrigin.x,
-        y: startPixel.y - segmentOrigin.y
+        x: startPixel.x,// - segmentOrigin.x,
+        y: startPixel.y,// - segmentOrigin.y
     };
     const goal = {
         x: goalPixel.x, //- segmentOrigin.x,
         y: goalPixel.y,// - segmentOrigin.y
     };
+    // console.log('A* origin:', segmentOrigin, 'Combined origin:', origin, originY);
+    // console.log('Start pixel:', startPixel, 'Goal pixel:', goalPixel);
 
     const openSet = new MinHeap((a, b) => a.f - b.f);
     const cameFrom = new Map();
@@ -654,9 +1152,9 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
     // console.log(dataA.le)
     // console.log("dataA",tileAKey,tileBKey)
 
-    const segmentXS=subgridStart[0]*32
-    const segmentYS=subgridStart[1]*32
-    const startSegmentExtract=await extractRegion(dataA,4,segmentXS,segmentYS,32,32)
+    const segmentXS=subgridStart[0]
+    const segmentYS=subgridStart[1]
+    const startSegmentExtract=dataA.get(`${segmentXS},${segmentYS}`).get("buffer")//await extractRegion(dataA,4,segmentXS,segmentYS,32,32)
     // console.log(startSegmentExtract.length,"hmm, hopefully 4096")
     
 
@@ -688,9 +1186,10 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
             break;
     }
 
-    const XendSeg=endSubgrid[0]*32
-    const YendSeg=endSubgrid[1]*32
-    const endSegmentExtract=await extractRegion(dataB,4,XendSeg,YendSeg,32,32)
+    const XendSeg=endSubgrid[0]
+    const YendSeg=endSubgrid[1]
+    console.log("end and start.... ",[XendSeg,YendSeg],[segmentXS,segmentYS])
+    const endSegmentExtract=dataB.get(`${XendSeg},${YendSeg}`).get("buffer")//await extractRegion(dataB,4,XendSeg,YendSeg,32,32)
     // console.log("aight... we running")
     //return cost
 
@@ -704,11 +1203,11 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
     // );
 
     const goalKey=`${endSubgrid[0]},${endSubgrid[1]}`
-    const portalsOfGoalSegment=targetAbtractMap.get(goalKey)
+    const portalsOfGoalSegment=targetAbtractMap.get(goalKey).get("connections")
 
     const startInput={
-        x:startPixel[0] - segmentXS +shifts.startshiftX,
-        y:startPixel[1] - segmentYS +shifts.startshiftY
+        x:startPixel[0] - segmentXS*32 +shifts.startshiftX,
+        y:startPixel[1] - segmentYS*32 +shifts.startshiftY
     }
     //segment origin should be 00 since you want the whole buffer
     const segmentOrigin={
@@ -722,8 +1221,8 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
         const [keyx,keyy]=key.split(",")
         // console.log(keyx,keyy,"keys components")
         const goalInput={
-            x:Number(keyx) - XendSeg + shifts.endshiftX,
-            y:Number(keyy) - YendSeg + shifts.endshiftY
+            x:Number(keyx) - XendSeg*32 + shifts.endshiftX,
+            y:Number(keyy) - YendSeg*32 + shifts.endshiftY
         }
         // console.log(startInput,goalInput,direction, "input pixels man")
         switch(direction){
@@ -736,7 +1235,7 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
                     // neighbourObjs.push([key,cost])
                     // Only add if reachable
                     if (cost === Infinity) {
-                        neighbourObjs.push([key, 9999]); // Or some huge cost to discourage but allow fallback
+                        neighbourObjs.push([key, Infinity]); // Or some huge cost to discourage but allow fallback
                     } else {
                         neighbourObjs.push([key, cost]);
                     }
@@ -786,31 +1285,93 @@ async function combineDataOfSubgridsForSearch(tileAKey,tileBKey,startPixel,subgr
                 break;
         }
     }
+    console.log("neighbourObjs",neighbourObjs,"neighbourObjs")
     return neighbourObjs
 }
 
-async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractMap) {
-    // console.log("what are you at failure",start)
-    // if(start ==goal){
-    //     return false
-    // }
-    if (start.split('|')[1] === goal.split('|')[1] && start.split('|')[0] === goal.split('|')[0]){
-        return [start]
+
+
+async function combineDataOfSubgridsForSearchbruh(
+    fromChunkKey,
+    adjChunkKey,
+    currentPixel,
+    currentSubgrid,
+    edge,
+    adjChunkMap
+) {
+    const SUBGRID_SIZE = 32;
+    const TILE_SIZE = 1536;
+
+    const [adjChunkX, adjChunkY] = adjChunkKey.split(",").map(Number);
+
+    // Determine which subgrids in adjacent chunk can connect to current portal
+    const adjConnections = [];
+
+    // Edges and subgrid range logic
+    let candidateSubgridKeys = [];
+    if (edge === "left") {
+        // Adjacent chunk is to the left, so pick rightmost subgrids
+        candidateSubgridKeys = [...adjChunkMap.keys()].filter(key => key.startsWith(`${Math.floor(TILE_SIZE / SUBGRID_SIZE) - 1},`));
+    } else if (edge === "right") {
+        // Adjacent chunk is to the right, pick leftmost subgrids
+        candidateSubgridKeys = [...adjChunkMap.keys()].filter(key => key.startsWith(`0,`));
+    } else if (edge === "top") {
+        // Adjacent chunk is above, pick bottom subgrids
+        candidateSubgridKeys = [...adjChunkMap.keys()].filter(key => key.endsWith(`,${Math.floor(TILE_SIZE / SUBGRID_SIZE) - 1}`));
+    } else if (edge === "bottom") {
+        // Adjacent chunk is below, pick top subgrids
+        candidateSubgridKeys = [...adjChunkMap.keys()].filter(key => key.endsWith(`,0`));
     }
 
-    function loadChunkAbstractMap(tileKey) {
-        const [chunkX, chunkY] = tileKey.split(",").map(Number);
-        // console.log("really looking?",tileKey)
-        try{
-            const abstractMapObject = ChunkManager.getTile(chunkX, chunkY).AbstractMap;
-            const toReturnAB=convertMongoPortalGraphToMap(abstractMapObject)
-            return toReturnAB;
-        }catch(poppy){
-            return false
-        }
-        
-        
+    for (const subgridKey of candidateSubgridKeys) {
+        const subgridMap = adjChunkMap.get(subgridKey);
+        if (!subgridMap) continue;
 
+        for (const [portalPixelKey, _] of subgridMap.entries()) {
+            // portalPixelKey is like "pixelX,pixelY"
+            const [px, py] = portalPixelKey.split(',').map(Number);
+
+            // Build full canonical key
+            const neighborFullKey = `${adjChunkKey}|${subgridKey}|${portalPixelKey}`;
+
+            // Compute cost = Euclidean distance between currentPixel and this portal
+            const dx = px - currentPixel[0];
+            const dy = py - currentPixel[1];
+            const cost = Math.hypot(dx, dy);
+
+            adjConnections.push([neighborFullKey, cost]);
+        }
+    }
+
+    return adjConnections;
+}
+
+async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractMap) {
+    // console.log("gets here, ",start,goal)
+    const TILE_SIZE = 1536;
+    const SUBGRID_SIZE = 32;
+
+    function isWalkableInData(chunkData, width, height, x, y) {
+        if (x < 0 || y < 0 || x >= width || y >= height) {console.log("bounds issue");return false};
+        const idx = (y * width + x) * 4;
+        const r = chunkData[idx];
+        const g = chunkData[idx + 1];
+        const b = chunkData[idx + 2];
+        // console.log(`Pixel (${x},${y}) RGB: (${r},${g},${b})`);
+        const isWhite = r > Number(240) && g > Number(240) && b > Number(240);   // near white
+        const isYellow = r > Number(240) && g > Number(240) && b < Number(15);   // near yellow
+        // console.log("isWhite",isWhite,"isYellow",isYellow)
+        return isWhite || isYellow;
+    }
+
+    async function loadChunkAbstractMap(tileKey) {
+        const [chunkX, chunkY] = tileKey.split(",").map(Number);
+        try {
+            const abstractMapObject = await getDataOfTile(`${chunkX},${chunkY}`)//ChunkManager.getTile(chunkX, chunkY).AbstractMap;
+            return abstractMapObject//convertMongoPortalGraphToMap(abstractMapObject);
+        } catch {
+            return false;
+        }
     }
 
     function parseChunkKey(fullKey) {
@@ -818,216 +1379,200 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
     }
 
     function parseSubgridKey(fullKey) {
-        // return fullKey.split('|').slice(0, 2).join('|'); // "chunkX,chunkY|subgridX,subgridY"
-        return fullKey.split('|')[1];
+        return fullKey.split('|')[1]; // "subgridX,subgridY"
+    }
+
+    function heuristic(aKey, bKey) {
+        const [aChunk, aSubgrid, aPixel] = aKey.split('|');
+        const [aChunkX, aChunkY] = aChunk.split(',').map(Number);
+        const [aSubX, aSubY] = aSubgrid.split(',').map(Number);
+        const [aPX, aPY] = aPixel.split(',').map(Number);
+
+        const [bChunk, bSubgrid, bPixel] = bKey.split('|');
+        const [bChunkX, bChunkY] = bChunk.split(',').map(Number);
+        const [bSubX, bSubY] = bSubgrid.split(',').map(Number);
+        const [bPX, bPY] = bPixel.split(',').map(Number);
+
+        const ax = aChunkX * TILE_SIZE + aSubX * SUBGRID_SIZE + aPX;
+        const ay = aChunkY * TILE_SIZE + aSubY * SUBGRID_SIZE + aPY;
+
+        const bx = bChunkX * TILE_SIZE + bSubX * SUBGRID_SIZE + bPX;
+        const by = bChunkY * TILE_SIZE + bSubY * SUBGRID_SIZE + bPY;
+
+        return Math.hypot(bx - ax, by - ay);
     }
 
     function reconstructPath(cameFrom, current) {
-        // console.log("HELLO TRIES TO END")
         const path = [current];
         while (cameFrom.has(current)) {
             current = cameFrom.get(current);
             path.push(current);
         }
-        
         return path.reverse();
     }
 
-    function heuristic(a, b) {
-        if (!a || !b) {
-            console.warn("heuristic received undefined input", { a, b });
-            return Infinity; // or some large cost
-        }
-
-        const [cxA, cyA, sxA, syA, pxA, pyA] = a.split('|').flatMap(s => s.split(',')).map(Number);
-        const [cxB, cyB, sxB, syB, pxB, pyB] = b.split('|').flatMap(s => s.split(',')).map(Number);
-
-        const worldXA = cxA * 1536 + pxA;
-        const worldYA = cyA * 1536 + pyA;
-        const worldXB = cxB * 1536 + pxB;
-        const worldYB = cyB * 1536 + pyB;
-
-        return Math.hypot(worldXA - worldXB, worldYA - worldYB);
-    }
-
-
-
-    // Initialize the loaded chunk abstract maps with the start chunk
+    // Initialize loaded maps with start chunk map
     const loadedChunkMaps = new Map();
     const startChunkKey = parseChunkKey(start);
     loadedChunkMaps.set(startChunkKey, startChunkAbstractMap);
+    // console.log("fails to copy?",loadedChunkMaps.get(startChunkKey),"fails to copy?")
+    // const loadedTileData = new Map();
+    // loadedTileData.set(startChunkKey, await getDataOfTile(startChunkKey));
 
-    const openSet = new PriorityQueue(); // MinHeap by fScore
+    const openSet = new PriorityQueue(); // MinHeap by fScore = gScore + heuristic
     const cameFrom = new Map();
     const gScore = new Map();
-    const fScore = new Map();
-    const visited = new Set();
 
     gScore.set(start, 0);
-    fScore.set(start, heuristic(start, goal));
-    openSet.enqueue(start, fScore.get(start));
-    // console.log("After enqueue, isEmpty?", openSet.isEmpty());
+    openSet.enqueue(start, heuristic(start, goal));
 
     while (!openSet.isEmpty()) {
         const current = openSet.dequeue();
+        // console.log("current",current)
+        // Skip if this is an outdated node with worse gScore
+        const currentG = gScore.get(current);
+        if (currentG === undefined) continue;
 
-        if (visited.has(current)) continue;
-        visited.add(current);
-
-        if (current.split('|')[1] === goal.split('|')[1] && current.split('|')[0] === goal.split('|')[0]){
-        // if(current===goal){ 
-            // console.log("current",current,goal)
-
-            //check if the portal can actually reach the goal
-
-            // if(possiblecost !=Infinity){
-            const toreturn=reconstructPath(cameFrom, current)
-            return toreturn;
-            // }
-
+        if (current === goal) {
+            return reconstructPath(cameFrom, current);
         }
-            
-        // if (current === goal) {
-        //     return reconstructPath(cameFrom, current);
-        // }
 
         const chunkKey = parseChunkKey(current);
         const subgridKey = parseSubgridKey(current);
 
-        // Ensure the current chunk abstract map is loaded
+        // Load chunk map if missing
         if (!loadedChunkMaps.has(chunkKey)) {
             const newMap = await loadChunkAbstractMap(chunkKey);
+            if (!newMap) continue;
             loadedChunkMaps.set(chunkKey, newMap);
         }
-
-        // console.log("ChunkKey:", chunkKey);
-        // console.log("Loaded chunk maps keys:", Array.from(loadedChunkMaps.keys()));
-        // console.log("Graph for chunkKey:", loadedChunkMaps.get(chunkKey));
-
-        const graph = loadedChunkMaps.get(chunkKey);
+        // console.log(chunkKey,"chunkKey current")
+        const graph = loadedChunkMaps.get(chunkKey)//.get("connections");
+        // console.log(graph,"graph")
         if (!graph) continue;
-        else{"woahhh not in man, chunky!"}
 
-        const subgridMap = graph.get(subgridKey);
+        const subgridMap = graph.get(subgridKey).get("connections");
+        // console.log(subgridMap,"subgridMap")
         if (!subgridMap) continue;
-        else{"woahhh not in man"}
-
 
         const neighbors = subgridMap.get(current.split('|')[2]);
         if (!neighbors) continue;
 
-        // console.log("neighbors",neighbors)
-        const currentChunk=chunkKey.split(",")
-        const CCX=Number(currentChunk[0])
-        const CCY=Number(currentChunk[1])
-        
-        const currentpixel=current.split('|')[2].split(",")
-        const pixelXC=Number(currentpixel[0])
-        const pixelYC=Number(currentpixel[1])
+        const [CCX, CCY] = chunkKey.split(",").map(Number);
+        const [pixelXC, pixelYC] = current.split('|')[2].split(",").map(Number);
+        const [SubgridXC, SubgridYC] = current.split('|')[1].split(",").map(Number);
 
-        const currentSubgrid=current.split('|')[1].split(",")
-        const SubgridXC=Number(currentSubgrid[0])
-        const SubgridYC=Number(currentSubgrid[1])
+        // Check for cross-chunk adjacency edges
+        const edges = [];
+        if (pixelXC === 0) edges.push("left");
+        else if (pixelXC === TILE_SIZE - 1) edges.push("right");
+        if (pixelYC === 0) edges.push("top");
+        else if (pixelYC === TILE_SIZE - 1) edges.push("bottom");
 
-        //check which edge the current pixel is on
-        var edges=[]
-        if(pixelXC==0){edges.push("left")}
-        else if(pixelXC==1535){edges.push("right")}//1535 since pixels start at 0
-        
-        if(pixelYC==0){edges.push("top")}
-        else if(pixelYC==1535){edges.push("bottom")}
+        const deltas = {
+            "left": [-1, 0],
+            "right": [1, 0],
+            "top": [0, -1],
+            "bottom": [0, 1]
+        };
 
-        const deltas={
-            "left":[-1,0],
-            "right":[1,0],
-            "top":[0,1],
-            "bottom":[0,-1]
-        }
-        
-        for(const edge of edges){
-            if (!(edge in deltas)) {
-                console.warn("Unexpected edge direction:", edge);
-                continue; // skip it to avoid crashing
-            }
-            const usingKey=`${CCX+deltas[edge][0]},${CCY+deltas[edge][1]}`
-            var accessAbstractMap=loadedChunkMaps.get(usingKey)
-            if(!accessAbstractMap){
-                
-                //loadChunkAbstractMap should be the function to really dig for the information, tell the server to dig it up
-                    //from the db if necessary, its not there only then can you ignore but whatever for now...
-                accessAbstractMap=await loadChunkAbstractMap(usingKey)
-                // console.log(usingKey,accessAbstractMap, "we got this far man")
-                //if false then its a dead end edge, skip, there are no neighbours to be had
-                if(accessAbstractMap==false){continue;}
-                loadedChunkMaps.set(usingKey,accessAbstractMap)
+        for (const edge of edges) {
+            if (!(edge in deltas)) continue;
+            const adjChunkKey = `${CCX + deltas[edge][0]},${CCY + deltas[edge][1]}`;
+
+            let accessAbstractMap = loadedChunkMaps.get(adjChunkKey);
+            if (!accessAbstractMap) {
+                accessAbstractMap = await loadChunkAbstractMap(adjChunkKey);
+                if (!accessAbstractMap) continue;
+                loadedChunkMaps.set(adjChunkKey, accessAbstractMap);
             }
 
-            // const keyGoalTile=`${SubgridXC+deltas[edge][0]},${SubgridYC+deltas[edge][1]}`
-            const adjNeighbours=await combineDataOfSubgridsForSearch(current.split('|')[0],usingKey,[pixelXC,pixelYC],[SubgridXC,SubgridYC],edge,accessAbstractMap)
-        
-            // console.log("adjNeighbours",adjNeighbours)
-            for (var i=0;i<adjNeighbours.length;i++){
-                const setKey=`${usingKey}|${adjNeighbours[i][0]}`
-                neighbors[setKey]=adjNeighbours[i][1]
+            const adjNeighbours = await combineDataOfSubgridsForSearch(
+                current.split('|')[0],//tileAkey
+                adjChunkKey,//tileBkey
+                [pixelXC, pixelYC],//start
+                [SubgridXC, SubgridYC],//startingsubgrid
+                edge,//direction
+                accessAbstractMap//the abtractmap of the adjacent tile
+            );
+
+            for (const [portalKey, cost] of adjNeighbours) {
+                const setKey = `${adjChunkKey}|${portalKey}`;
+                neighbors[setKey] = cost;
             }
         }
 
+        // console.log("something to do with processing neighbours,",current,neighbors)
+        // Process all neighbors
+        for (const [neighborPixel, cost] of neighbors.entries()) {
+            // console.log(neighborPixel,cost)
+            const breakdown = neighborPixel.split("|");
 
-        for (const [neighborPixel, cost] of Object.entries(neighbors)) {
-            const breakdown=neighborPixel.split("|")
-            
-            var newChunkX=CCX
-            var newChunkY=CCY
+            let newChunkX = CCX;
+            let newChunkY = CCY;
+            let PixelPoint;
 
-            var PixelPoint;
-
-            if(breakdown.length==1){
-                PixelPoint=breakdown[0].split(",")
-            }else if(breakdown.length==2){
-                const breakit=breakdown[0].split(",")
-                // console.log("breakit",breakit)
-                newChunkX=Number(breakit[0])
-                newChunkY=Number(breakit[1])
-                PixelPoint=breakdown[1].split(",")//neighborPixel.split(",")
-                // console.log(breakdown,"PixelPoint",PixelPoint)
-            }else{
-                console.log("woah, we got a problem here")
+            if (breakdown.length === 1) {
+                PixelPoint = breakdown[0].split(",");
+            } else if (breakdown.length === 2) {
+                const [cx, cy] = breakdown[0].split(",").map(Number);
+                newChunkX = cx;
+                newChunkY = cy;
+                PixelPoint = breakdown[1].split(",");
+            } else {
+                console.warn("Unexpected neighbor key format:", neighborPixel);
+                continue;
             }
 
-            // if(breakdown.length>1){
-            //     const breakit=breakdown[0].split(",")
-            //     // console.log("breakit",breakit)
-            //     newChunkX=Number(breakit[0])
-            //     newChunkY=Number(breakit[1])
-            //     PixelPoint=breakdown[1].split(",")//neighborPixel.split(",")
-            //     // console.log(breakdown,"PixelPoint",PixelPoint)
-            // }else{
-            //     PixelPoint=breakdown[0].split(",")
+            const [neighPX, neighPY] = PixelPoint.map(Number);
+            const subgridX = Math.floor(neighPX / SUBGRID_SIZE);
+            const subgridY = Math.floor(neighPY / SUBGRID_SIZE);
+            const neighborKey = `${newChunkX},${newChunkY}|${subgridX},${subgridY}|${neighPX},${neighPY}`;
+
+            // Load tile data if missing
+            const chunkKeyStr = `${newChunkX},${newChunkY}`;
+            // console.log("chunkKeyStr",chunkKeyStr)
+            // if (!loadedTileData.has(chunkKeyStr)) {
+            //     const tileDataObj = await getDataOfTile(chunkKeyStr);
+            //     if (!tileDataObj) {
+            //         // Unable to load tile data, skip neighbor
+            //         continue;
+            //     }
+            //     loadedTileData.set(chunkKeyStr, tileDataObj);
             // }
+            // console.log(chunkKeyStr,"chunkKeyStr",`${subgridX},${subgridY}`,"subgrid of neigh")
+            var tileData = loadedChunkMaps.get(chunkKeyStr)//.get('buffer')//loadedTileData.get(chunkKeyStr)//.get();
+            if(!tileData){console.log("no abtract map?")}
             
-            
-            const neighPX=Number(PixelPoint[0])
-            const neighPY=Number(PixelPoint[1])
-            
+            tileData=tileData.get(`${subgridX},${subgridY}`)
+            if(!tileData){console.log("no subgrid on;", `${subgridX},${subgridY}`);continue;}
+             
+            tileData=tileData.get("buffer")
+            if(!tileData){continue;}
 
+            // console.log(tileData,"bruh please")
+            // Assume tileData has: data (buffer), width, height
 
-            const subgridX=Math.floor(neighPX/32)
-            const subgridY=Math.floor(neighPY/32)
+            // if (!isWalkableInData(tileData, 32, 32, (neighPX - 32*subgridX), (neighPY - 32*subgridY) )) {
+            //     // Portal pixel not walkable - skip this neighbor
+            //     console.log("hmmm.....")
+            //     continue;
+            // }
 
-            const neighborKey = `${newChunkX},${newChunkY}|${subgridX},${subgridY}|${neighPX},${neighPY}`;//neighborPixel
-            // console.log("neighborKey",neighborKey)
-            const tentativeG = gScore.get(current) + cost;
+            // console.log("gets down here")
+            const tentativeG = currentG + cost;
             if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)) {
+                // console.log("even into the boom")
                 cameFrom.set(neighborKey, current);
                 gScore.set(neighborKey, tentativeG);
-                const f = tentativeG + heuristic(neighborKey, goal);
-                fScore.set(neighborKey, f);
-                openSet.enqueue(neighborKey, f);
+                const fScore = tentativeG + heuristic(neighborKey, goal);
+                openSet.enqueue(neighborKey, fScore);
             }
         }
     }
 
-    return null; // No path found
+    // No path found
+    return null;
 }
 
 module.exports={PortalConnectivity,AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining,AstarPathCostPathIncluded}

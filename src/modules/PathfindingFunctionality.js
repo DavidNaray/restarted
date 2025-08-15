@@ -18,52 +18,103 @@ const UsersSeeingTileMap=new Map()
 
 
 async function updateOccupancyMap(tile,UserId){
+    console.log("hello?")
     const MapContainsTile=TilePixelOccupancyMap.has(`${tile.x},${tile.y}`)
     if(!MapContainsTile){
+        console.log("loading tile to cache")
         UsersSeeingTileMap.set(`${tile.x},${tile.y}`,[UserId])
 
-        const imgLocation=path.join(__dirname,"../../Tiles/WalkMaps/"+tile.x.toString()+tile.y.toString()+".png")
-        // console.log(imgLocation, "plz bruh")
-        const p = sharp(imgLocation)
-        .ensureAlpha()
-        .raw()
-        .toBuffer({ resolveWithObject: true })
-        .then(({ data, info }) => {
-            const width = info.width;
-            // const height = info.height;
-            // const occupancy = new Uint32Array(width * height);
-            // occupancy.fill(0); // 0 means no unit
+        const abtractMapOfTile=convertMongoPortalGraphToMap(tile.AbstractMap)
+        // console.log(abtractMapOfTile.get("9,11"),"abtractMapOfTile")
+        var x=0
+        var y=40
+        // while(y!=48){
+        //     if(abtractMapOfTile.get(`${x},${y}`).get("connections").values().next().value.size <4){
+        //         console.log(`${x},${y}`,"subgrid:",abtractMapOfTile.get(`${x},${y}`).get("connections"))
+        //     }
             
-            TilePixelOccupancyMap.set(`${tile.x},${tile.y}`,{
-                walkMap:data,//access the colour by getting index and then looking it up +1,2,3 for rgba, alpha for unit occupancy
-                // UnitOccupancy:occupancy
-            });
+        //     x+=1
+        //     if(x==48){
+        //         x=10
+        //         y+=1
+        //     }
+        // }
+        
+        //makes it of form tile -> subgrid -> {buffer, connections}
+        TilePixelOccupancyMap.set(`${tile.x},${tile.y}`, abtractMapOfTile)
 
-            const collate=new Map()
-            const editRGBAData=TilePixelOccupancyMap.get(`${tile.x},${tile.y}`).walkMap
-            // console.log("did fetch?",editRGBAData)
-            tile.units.forEach((UnitsOwned, key) => {
-                const splitting=key.split(",")
-                const unitOwner=splitting[0]
-                const unitType=splitting[1]
-                //use the unitType to adjust which pixels are set to 0 onload
-                UnitsOwned.instances.forEach((UnitMetaData, ServerIdUnit) => {
-                    collate.set(Number(ServerIdUnit),[unitOwner,unitType,UnitMetaData.position])
-                    
-                    const x=Number(UnitMetaData.position[0])
-                    const y=Number(UnitMetaData.position[1])
-                    const index = (y * width + x) * 4;
-                    // console.log(index)
-                    // console.log(editRGBAData[index + 3], "alpha")
-                    editRGBAData[index + 3]=0;//255 is default ie open, 0 is to say it is occupied
-                });
-            });
-            UnitPixelLocations.set(`${tile.x},${tile.y}`,collate)
+        const collate=new Map()
+        const editRGBAData=TilePixelOccupancyMap.get(`${tile.x},${tile.y}`)
+        // console.log("did fetch?",editRGBAData)
+        tile.units.forEach((UnitsOwned, key) => {
+            const splitting=key.split(",")
+            const unitOwner=splitting[0]
+            const unitType=splitting[1]
+            //use the unitType to adjust which pixels are set to 0 onload
+            UnitsOwned.instances.forEach((UnitMetaData, ServerIdUnit) => {
+                collate.set(Number(ServerIdUnit),[unitOwner,unitType,UnitMetaData.position])
+                
+                const x=Number(UnitMetaData.position[0])
+                const y=Number(UnitMetaData.position[1])
 
-        })
-        .catch(err => {
-            console.error(`Error loading tile image ${tile.x},${tile.y}:`, err);
+                const subgridX=Math.floor(x/32)
+                const subgridY=Math.floor(y/32)
+
+                const localisedX=x-32*subgridX
+                const localisedY=y-32*subgridY
+
+                const index = (localisedY * 32 + localisedX) * 4;
+                // console.log(index)
+                // console.log(editRGBAData[index + 3], "alpha")
+                console.log("yo....",editRGBAData.get(`${subgridX},${subgridY}`))
+                editRGBAData.get(`${subgridX},${subgridY}`).get("buffer")[index + 3]=0;//255 is default ie open, 0 is to say it is occupied
+            });
         });
+        UnitPixelLocations.set(`${tile.x},${tile.y}`,collate)
+
+
+        // const imgLocation=path.join(__dirname,"../../Tiles/WalkMaps/"+tile.x.toString()+tile.y.toString()+".png")
+        // // console.log(imgLocation, "plz bruh")
+        // const p = sharp(imgLocation)
+        // .ensureAlpha()
+        // .raw()
+        // .toBuffer({ resolveWithObject: true })
+        // .then(({ data, info }) => {
+        //     const width = info.width;
+        //     // const height = info.height;
+        //     // const occupancy = new Uint32Array(width * height);
+        //     // occupancy.fill(0); // 0 means no unit
+            
+        //     TilePixelOccupancyMap.set(`${tile.x},${tile.y}`,{
+        //         walkMap:data,//access the colour by getting index and then looking it up +1,2,3 for rgba, alpha for unit occupancy
+        //         // UnitOccupancy:occupancy
+        //     });
+
+        //     const collate=new Map()
+        //     const editRGBAData=TilePixelOccupancyMap.get(`${tile.x},${tile.y}`).walkMap
+        //     // console.log("did fetch?",editRGBAData)
+        //     tile.units.forEach((UnitsOwned, key) => {
+        //         const splitting=key.split(",")
+        //         const unitOwner=splitting[0]
+        //         const unitType=splitting[1]
+        //         //use the unitType to adjust which pixels are set to 0 onload
+        //         UnitsOwned.instances.forEach((UnitMetaData, ServerIdUnit) => {
+        //             collate.set(Number(ServerIdUnit),[unitOwner,unitType,UnitMetaData.position])
+                    
+        //             const x=Number(UnitMetaData.position[0])
+        //             const y=Number(UnitMetaData.position[1])
+        //             const index = (y * width + x) * 4;
+        //             // console.log(index)
+        //             // console.log(editRGBAData[index + 3], "alpha")
+        //             editRGBAData[index + 3]=0;//255 is default ie open, 0 is to say it is occupied
+        //         });
+        //     });
+        //     UnitPixelLocations.set(`${tile.x},${tile.y}`,collate)
+
+        // })
+        // .catch(err => {
+        //     console.error(`Error loading tile image ${tile.x},${tile.y}:`, err);
+        // });
 
         // const index = (y * width + x) * 4;
         // const r = walkmap[index];
@@ -107,7 +158,7 @@ async function getPixelLocationsForTile(tileKey){
 
 async function getDataOfTile(tileKey){
     try{
-        const dataToReturn=TilePixelOccupancyMap.get(tileKey).walkMap
+        const dataToReturn=TilePixelOccupancyMap.get(tileKey)
         return dataToReturn
     }catch(poppy){
         return false

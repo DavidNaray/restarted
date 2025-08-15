@@ -110,39 +110,51 @@ async function SharpImgBuildingPlacementVerification(MaskImglocation,Imglocation
 }
 
 //returns the pixel clicked on, along with the clicked on chunk
-async function IdentifySpecificChunkPoint(CenterChunk,clickedPoint){
-    // console.log("center...",CenterChunk, "clickedpoint: ",clickedPoint)
-    const CHUNK_SIZE = 7.5;
-    const CHUNK_RESOLUTION = 1536;
-    
-    
-    //the origin tile is centered on 0,0,0 of the world, hence you need to do +3.25 ie 7.5/2
+async function IdentifySpecificChunkPoint(CenterChunk, clickedPoint, debug = false) {
+    const CHUNK_SIZE = 7.5;           // World units per chunk
+    const CHUNK_RESOLUTION = 1536;    // Pixels per chunk
+    const HALF_CHUNK = CHUNK_SIZE / 2;
+
+    // Local world coordinates relative to the visual center
     const localX = clickedPoint[0];
     const localZ = clickedPoint[2];
 
-    //then divide by 7.5, (first tile is 0 to 1) and take the floor, 
-        // if its 1 then its acceptable its the next tile since 1 is exactly on the edge
-    const chunkOffsetX = Math.floor((localX + 3.75) / CHUNK_SIZE)
-    const chunkOffsetZ = Math.floor((localZ + 3.75) / CHUNK_SIZE)
+    // Determine chunk offset relative to the center chunk
+    const chunkOffsetX = Math.floor((localX + HALF_CHUNK) / CHUNK_SIZE);
+    const chunkOffsetZ = Math.floor((localZ + HALF_CHUNK) / CHUNK_SIZE);
 
+    // Compute actual chunk coordinates in global chunk grid
     const chunkX = CenterChunk[0] + chunkOffsetX;
     const chunkZ = CenterChunk[1] + chunkOffsetZ;
 
-    // Step 3: Compute world origin of the clicked chunk
+    // Compute the visual origin of this chunk relative to the screen center
+    // This accounts for the center chunk offset in world space
     const chunkOriginX = chunkOffsetX * CHUNK_SIZE;
     const chunkOriginZ = chunkOffsetZ * CHUNK_SIZE;
 
-    // Step 4: Compute local position inside the chunk
-    const localInChunkX = localX - chunkOriginX + CHUNK_SIZE / 2;
-    const localInChunkZ = localZ - chunkOriginZ + CHUNK_SIZE / 2;
+    // Compute local position inside this chunk
+    const localInChunkX = localX - chunkOriginX + HALF_CHUNK;
+    const localInChunkZ = localZ - chunkOriginZ + HALF_CHUNK;
 
-    // Clamp to chunk bounds just in case
+    // Clamp to chunk bounds
     const clampedX = Math.min(Math.max(localInChunkX, 0), CHUNK_SIZE);
     const clampedZ = Math.min(Math.max(localInChunkZ, 0), CHUNK_SIZE);
 
-    // Step 5: Convert to pixel coordinates in 1536×1536 texture
+    // Convert to pixel coordinates (1536×1536)
     const pixelX = Math.floor((clampedX / CHUNK_SIZE) * CHUNK_RESOLUTION);
     const pixelZ = Math.floor((clampedZ / CHUNK_SIZE) * CHUNK_RESOLUTION);
+
+    if (debug) {
+        console.log("=== IdentifySpecificChunkPoint Debug ===");
+        console.log("CenterChunk:", CenterChunk);
+        console.log("ClickedPoint (local world):", clickedPoint);
+        console.log("ChunkOffset:", [chunkOffsetX, chunkOffsetZ]);
+        console.log("ChunkCoords:", [chunkX, chunkZ]);
+        console.log("ChunkOrigin (relative to center):", [chunkOriginX, chunkOriginZ]);
+        console.log("LocalInChunk:", [localInChunkX, localInChunkZ]);
+        console.log("PixelCoords:", [pixelX, pixelZ]);
+        console.log("========================================");
+    }
 
     return {
         chunkCoords: [chunkX, chunkZ],

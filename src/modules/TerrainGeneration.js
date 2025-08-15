@@ -69,7 +69,7 @@ function pickRiverEndpoints(tileX, tileY, openEdges, width, height, margin = 20)
 function generateRiverPath(endpoints) {//start,end
     const steps = 256 
     const crossableFreq = 0.01
-    const clusterRadius = 10
+    const clusterRadius = 20
     const warpScale = 0.01;// Lower frequency → broader curves
     const warpStrength = 5;// Lower strength → gentler deviation
     const noiseWarp = noise2D;//createNoise2D(rng); // same seed
@@ -134,7 +134,7 @@ function clamp(val) {
 }
 
 // 👇 Return river strength & crossable status
-function riverMask(x, y, riverPath, radius = 60) {
+function riverMask(x, y, riverPath, radius = 100) {
     let closest = null;
     let minDist = Infinity;
     for (const point of riverPath) {
@@ -340,7 +340,7 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
 
             // Check nearby for any strong river influence
             let nearRiver = false;
-            const riverRadius = 2;
+            const riverRadius = 3;
 
             for (let ry = -riverRadius; ry <= riverRadius && !nearRiver; ry++) {
                 for (let rx = -riverRadius; rx <= riverRadius && !nearRiver; rx++) {
@@ -379,12 +379,17 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                     terrainR = 50;
                     terrainG = 90;
                     terrainB = 100;
+                    // terrainR = 50;
+                    // terrainG = 70;
+                    // terrainB = 100;
+
                     r = 255; g = 255; b =0; // Yellow
+                    // r=0;g=0;b=0;
 
                 } else {
                     r = 0; 
                     g = 0; 
-                    b = 0//255;   // Blue
+                    b = 255;   // Blue
                     // console.log(val + "depth")
                     if((val-5)>=0){
                         val=val-5;
@@ -404,10 +409,19 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
                     val = Math.floor(heightmapBase * 255);
                     console.log(val + "crossing")
                     // Crossing point
+                    // terrainR = 50;
+                    // terrainG = 90;
+                    // terrainB = 100;
                     terrainR = 50;
-                    terrainG = 90;
+                    terrainG = 70;
                     terrainB = 100;
+
                     r = 255; g = 255; b =0; // Yellow
+                    // r=0;g=0;b=0;
+                    
+                    // if((val-5)>=0){
+                    //     val=val-5;
+                    // }
 
                 } else {
                     r = 0; g = 0; b = 255;   // Blue
@@ -494,16 +508,37 @@ async function generateHeightmap(chunkX=0,chunkY=0) {
         }
     }
     
-    png.pack().pipe(fs.createWriteStream('./Tiles/HeightMaps/'+chunkX+chunkY+'.png')).on('finish', () => {
-        console.log('✅ Saved: heightmap.png');
-    });
-    walkmap.pack().pipe(fs.createWriteStream('./Tiles/WalkMaps/'+chunkX+chunkY+'.png')).on('finish', () => {
-        console.log('✅ Saved: Walkmap.png');
-    });
-    colourMap.pack().pipe(fs.createWriteStream('./Tiles/TextureMaps/'+chunkX+chunkY+'.png')).on('finish', () => {
-        console.log('✅ Saved: colourMap.png');
-    });
+    async function createTheFile() {
 
+        // png.pack().pipe(fs.createWriteStream('./Tiles/HeightMaps/'+chunkX+chunkY+'.png')).on('finish', () => {
+        //     console.log('✅ Saved: heightmap.png');
+        // });
+        // walkmap.pack().pipe(fs.createWriteStream('./Tiles/WalkMaps/'+chunkX+chunkY+'.png')).on('finish', () => {
+        //     console.log('✅ Saved: Walkmap.png');
+        // });
+        // colourMap.pack().pipe(fs.createWriteStream('./Tiles/TextureMaps/'+chunkX+chunkY+'.png')).on('finish', () => {
+        //     console.log('✅ Saved: colourMap.png');
+        // });
+        function writePng(png, path, label) {
+            return new Promise((resolve, reject) => {
+                png.pack()
+                    .pipe(fs.createWriteStream(path))
+                    .on('finish', () => {
+                        console.log(`✅ Saved: ${label}`);
+                        resolve();
+                    })
+                    .on('error', reject);
+            });
+        }
+
+        await Promise.all([
+            writePng(png,      `./Tiles/HeightMaps/${chunkX}${chunkY}.png`,    'heightmap.png'),
+            writePng(walkmap,  `./Tiles/WalkMaps/${chunkX}${chunkY}.png`,      'Walkmap.png'),
+            writePng(colourMap,`./Tiles/TextureMaps/${chunkX}${chunkY}.png`,   'colourMap.png')
+        ]);
+    }
+    await createTheFile();
+    return "done"
 }
 
 module.exports={generateHeightmap}
