@@ -484,7 +484,7 @@ class MovementOrder{
                                     TileTopIndice+=1
                                 }
                                 //add info to the pixel location
-                                updatePixelLocAndOcc(CX,CY,unitId,valueunit[0],pixelsUnit,this.owner,true)
+                                
                                 updatePixelLocAndOcc(xPart,yPart,chosenServerIndices,valueunit[0],pixelsUnit,this.owner)
 
                                 tile.freeIndices=tileFreeIndices
@@ -494,11 +494,12 @@ class MovementOrder{
                                 const oldTile = await TileScheme.findOne({x: CX,y: CY});
                                 var OldtileFreeIndices=oldTile.freeIndices
                                 var OldTileTopIndice=oldTile.topIndice
-                                if(unitId==OldTileTopIndice){
+                                if(unitId==OldTileTopIndice-1){
                                     OldTileTopIndice-=1;
                                 }else{
                                     OldtileFreeIndices.push(unitId)
                                 }
+                                updatePixelLocAndOcc(CX,CY,unitId,valueunit[0],pixelsUnit,this.owner,true)
                                 oldTile.freeIndices=OldtileFreeIndices
                                 oldTile.topIndice=OldTileTopIndice
                                 oldTile.save()
@@ -522,6 +523,7 @@ class MovementOrder{
                                 freshMap.get(chunkUnit).set(chosenServerIndices,[valueunit[0],pixelsUnit,formationPoint])
                             }else{
                                 // console.log("order to move within a chunk")
+                                updatePixelLocAndOcc(xPart,yPart,unitId,valueunit[0],pixelsUnit,this.owner)
                                 freshMap.get(chunkUnit).set(unitId,[valueunit[0],pixelsUnit,formationPoint])
                                 await unitPositionChangeForUsers(thoseIds,{unitId:unitId,ChunkX:xPart,ChunkY:yPart,x:pixelsUnit[0],y:pixelsUnit[1]})
                             }
