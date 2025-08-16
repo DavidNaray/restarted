@@ -107,8 +107,13 @@ export class TileInstancePool {
         return mesh;
     }
 
-    removeInstance(objectType, index) {
-        let mesh=this.instanceGroups.get(objectType);
+    removeInstance(serverId) {
+        console.log("removing instance with serverId:",serverId)
+        // let mesh=this.instanceGroups.get(objectType);
+        const relevantInfo=this.ServerId_To_ObjTypeAndInstId_Mapping.get(serverId);
+        const objectType=relevantInfo[0]
+        const index=relevantInfo[1]
+        let mesh=this.instanceGroups.get(objectType)
 
         if (!mesh) return false;
     
@@ -146,6 +151,19 @@ export class TileInstancePool {
         requestRenderIfNotRequested();
         return true;
     }
+
+    // removeInstance(serverId){
+    //     const relevantInfo=this.ServerId_To_ObjTypeAndInstId_Mapping.get(serverId);
+    //     const theInstanceObjectType=relevantInfo[0]
+    //     const theUnitsInstanceI=relevantInfo[1]
+    //     let mesh=this.instanceGroups.get(theInstanceObjectType)
+
+    //     if (!mesh) return false;
+
+    //     if (theUnitsInstanceI >= mesh.count) {console.log("something wrong here");return false}; // Invalid index
+
+
+    // }
 
     compactInstanceObject(objectType, oldMesh) {
         const usedIndices = new Set();
@@ -185,10 +203,6 @@ export class TileInstancePool {
         this.instanceGroups.set(objectType,newMesh);
     }
 
-
-    transferInstance(targetTile, index, objectType, targetMap){
-
-    }
     moveUnit(serverId,NewPositiontransform){
         const relevantInfo=this.ServerId_To_ObjTypeAndInstId_Mapping.get(serverId);
         const theInstanceObjectType=relevantInfo[0]

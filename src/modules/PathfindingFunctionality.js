@@ -152,6 +152,10 @@ async function getUserIdArrayForTile(tilekey){
     return UsersSeeingTileMap.get(tilekey);
 }
 
+async function addUserToTileWatch(tilekey,userId){
+    UsersSeeingTileMap.get(tilekey).push(userId);
+}
+
 async function getPixelLocationsForTile(tileKey){
     return UnitPixelLocations.get(tileKey)
 }
@@ -167,12 +171,15 @@ async function getDataOfTile(tileKey){
 }
 
 
-async function updatePixelLocAndOcc(chunkX,chunkY,serverId,UnitType,pixelCoords,owner){
+async function updatePixelLocAndOcc(chunkX,chunkY,serverId,UnitType,pixelCoords,owner,deletey=false){
     //inserting of form tile-> userIdUnitType ->{serverId->metadata}
     //UnitPixelLocations of form tile -> {unit serverId -> [unitType,[pixels]]}
     const chunkentry=UnitPixelLocations.get(`${chunkX},${chunkY}`)
     if(chunkentry){
-        chunkentry.set(Number(serverId),[owner,UnitType,pixelCoords])
+        if(deletey){
+            chunkentry.delete(Number(serverId))
+        }else{chunkentry.set(Number(serverId),[owner,UnitType,pixelCoords])}
+        
     }
 }
 
@@ -194,5 +201,5 @@ async function confirmOwner(userId,tileKey,UnitSId,UnitType){
 
 
 module.exports={updateOccupancyMap,addMovementOrder,getPixelLocationsForTile,updatePixelLocAndOcc,confirmOwner,getDataOfTile,
-    ProgressOrders,getUserIdArrayForTile,removeMovementOrder
+    ProgressOrders,getUserIdArrayForTile,removeMovementOrder,addUserToTileWatch
 }

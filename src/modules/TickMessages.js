@@ -15,11 +15,30 @@ async function unitPositionChangeForUsers(IdArray,unitPosition){
             if(positions){
                 currentMessage.positions.push(unitPosition)
             }else{
-                currentMessage.positions=[]
+                currentMessage.positions=[unitPosition]
             }
         }else{
             //no current message for it
             messages.set(userId,{positions:[unitPosition]})
+        }
+    }
+}
+
+async function unitChunkCrossHandleForUsers(IdArray,unitReplace){
+    // console.log("ok? sending the replacement order?",unitReplace)
+    //go over the ids and adjust their messags
+    for(const userId of IdArray){
+        const currentMessage=messages.get(userId)
+        if(currentMessage){
+            const replacementsVal=currentMessage.replacements
+            if(replacementsVal){
+                currentMessage.replacements.push(unitReplace)
+            }else{
+                currentMessage.replacements=[unitReplace]
+            }
+        }else{
+            //no current message for it
+            messages.set(userId,{replacements:[unitReplace]})
         }
     }
 }
@@ -32,4 +51,4 @@ async function killEntry(userId){
     messages.delete(userId)
 }
 
-module.exports={unitPositionChangeForUsers,getTheMessage,killEntry}
+module.exports={unitPositionChangeForUsers,getTheMessage,killEntry,unitChunkCrossHandleForUsers}

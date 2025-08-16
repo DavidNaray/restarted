@@ -1,4 +1,4 @@
-const {updateOccupancyMap}=require("./PathfindingFunctionality.js")
+const {updateOccupancyMap,addUserToTileWatch}=require("./PathfindingFunctionality.js")
 
 class GlobalChunkManager {
     constructor() {
@@ -23,6 +23,7 @@ class GlobalChunkManager {
         for (const [key, value] of Object.entries(tiles)) {
             for(const tile of value){
                 if(this.getTile(tile.x,tile.y)){
+                    await addUserToTileWatch(`${tile.x},${tile.y}`,userId)
                     returnDict[key].push(this.getTile(tile.x,tile.y))
                     continue;
                 }

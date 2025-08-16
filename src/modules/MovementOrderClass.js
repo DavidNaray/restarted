@@ -1,10 +1,12 @@
-const {addMovementOrder,getPixelLocationsForTile,getDataOfTile,getUserIdArrayForTile,removeMovementOrder}=require("./PathfindingFunctionality.js")
-const ChunkManager=require("./CacheChunkInfo.js")
-const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
+const {addMovementOrder,getPixelLocationsForTile,getDataOfTile,getUserIdArrayForTile,removeMovementOrder,updatePixelLocAndOcc}=require("./PathfindingFunctionality.js")
+
 const {AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining,AstarPathCostPathIncluded}= require("./AbtractMapGeneration.js")
-const {unitPositionChangeForUsers}=require("./TickMessages.js")
+const {unitPositionChangeForUsers,unitChunkCrossHandleForUsers}=require("./TickMessages.js")
+const TileScheme=require("../Schemas/Tile")
 class MovementOrder{
-    constructor(selectedUnits,ClickedPixel,TargetChunk){
+    constructor(selectedUnits,ClickedPixel,TargetChunk,ownerId){
+        this.owner=ownerId;
+
         console.log("destination",TargetChunk,ClickedPixel)
         this.destinationPoint=ClickedPixel;
         this.targetChunk=TargetChunk;
@@ -447,8 +449,10 @@ class MovementOrder{
                         // console.log(PX,PY,"PLEASE",this.OrderCenter)
 
                         const globalNextForUnit=await this.getTheNextPixel(CX,CY,PX,PY,formationPoint);
+                        
                         // if()
                         if(globalNextForUnit !=false ){
+                            // console.log("globalNextForUnit",globalNextForUnit)
                             mutate=false
 
                             const xPart=Math.floor(globalNextForUnit.x / 1536)
@@ -459,13 +463,69 @@ class MovementOrder{
                             
                             if (!freshMap.has(chunkUnit)) {freshMap.set(chunkUnit, new Map());}
 
-                            freshMap.get(chunkUnit).set(unitId,[valueunit[0],pixelsUnit,formationPoint])//
                             
                             
-
-                            //get the userids array for the tile
+                            //get the userids array for the tile unit is now on
                             const thoseIds=await getUserIdArrayForTile(chunkUnit)
-                            await unitPositionChangeForUsers(thoseIds,{unitId:unitId,ChunkX:xPart,ChunkY:yPart,x:pixelsUnit[0],y:pixelsUnit[1]})
+                            if(CX!=xPart || CY!=yPart){//unit has moved to a different chunk
+
+                                console.log("unit moved to a different chunk",chunkUnit,CX,CY,xPart,yPart)
+                                //create a new entry for the unit in the new chunk
+                                var chosenServerIndices;
+                                const tile = await TileScheme.findOne({x: xPart,y: yPart});
+                                var tileFreeIndices=tile.freeIndices
+                                var TileTopIndice=tile.topIndice
+
+                                if(tileFreeIndices.length>0){
+                                    const freeIndice=tileFreeIndices.shift().toString();//pops first element in array
+                                    chosenServerIndices=freeIndice
+                                }else{
+                                    chosenServerIndices=TileTopIndice
+                                    TileTopIndice+=1
+                                }
+                                //add info to the pixel location
+                                updatePixelLocAndOcc(CX,CY,unitId,valueunit[0],pixelsUnit,this.owner,true)
+                                updatePixelLocAndOcc(xPart,yPart,chosenServerIndices,valueunit[0],pixelsUnit,this.owner)
+
+                                tile.freeIndices=tileFreeIndices
+                                tile.topIndice=TileTopIndice
+                                tile.save()
+
+                                const oldTile = await TileScheme.findOne({x: CX,y: CY});
+                                var OldtileFreeIndices=oldTile.freeIndices
+                                var OldTileTopIndice=oldTile.topIndice
+                                if(unitId==OldTileTopIndice){
+                                    OldTileTopIndice-=1;
+                                }else{
+                                    OldtileFreeIndices.push(unitId)
+                                }
+                                oldTile.freeIndices=OldtileFreeIndices
+                                oldTile.topIndice=OldTileTopIndice
+                                oldTile.save()
+                                //send command to remove the unit from the old chunk
+
+                                await unitChunkCrossHandleForUsers(thoseIds,
+                                    {   unitId:unitId,//what the current unit serverId is
+                                        ChunkX:CX,ChunkY:CY,//what the old chunk was, so is the target to remove the unit from
+                                        newChunkX:xPart,newChunkY:yPart,//the new chunk to add the unit to
+                                        serverId:chosenServerIndices,//what id to give that unit
+                                        x:pixelsUnit[0],y:pixelsUnit[1],//where to place it
+                                        unitType:valueunit[0],//what type of unit it is
+                                        owner: this.owner,//who owns the unit
+                                        AssetClass: "Unit"//what type of asset it is
+                                    }
+                                )
+
+                                //remove that same unit from involved units, replace it with the new one
+                                // this.UnitsInvolved.get(chunkUnit).set(chosenServerIndices,[valueunit[0],pixelsUnit,formationPoint])
+                                // this.UnitsInvolved.get(key).delete(unitId)
+                                freshMap.get(chunkUnit).set(chosenServerIndices,[valueunit[0],pixelsUnit,formationPoint])
+                            }else{
+                                // console.log("order to move within a chunk")
+                                freshMap.get(chunkUnit).set(unitId,[valueunit[0],pixelsUnit,formationPoint])
+                                await unitPositionChangeForUsers(thoseIds,{unitId:unitId,ChunkX:xPart,ChunkY:yPart,x:pixelsUnit[0],y:pixelsUnit[1]})
+                            }
+                            
                         }else{
                             // console.log("on top of formation")
                         }

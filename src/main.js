@@ -651,7 +651,7 @@ io.on('connection', (socket) => {
         tile.save()
         // console.log("chosen....",chosenServerIndices)
 
-        console.log("deploting units in chunk",values.chunkCoords)
+        // console.log("deploying units in pixel",values.pixelCoords)
         const responseObject={
             "AssetClass":"Unit",
             "position":values.pixelCoords,//RequestMetaData.DeployPosition,
@@ -692,7 +692,7 @@ io.on('connection', (socket) => {
 
         const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,destinationPoint)
         
-        new MovementOrderClass(selectedUnits["Unit"],values.pixelCoords,values.chunkCoords)
+        new MovementOrderClass(selectedUnits["Unit"],values.pixelCoords,values.chunkCoords,userId)
         // await newOrder.calculateMedian();
         // const cheapestPortal=await newOrder.getClosestAccessiblePortal()
         // console.log("huh?", cheapestPortal)
@@ -734,6 +734,11 @@ async function gameTick() {
     // console.log("hi?",messages)
     for (const [userIdent, TheirMessage] of messages) {
         const TheirSocket=userSockets.get(userIdent)
+
+        // if(TheirMessage.replacements){
+        //     console.log("its here man......")
+
+        // }
         // console.log("TheirMessage",TheirMessage,TheirSocket)
         // const iterator = TheirSocket.values();
         for (const value of TheirSocket) {

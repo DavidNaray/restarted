@@ -172,7 +172,7 @@ function HandleSocketResponses(socket){
         console.log("deploying units",response.position)
 
         const whichTileUnits=globalmanager.getTile(response.tile[0],response.tile[1])
-        console.log(response.ServerIds)
+        // console.log("owner of deployed units",response.owner)
 
         for(var i=0;i<response.UnitCount;i++){
             const metaDataUnits={
@@ -194,17 +194,48 @@ function HandleSocketResponses(socket){
     });
 
     socket.on("TickUpdate",(response)=>{
-        console.log("ummmm",response)
+        // console.log("ummmm",response)
         //loop over positions
+        const replacements=response.replacements
+        // console.log("replacements",response.replacements)
         const positions=response.positions
-        for(const unitmove of positions){
-            // console.log("unitmove",unitmove)
-            const whichTileUnits=globalmanager.getTile(unitmove.ChunkX,unitmove.ChunkY)
-            // console.log(whichTileUnits,"so its got the tile")
-            const UnitServerId=unitmove.unitId
 
-            whichTileUnits.moveUnit([unitmove.x,unitmove.y],UnitServerId)
+        if(replacements){
+            console.log("replacements!!!!!!!!!!",replacements)
+            for(const unitReplace of replacements){
+                const whichTileUnitsRemoveFrom=globalmanager.getTile(unitReplace.ChunkX,unitReplace.ChunkY)
+                const RemoveUnitOfId=unitReplace.unitId
+
+                whichTileUnitsRemoveFrom.removeUnit(RemoveUnitOfId)
+                
+                const whichTileUnits=globalmanager.getTile(unitReplace.newChunkX,unitReplace.newChunkY)
+                const newUnitId=unitReplace.serverId
+
+                const metaDataUnits={
+                    "position":[unitReplace.x,unitReplace.y],//in pixel values for the chunk its to be deployed in!
+                    "UnitType":unitReplace.unitType,
+                    "AssetClass":unitReplace.AssetClass,
+                    "owner":unitReplace.owner,
+                    "ServerId":newUnitId
+                    // "health":response.health
+                }
+                // console.log(response.ServerIds[i], "placing units, this is the serverId of one")
+                whichTileUnits.objectLoad(unitReplace.unitType,metaDataUnits,unitReplace.AssetClass)
+
+            }
         }
+
+        if(positions){
+            for(const unitmove of positions){
+                // console.log("unitmove",unitmove)
+                const whichTileUnits=globalmanager.getTile(unitmove.ChunkX,unitmove.ChunkY)
+                // console.log(whichTileUnits,"so its got the tile")
+                const UnitServerId=unitmove.unitId
+
+                whichTileUnits.moveUnit([unitmove.x,unitmove.y],UnitServerId)
+            }
+        }
+
     })
 }
 
