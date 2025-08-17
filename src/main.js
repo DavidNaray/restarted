@@ -18,6 +18,7 @@ const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport
 const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
+const {calculateReward}=require("./modules/RewardCalculating.js")
 const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
 const {updatePixelLocAndOcc,ProgressOrders}=require("./modules/PathfindingFunctionality.js")
 const {getTheMessage,killEntry}=require("./modules/TickMessages.js")
@@ -35,6 +36,11 @@ const TemplateScheme = mongoose.model('Templates', TemplateSchemaImport)
 // const TileScheme = mongoose.model('Tiles', TileSchemaImport)
 
 // module.exports={TileScheme};
+
+function getTodayDateString() {
+  const now = new Date();
+  return now.toISOString().slice(0, 10); // e.g. "2025-08-16"
+}
 
 const PORT= 5000
 const app=express()//creates server
@@ -106,7 +112,7 @@ app.post('/Register-user', async (req, res) => {
     await genTerrain.generateHeightmap(chunkX,chunkY)//function that creates terrain
 
     const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+chunkX.toString()+chunkY.toString()+".png"
-    console.log("WalkMapLocation",WalkMapLocation)
+    // console.log("WalkMapLocation",WalkMapLocation)
     //abstractMapForTile is a map() of portals, 
     // the key is the start portal, the value is a map of endportal -> cost to get there from the start portal (first key)
     var abstractMapForTile;
@@ -116,7 +122,7 @@ app.post('/Register-user', async (req, res) => {
         console.log("Error in abstract map generation:", eb);
     }
     
-    console.log(abstractMapForTile,"not the abstract map failing cus ur seeing this",)
+    // console.log(abstractMapForTile,"not the abstract map failing cus ur seeing this",)
     // const AbstractMapForSchema=convertMapToMongoDoc(abstractMapForTile)
     // console.log("Size of abstract map in KB:", Buffer.byteLength(JSON.stringify(AbstractMapForSchema)) / 1024);
     // console.log(AbstractMapForSchema)
@@ -243,9 +249,15 @@ app.post('/token', async (req, res) => {
 
 app.get('/tiles', authenticateTokenImport, async (req, res) => {//authenticateToken
   try {
-    const user = await User.findOne({ username: req.user.username });
+    // const today = getTodayDateString();
+    // var rewardrequest = false;
+
+    // console.log("tiles id",req.user.id)
+    const user = await User.findOne({ _id: req.user.id });
     // console.log(user)
     if (!user) return res.status(404).json({ message: "User not found" });
+
+    // if (user.lastClaimDate !== today) {rewardrequest = true;}
 
     const tiles = {
         "owner":await TileScheme.find({ owner: user._id }),
@@ -295,8 +307,8 @@ app.get('/tiles', authenticateTokenImport, async (req, res) => {//authenticateTo
 
     //pass tiles into ChunkManager registration, itll spit out the json of those tiles
     const returnDict=await ChunkManager.RegisterChunk(tiles,user._id.toString())
-    // console.log(returnDict)
-    res.json({ success: true, tiles: returnDict,OriginTile:user.OriginTile });
+    // console.log(user.OriginTile,"OriginTile")
+    res.json({ success: true, tiles: returnDict,OriginTile:user.OriginTile});
   } catch (err) {
     res.status(500).json({ success: false, message: 'Failed to fetch tiles' });
   }
@@ -488,6 +500,31 @@ io.on('connection', (socket) => {
             console.error("Error fetching user:", err);
         });
     });
+
+    socket.on('requestRewards',  () => {
+        User.findOne({ _id: socket.userId }).then(user => {
+            if (!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const today = getTodayDateString();
+            if (user.lastClaimDate !== today) {  
+                const rewardToSend= calculateReward(user)
+                socket.emit('rewardUpdate', rewardToSend);
+
+                user.lastClaimDate = today;
+                user.save().then(() => {
+                    // console.log("User's last claim date updated successfully.");
+                }).catch(err => {
+                    console.error("Error updating user's last claim date:", err);
+                });
+            }else{
+                socket.emit('rewardUpdate', false);
+            }
+        }).catch(err => {
+            console.error("Error fetching user:", err);
+        });
+    })
 
     socket.on('BuildingPlacementRequest',async ({RequestMetaData}) =>{//BuildingAssetName,
         //response should be which asset, 

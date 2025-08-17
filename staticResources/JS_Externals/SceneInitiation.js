@@ -163,6 +163,21 @@ function HandleSocketResponses(socket){
         renderer.domElement.removeEventListener( 'click',  onTileClick);
     });
 
+    socket.on('rewardUpdate', (response) => {
+        console.log("reward update",response)
+        if(response){
+            
+            const msgDiv=document.getElementById("DailyRewardText");
+            const imgDiv=document.getElementById("DailyRewardImage");
+
+            msgDiv.innerText=response.Message;
+            imgDiv.style.backgroundImage=`url('${response.ImageLocation}')`;//"url("+response.ImageLocation+")";
+
+            const bruhTwo=document.getElementById("bruhTwo");
+            bruhTwo.style.display="flex"; // Show the reward box
+        }
+    });
+
     socket.on('testingResponse', (response) => {
         // console.log(response)
         console.log("if this runs then the abstract map was made")
@@ -247,7 +262,7 @@ function HandleInitialEmits(socket){
     socket.emit('requestWarSupportUpdate');
     socket.emit('requestStabilityUpdate');
     socket.emit('requestPoliticalPowerUpdate');
-
+    socket.emit('requestRewards')
     socket.emit('testing');
 }
 

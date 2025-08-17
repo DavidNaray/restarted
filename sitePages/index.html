@@ -17,6 +17,27 @@
     <div id="ThreeBlock" style="will-change: transform;"></div>
     
     <!-- parent, allows overlay to happen -->
+    
+    <div id="bruhTwo">
+        <div id="DailyRewardBox" >
+            <div style="width: 100%;">
+                <p style="font-size: min(3vw,1vh);">Daily Event:</p>
+            </div>
+
+            <div style="width: 100%;">
+                <p style="font-size: min(3vw,3vh);">A Report Lands on Your Desk</p>
+            </div>
+
+            <div id="DailyRewardImage" ></div>
+
+            <div style="width: calc(100% - 2px - 0.5vw);aspect-ratio: 1/0.4;background-color: white;border: black solid 1px;margin-top: 2px;margin-bottom: 2px;padding:0.25vw">
+                <p id="DailyRewardText" style="font-size: min(3vw,2vh);">Daily Event:</p>
+            </div>
+
+            <div style="width: 100%;flex:1;background-color: red;"></div>
+        </div>
+    </div>
+
     <div id="bruh">
         <!-- the div that is the top bar, displaying the resources and buttons -->
         <div id="Resources_Buttons">
@@ -133,6 +154,8 @@
             </div>
 
         </div>
+
+        
     </div>
     
     <script src="/socket.io/socket.io.js"></script>
