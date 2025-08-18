@@ -33,7 +33,7 @@ function HandleSocketResponses(socket){
     socket.on('resourcePoliticalPowerUpdate', (resources) => {
         
         const PoliticalPowerRateTT=resources.Rate;
-        const PoliticalPowerSurplusTT=resources.Total;
+        const PoliticalPowerSurplusTT=Math.floor(resources.Total);
         // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
         document.getElementById("PPRTxt").innerText=PoliticalPowerSurplusTT
 
@@ -48,7 +48,7 @@ function HandleSocketResponses(socket){
     socket.on('resourceGoldUpdate', (resources) => {
         
         const GoldRateTT=resources.Rate;
-        const GoldSurplusTT=resources.Total;
+        const GoldSurplusTT=Math.floor(resources.Total);
         // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
         document.getElementById("GoldRTxt").innerText=GoldSurplusTT
 
@@ -63,7 +63,7 @@ function HandleSocketResponses(socket){
         
 
         const StoneRateTT=resources.Rate;
-        const StoneSurplusTT=resources.Total;
+        const StoneSurplusTT=Math.floor(resources.Total);
         // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
         document.getElementById("StoneRTxt").innerText=StoneSurplusTT
 
@@ -78,7 +78,7 @@ function HandleSocketResponses(socket){
         
 
         const WoodRateTT=resources.Rate;
-        const WoodSurplusTT=resources.Total;
+        const WoodSurplusTT=Math.floor(resources.Total);
         // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
         document.getElementById("WoodRTxt").innerText=WoodSurplusTT
 
@@ -90,7 +90,7 @@ function HandleSocketResponses(socket){
     });
     //Stability
     socket.on('resourceStabilityUpdate', (resources) => {
-        const StabilityTotalTT=resources.Total;
+        const StabilityTotalTT=Math.floor(resources.Total);
         // console.log("I AM THE WOOD REQUESTER RAHH",StabilityTotalTT)
         document.getElementById("StabilityRTxt").innerText=StabilityTotalTT
 
@@ -110,11 +110,11 @@ function HandleSocketResponses(socket){
     });
 
     socket.on('resourceManPowerUpdate', (resources) => {
-        const TotalManpower=resources.TotalManPower;
-        const TotalPopulation=resources.TotalPopulation;
-        const PopulationRate=resources.TotalPopulation;
-        const RecruitableFactor=resources.TotalPopulation;
-        const MaxPopulation=resources.TotalPopulation;
+        const TotalManpower=Math.floor(resources.TotalManPower);
+        const TotalPopulation=Math.floor(resources.TotalPopulation);
+        const PopulationRate=resources.PopulationRate;
+        const RecruitableFactor=resources.RecruitableFactor;
+        const MaxPopulation=resources.MaxPopulation;
 
         // console.log("I AM THE WOOD REQUESTER RAHH",WoodRateTT)
         document.getElementById("ManPowerRTxt").innerText=TotalManpower

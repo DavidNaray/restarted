@@ -379,6 +379,33 @@ app.get('/{*any}',(req,res)=>{//handles urls not the explicitly defined, wanted 
 })
 
 
+async function updateResourceForUser(user){
+    console.log("updating resources for user",user._id)
+    const now = Date.now();
+    const elapsedSeconds = (now - user.Resources.lastUpdated.getTime()) / 1000;
+
+    if (elapsedSeconds <= 0) return user;
+
+    for (const key of ["Gold", "Stone", "Wood", "Political"]) {
+        const resource = user.Resources[key];
+        if (resource.Rate !== 0) {
+            resource.Total += resource.Rate * elapsedSeconds;
+        }
+    }
+
+    const mp = user.Resources.ManPower;
+    if (mp.PopulationRate !== 0) {
+        mp.TotalPopulation += mp.PopulationRate * elapsedSeconds;
+        if (mp.TotalPopulation > mp.MaxPopulation) {
+            mp.TotalPopulation = mp.MaxPopulation;
+        }
+        mp.TotalManPower = Math.floor(mp.TotalPopulation * mp.RecruitableFactor);
+    }
+    user.Resources.lastUpdated = new Date(now);
+    await user.save();
+    return user;
+}
+
 const userSockets = new Map(); // userId -> Set of socket IDs
 
 io.use((socket, next) => {
@@ -395,65 +422,78 @@ io.on('connection', (socket) => {
     }
     userSockets.get(socket.userId).add(socket.id);
 
-    socket.on('requestWoodUpdate', () => {
+    socket.on('requestWoodUpdate', async () => {
         // console.log(`Resources requested by player: ${playerId}`);
-
-        User.findOne({ _id: socket.userId }).then(user => {
-            if (!user) {
+        try{
+            const user=await User.findOne({ _id: socket.userId })
+            if(!user) {
                 console.log(`No user found for playerId: ${socket.userId}`);
                 return;
             }
-            // console.log(user, ".....");
-            socket.emit('resourceWoodUpdate', user.Resources.Wood);
-        }).catch(err => {
-            console.error("Error fetching user:", err);
-        });
+
+            await updateResourceForUser(user);
+            socket.emit("resourceWoodUpdate", user.Resources.Wood);
+        }catch(err){
+        }
+        // .then(user => {
+        //     if (!user) {
+        //         console.log(`No user found for playerId: ${socket.userId}`);
+        //         return;
+        //     }
+        //     // console.log(user, ".....");
+            
+        //     socket.emit('resourceWoodUpdate', user.Resources.Wood);
+        // }).catch(err => {
+        //     console.error("Error fetching user:", err);
+        // });
     });
 
-    socket.on('requestStoneUpdate', () => {
+    socket.on('requestStoneUpdate', async() => {
         // console.log(`Resources requested by player: ${playerId}`);
 
-        
-        User.findOne({ _id: socket.userId }).then(user => {
-            if (!user) {
+        try{
+            const user=await User.findOne({ _id: socket.userId })
+            if(!user) {
                 console.log(`No user found for playerId: ${socket.userId}`);
                 return;
             }
-            // console.log(user, ".....");
-            socket.emit('resourceStoneUpdate', user.Resources.Stone);
-        }).catch(err => {
-            console.error("Error fetching user:", err);
-        });
+
+            await updateResourceForUser(user);
+            socket.emit("resourceStoneUpdate", user.Resources.Stone);
+        }catch(err){
+        }
     });
 
-    socket.on('requestGoldUpdate', () => {
+    socket.on('requestGoldUpdate', async() => {
         // console.log(`Resources requested by player: ${playerId}`);
 
-        User.findOne({ _id: socket.userId }).then(user => {
-            if (!user) {
+        try{
+            const user=await User.findOne({ _id: socket.userId })
+            if(!user) {
                 console.log(`No user found for playerId: ${socket.userId}`);
                 return;
             }
-            // console.log(user, ".....");
-            socket.emit('resourceGoldUpdate', user.Resources.Gold);
-        }).catch(err => {
-            console.error("Error fetching user:", err);
-        });
+
+            await updateResourceForUser(user);
+            socket.emit("resourceGoldUpdate", user.Resources.Gold);
+        }catch(err){
+        }
     });
 
-    socket.on('requestPoliticalPowerUpdate', () => {
+    socket.on('requestPoliticalPowerUpdate', async() => {
         // console.log(`Resources requested by player: ${playerId}`);
 
-        User.findOne({ _id: socket.userId }).then(user => {
-            if (!user) {
+        try{
+            const user=await User.findOne({ _id: socket.userId })
+            if(!user) {
                 console.log(`No user found for playerId: ${socket.userId}`);
                 return;
             }
-            // console.log(user, ".....");
-            socket.emit('resourcePoliticalPowerUpdate', user.Resources.Political);
-        }).catch(err => {
-            console.error("Error fetching user:", err);
-        });
+
+            await updateResourceForUser(user);
+            socket.emit("resourcePoliticalPowerUpdate", user.Resources.Political);
+        }catch(err){
+        }
     });
 
     socket.on('requestStabilityUpdate', () => {

@@ -34,7 +34,9 @@
                 <p id="DailyRewardText" style="font-size: min(3vw,2vh);">Daily Event:</p>
             </div>
 
-            <div style="width: 100%;flex:1;background-color: red;"></div>
+            <div style="width: 100%;flex:1;display: flex;justify-content: center;align-items: center;">
+                <div onclick="closeDaily()" style="display: inline-block;background-color: lightgrey;padding: 0.4vw;font-size: min(4vw,3vh);border: black solid 1px;">Interesting.</div>
+            </div>
         </div>
     </div>
 
@@ -164,4 +166,10 @@
 
     
 </body>
+
+<script>
+    function closeDaily(){
+        document.getElementById("bruhTwo").style.display = "none";
+    }
+</script>
 </html>

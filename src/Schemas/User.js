@@ -8,7 +8,7 @@ const userSchema = new mongoose.Schema({
   Resources:{
     Gold:{
         Total:{ type: Number, default: 0 },
-        Rate:{type: Number, default: 0}, 
+        Rate:{type: Number, default: 1}, 
     },
     
     Stone:{
@@ -18,7 +18,7 @@ const userSchema = new mongoose.Schema({
 
     Wood:{
         Total:{ type: Number, default: 0 },
-        Rate:{type: Number, default: 0}, 
+        Rate:{type: Number, default: 1}, 
     },
     
     Political:{
@@ -39,13 +39,13 @@ const userSchema = new mongoose.Schema({
 
     ManPower:{
         TotalManPower:{type: Number, default: 0},
-        TotalPopulation:{type: Number, default: 0},
-        PopulationRate:{type: Number, default: 0},
+        TotalPopulation:{type: Number, default: 50},
+        PopulationRate:{type: Number, default: 0.1},
         RecruitableFactor:{type: Number, default: 0.1},
-        MaxPopulation:{type: Number, default: 0},
+        MaxPopulation:{type: Number, default: 100},
     },
 
-    
+    lastUpdated: { type: Date, default: Date.now }
 
   },
   lastClaimDate: { type: String, default: null }, // e.g. "2025-08-16"
