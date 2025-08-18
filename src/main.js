@@ -80,7 +80,8 @@ app.post('/Register-user', async (req, res) => {
   try {
     const existingUser = await User.findOne({ username });
     if (existingUser) {
-      return res.status(400).json({ success: false, message: 'Username already exists' });
+        console.log("Username already exists, preventing spam reg?:", username);
+        return res.status(400).json({ success: false, message: 'Username already exists' });
     }
     
     const saltRounds = 10;
@@ -95,96 +96,92 @@ app.post('/Register-user', async (req, res) => {
 
     // Save refreshToken to user in DB (optional)
     user.refreshTokens.push(refreshToken);
-    
-
-    // === Create Tile ===
-
-    // console.log(Coordfinder.GiveMeNextCoordAndSetState(), "COORDS BABAY")
-    const defaultHeightmapURL = './Tiles/HeightMaps/00.png';
-    const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
-    const defaultWalkmapURL = './Tiles/WalkMaps/00.png';
 
     //run the terrain generation function with the coords
     const pos=Coordfinder.GiveMeNextCoordAndSetState()
-    const chunkX=pos[0];
-    const chunkY=pos[1];
-    // console.log(chunkX,chunkY, "HOPEFULLY STILL CHANGES")
-    await genTerrain.generateHeightmap(chunkX,chunkY)//function that creates terrain
-
-    const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+chunkX.toString()+chunkY.toString()+".png"
-    // console.log("WalkMapLocation",WalkMapLocation)
-    //abstractMapForTile is a map() of portals, 
-    // the key is the start portal, the value is a map of endportal -> cost to get there from the start portal (first key)
-    var abstractMapForTile;
-    try{
-        abstractMapForTile=await PortalConnectivity(WalkMapLocation,true)
-    }catch(eb){
-        console.log("Error in abstract map generation:", eb);
-    }
-    
-    // console.log(abstractMapForTile,"not the abstract map failing cus ur seeing this",)
-    // const AbstractMapForSchema=convertMapToMongoDoc(abstractMapForTile)
-    // console.log("Size of abstract map in KB:", Buffer.byteLength(JSON.stringify(AbstractMapForSchema)) / 1024);
-    // console.log(AbstractMapForSchema)
-    // console.log(abstractMapForTile.get('47,47'), "the abstract map....")
-    
-    const B_TownHall={
-        "userId":user._id,
-        "assetId": "DATC",
-        "instances":[{
-            "position":[0,0,0],
-            "metaData":{
-                "health":100,
-                "state":"Built"
-            }
-        }]
-    }
-    const tile = new TileScheme({
-        x:chunkX,
-        y:chunkY,
-        owner: user._id,
-        allies: [],
-        involvedUsers: [],
-        // AbstractMap:convertMapToMongoDoc(abstractMapForTile),
-        textures:{
-            heightmapUrl: './Tiles/HeightMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultHeightmapURL,
-            texturemapUrl: './Tiles/TextureMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultTexturemapURL,
-            WalkMapURL: './Tiles/WalkMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultWalkmapURL,
-        },
-        units: [],
-        buildings: [B_TownHall]
-    });
-    // tile.AbstractMap=convertMapToMongoDoc(abstractMapForTile)
-    // tile.markModified('AbstractMap');
-    try {
-        if(abstractMapForTile){
-            const abstractMapDoc= convertMapToMongoDoc(abstractMapForTile);
-            const doc = { AbstractMap: abstractMapDoc };
-
-            const size = bson.calculateObjectSize(doc);
-            
-            console.log('Mongo document size in bytes:', size);
-
-            tile.AbstractMap=abstractMapDoc;
-            tile.markModified('AbstractMap');
-        }
-
-        await tile.save();
-        console.log("✅ Tile saved successfully");
-    } catch (err) {
-        console.error("❌ Tile save failed:", err);
-    }
-    // await tile.save();
+    const chunkX=pos[0];const chunkY=pos[1];
 
     user.OriginTile=[chunkX,chunkY]
-    console.log("before save")
-    await user.save();
-    console.log("after save")
+    try{
+        await user.save();
 
+        res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
+        res.json({ accessToken,user, success: true, message: 'User recognised'});
+        
+        // === Create Tile ===
+        const defaultHeightmapURL = './Tiles/HeightMaps/00.png';
+        const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
+        const defaultWalkmapURL = './Tiles/WalkMaps/00.png';
+        await genTerrain.generateHeightmap(chunkX,chunkY)//function that creates terrain
+
+        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+chunkX.toString()+chunkY.toString()+".png"
+
+        var abstractMapForTile;
+        try{abstractMapForTile=await PortalConnectivity(WalkMapLocation,true)
+        }catch(eb){console.log("Error in abstract map generation:", eb);}
+        
+        
+        // const B_TownHall={
+        //     "userId":user._id,
+        //     "assetId": "DATC",
+        //     "instances":[{
+        //         "position":[0,0,0],
+        //         "metaData":{
+        //             "health":100,
+        //             "state":"Built"
+        //         }
+        //     }]
+        // }
+        const tile = new TileScheme({
+            x:chunkX,
+            y:chunkY,
+            owner: user._id,
+            allies: [],
+            involvedUsers: [],
+            // AbstractMap:convertMapToMongoDoc(abstractMapForTile),
+            textures:{
+                heightmapUrl: './Tiles/HeightMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultHeightmapURL,
+                texturemapUrl: './Tiles/TextureMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultTexturemapURL,
+                WalkMapURL: './Tiles/WalkMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultWalkmapURL,
+            },
+            units: [],
+            buildings: []//B_TownHall
+        });
+
+        try {
+            if(abstractMapForTile){
+                const abstractMapDoc= convertMapToMongoDoc(abstractMapForTile);
+                const doc = { AbstractMap: abstractMapDoc };
+
+                const size = bson.calculateObjectSize(doc);
+                
+                console.log('Mongo document size in bytes:', size);
+
+                tile.AbstractMap=abstractMapDoc;
+                tile.markModified('AbstractMap');
+            }
+
+            await tile.save();
+            console.log("✅ Tile saved successfully");
+        } catch (err) {
+            console.error("❌ Tile save failed:", err);
+        }
+
+
+    } catch (err) {
+        console.log("Error saving user:", err);
+        return res.status(400).json({ success: false, message: "Username already exists" });
+    }
 
     console.log("ITS ON REGISTER MAN!!")
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
-    res.json({ accessToken,user, success: true, message: 'User recognised'});
+
+    
+    
+    
+
+
+
+    
   } catch (err) {
     res.status(500).json({ success: false, message: "server failure" });
   }

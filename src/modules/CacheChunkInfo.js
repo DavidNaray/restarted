@@ -3,6 +3,7 @@ const {updateOccupancyMap,addUserToTileWatch}=require("./PathfindingFunctionalit
 class GlobalChunkManager {
     constructor() {
         this.tiles = new Map();//tiles have utility
+        this.users = new Map();//users have utility
     }
     getTile(x, y) {
         try{
@@ -48,6 +49,21 @@ class GlobalChunkManager {
             }
         }
         return returnDict;
+    }
+
+    async RegisterUser(userId,user){
+        if(this.users.has(userId)){
+            return false;
+        }
+        this.users.set(userId,user);
+        return true;
+    }
+
+    async getUser(userId){
+        if(this.users.has(userId)){
+            return this.users.get(userId);
+        }
+        return false;
     }
 }
 // const ChunkManager=new GlobalChunkManager()
