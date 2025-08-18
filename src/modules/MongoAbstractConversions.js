@@ -84,4 +84,55 @@ function convertMongoPortalGraphToMap(graphArray) {
     return graphMap;
 }
 
-module.exports={convertMapToMongoDoc,convertMongoPortalGraphToMap}
+
+async function toCachedUser(userDoc) {
+  if (!userDoc) return null;
+
+  return {
+    id: userDoc._id.toString(),
+    username: userDoc.username,
+    passwordHash: userDoc.passwordHash,
+    OriginTile: [...(userDoc.OriginTile || [])],
+    refreshTokens: [...(userDoc.refreshTokens || [])],
+
+    Resources: {
+      Gold: {
+        Total: userDoc.Resources.Gold.Total ?? 0,
+        Rate: userDoc.Resources.Gold.Rate ?? 1,
+      },
+      Stone: {
+        Total: userDoc.Resources.Stone.Total ?? 0,
+        Rate: userDoc.Resources.Stone.Rate ?? 0,
+      },
+      Wood: {
+        Total: userDoc.Resources.Wood.Total ?? 0,
+        Rate: userDoc.Resources.Wood.Rate ?? 1,
+      },
+      Political: {
+        Total: userDoc.Resources.Political.Total ?? 0,
+        Rate: userDoc.Resources.Political.Rate ?? 0,
+      },
+      Stability: {
+        Total: userDoc.Resources.Stability.Total ?? 50,
+        Influence: userDoc.Resources.Stability.Influence ?? "Base: 50%",
+      },
+      WarSupport: {
+        Total: userDoc.Resources.WarSupport.Total ?? 50,
+        Influence: userDoc.Resources.WarSupport.Influence ?? "Base: 50%",
+      },
+      ManPower: {
+        TotalManPower: userDoc.Resources.ManPower.TotalManPower ?? 0,
+        TotalPopulation: userDoc.Resources.ManPower.TotalPopulation ?? 50,
+        PopulationRate: userDoc.Resources.ManPower.PopulationRate ?? 0.1,
+        RecruitableFactor: userDoc.Resources.ManPower.RecruitableFactor ?? 0.1,
+        MaxPopulation: userDoc.Resources.ManPower.MaxPopulation ?? 100,
+      },
+      lastUpdated: userDoc.Resources.lastUpdated
+        ? new Date(userDoc.Resources.lastUpdated)
+        : new Date(),
+    },
+
+    lastClaimDate: userDoc.lastClaimDate ?? null,
+  };
+}
+module.exports={convertMapToMongoDoc,convertMongoPortalGraphToMap,toCachedUser}

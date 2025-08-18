@@ -52,6 +52,7 @@ class GlobalChunkManager {
     }
 
     async RegisterUser(userId,user){
+        console.log("Registering user:",userId);
         if(this.users.has(userId)){
             return false;
         }

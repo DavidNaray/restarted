@@ -19,7 +19,7 @@ const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPla
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
 const {calculateReward}=require("./modules/RewardCalculating.js")
-const {convertMapToMongoDoc}=require("./modules/MongoAbstractConversions.js")
+const {convertMapToMongoDoc,toCachedUser}=require("./modules/MongoAbstractConversions.js")
 const {updatePixelLocAndOcc,ProgressOrders}=require("./modules/PathfindingFunctionality.js")
 const {getTheMessage,killEntry}=require("./modules/TickMessages.js")
 const ChunkManager=require("./modules/CacheChunkInfo.js")
@@ -108,6 +108,12 @@ app.post('/Register-user', async (req, res) => {
         res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
         res.json({ accessToken,user, success: true, message: 'User recognised'});
         
+        const UserToCache = await User.findOne({ username });
+        // await ChunkManager.RegisterUser(UserToCache._id.toString(),UserToCache)
+        const UserToCacheConverted = await toCachedUser(UserToCache)
+        await ChunkManager.RegisterUser(UserToCacheConverted.id,UserToCacheConverted)
+
+
         // === Create Tile ===
         const defaultHeightmapURL = './Tiles/HeightMaps/00.png';
         const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
@@ -207,7 +213,11 @@ app.post('/Login-user', async (req, res) => {
     // Save refreshToken to user in DB (optional)
     user.refreshTokens.push(refreshToken);
     await user.save();
-    // res.status(201).json({ success: true, message: 'User recognised',user,token });
+    
+    const UserToCache = await User.findOne({ username });
+    const UserToCacheConverted = await toCachedUser(UserToCache)
+    await ChunkManager.RegisterUser(UserToCacheConverted.id,UserToCacheConverted)
+
     console.log("WE LOGGIN IN  MAN!!")
     res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
     res.json({ accessToken,user, success: true, message: 'User recognised'});
@@ -231,7 +241,7 @@ app.post('/token', async (req, res) => {
         // Check if refreshToken is still valid (optional)
         const user = await User.findOne({ username: payload.username });
         if (!user || !user.refreshTokens.includes(refreshToken)) {
-        return res.status(403).json({ message: "Invalid refresh token" });
+            return res.status(403).json({ message: "Invalid refresh token" });
         }
 
         const accessToken = AccessTokenImport(user)//jwt.sign({ username: user.username }, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
@@ -377,9 +387,10 @@ app.get('/{*any}',(req,res)=>{//handles urls not the explicitly defined, wanted 
 
 
 async function updateResourceForUser(user){
-    console.log("updating resources for user",user._id)
+    // console.log("updating resources for user",user.id,user.Resources.lastUpdated)
     const now = Date.now();
     const elapsedSeconds = (now - user.Resources.lastUpdated.getTime()) / 1000;
+    // console.log("elapsedSeconds",elapsedSeconds)
 
     if (elapsedSeconds <= 0) return user;
 
@@ -399,7 +410,7 @@ async function updateResourceForUser(user){
         mp.TotalManPower = Math.floor(mp.TotalPopulation * mp.RecruitableFactor);
     }
     user.Resources.lastUpdated = new Date(now);
-    await user.save();
+    // await user.save();
     return user;
 }
 
@@ -422,7 +433,8 @@ io.on('connection', (socket) => {
     socket.on('requestResourceUpdate', async () => {
         // console.log(`Resources requested by player: ${playerId}`);
         try{
-            const user=await User.findOne({ _id: socket.userId })
+            // const user=await User.findOne({ _id: socket.userId })
+            const user=await ChunkManager.getUser(socket.userId)
             if(!user) {
                 console.log(`No user found for playerId: ${socket.userId}`);
                 return;
