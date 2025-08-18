@@ -128,6 +128,66 @@ function HandleSocketResponses(socket){
         }catch(e){}
     });
 
+    socket.on('resourceUpdate', (resources) => {
+        
+        const political={Rate:resources.Political.Rate,Total:Math.floor(resources.Political.Total)};
+        const gold={Rate:resources.Gold.Rate,Total:Math.floor(resources.Gold.Total)};
+        const stone={Rate:resources.Stone.Rate,Total:Math.floor(resources.Stone.Total)};
+        const wood={Rate:resources.Wood.Rate,Total:Math.floor(resources.Wood.Total)};
+        const stability={Total:Math.floor(resources.Stability.Total)};  
+        const warSupport={Total:Math.floor(resources.WarSupport.Total)};
+        const manpower={
+            TotalManPower:Math.floor(resources.ManPower.TotalManPower),
+            TotalPopulation:Math.floor(resources.ManPower.TotalPopulation),
+            PopulationRate:resources.ManPower.PopulationRate,
+            RecruitableFactor:resources.ManPower.RecruitableFactor,
+            MaxPopulation:resources.ManPower.MaxPopulation
+        };
+        
+        document.getElementById("PPRTxt").innerText=political.Total;
+        try{
+            document.getElementById("ToolTipPPRate").innerText=political.Rate;
+            document.getElementById("ToolTipPPSurplus").innerText=political.Total;    
+        }catch(a){}
+
+        document.getElementById("GoldRTxt").innerText=gold.Total;
+        try{
+            document.getElementById("ToolTipGoldRate").innerText=gold.Rate;
+            document.getElementById("ToolTipGoldSurplus").innerText=gold.Total;
+        }catch(b){}
+
+        document.getElementById("StoneRTxt").innerText=stone.Total;
+        try{
+            document.getElementById("ToolTipStoneRate").innerText=stone.Rate;
+            document.getElementById("ToolTipStoneSurplus").innerText=stone.Total;
+        }catch(c){}
+
+        document.getElementById("WoodRTxt").innerText=wood.Total;
+        try{
+            document.getElementById("ToolTipWoodRate").innerText=wood.Rate;
+            document.getElementById("ToolTipWoodSurplus").innerText=wood.Total;
+        }catch(d){}
+
+        document.getElementById("StabilityRTxt").innerText=stability.Total;
+        try{
+            document.getElementById("ToolTipStability").innerText=stability.Total;
+        }catch(e){}
+
+        document.getElementById("WarSupportRTxt").innerText=warSupport.Total;
+        try{
+            document.getElementById("ToolTipWarSupport").innerText=warSupport.Total;
+        }catch(f){}
+
+        document.getElementById("ManPowerRTxt").innerText=manpower.TotalManPower;
+        try{
+            document.getElementById("ToolTipTotalManPower").innerText=manpower.TotalManPower;
+            document.getElementById("ToolTipTotalPop").innerText=manpower.TotalPopulation;
+            document.getElementById("ToolTipMonthlyPopGain").innerText=manpower.PopulationRate;
+            document.getElementById("ToolTipRecrtuitableFac").innerText="Recruitable: "+manpower.RecruitableFactor+"%";
+            document.getElementById("ToolTipMaxPop").innerText=manpower.MaxPopulation;
+        }catch(g){}
+    });
+
     socket.on('CanYouPlaceBuilding', (response) => {
         InputState.value="neutral"
         // console.log("YIPEEEEEEE",response.position)
@@ -255,24 +315,14 @@ function HandleSocketResponses(socket){
 }
 
 function HandleInitialEmits(socket){
-    socket.emit('requestWoodUpdate');
-    socket.emit('requestStoneUpdate');
-    socket.emit('requestGoldUpdate');
-    socket.emit('requestManPowerUpdate');
-    socket.emit('requestWarSupportUpdate');
-    socket.emit('requestStabilityUpdate');
-    socket.emit('requestPoliticalPowerUpdate');
+    socket.emit('requestResourceUpdate');
     socket.emit('requestRewards')
-    socket.emit('testing');
+    // socket.emit('testing');
 }
 
-export function EmitWoodUpdate(){socket.emit('requestWoodUpdate');}
-export function EmitStoneUpdate(){socket.emit('requestStoneUpdate');}
-export function EmitGoldUpdate(){socket.emit('requestGoldUpdate');}
-export function EmitManPowerUpdate(){socket.emit('requestManPowerUpdate');}
-export function EmitWarSupportUpdate(){socket.emit('requestWarSupportUpdate');}
-export function EmitStabilityUpdate(){socket.emit('requestStabilityUpdate');}
-export function EmitPoliticalPowerUpdate(){socket.emit('requestPoliticalPowerUpdate')}
+export function EmitResourceUpdate(){
+    socket.emit('requestResourceUpdate');
+}
 
 export function EmitBuildingPlacementRequest(RequestMetaData){//BuildingAssetName,
     socket.emit('BuildingPlacementRequest',{
@@ -308,3 +358,5 @@ export function setupSocketConnection(){
     HandleInitialEmits(socket)
 
 }
+
+setInterval(EmitResourceUpdate, 10000);// Emit resource updates every 10 seconds

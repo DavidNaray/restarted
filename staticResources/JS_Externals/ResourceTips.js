@@ -1,7 +1,4 @@
-import {   
-    EmitWoodUpdate,EmitStoneUpdate,EmitGoldUpdate,EmitManPowerUpdate,
-    EmitWarSupportUpdate,EmitStabilityUpdate,EmitPoliticalPowerUpdate
-} from "./SceneInitiation.js"
+import {   EmitResourceUpdate} from "./SceneInitiation.js"
 
 function positionTooltip(targetElem, tooltipElem) {
     const rect = targetElem.getBoundingClientRect();
@@ -131,31 +128,38 @@ export function MakeToolTips(){
             switch(whichToolTip){
                 case "Wood":
                     if(hasNoChildNodes){WoodCase(tooltip)}
-                    EmitWoodUpdate();
+                    // EmitWoodUpdate();
+                    EmitResourceUpdate();
                     break;
                 case "Stone":
                     if(hasNoChildNodes){StoneCase(tooltip);}
-                    EmitStoneUpdate();
+                    // EmitStoneUpdate();
+                    EmitResourceUpdate();
                     break;
                 case "Gold":
                     if(hasNoChildNodes){GoldCase(tooltip);}
-                    EmitGoldUpdate();
+                    // EmitGoldUpdate();
+                    EmitResourceUpdate();
                     break;
                 case "ManPower":
                     if(hasNoChildNodes){ManPowerCase(tooltip);}
-                    EmitManPowerUpdate();
+                    // EmitManPowerUpdate();
+                    EmitResourceUpdate();
                     break;
                 case "WarSupport":
                     if(hasNoChildNodes){WarSupportCase(tooltip);}
-                    EmitWarSupportUpdate();
+                    // EmitWarSupportUpdate();
+                    EmitResourceUpdate();
                     break;
                 case "Stability":
                     if(hasNoChildNodes){StabilityCase(tooltip);}
-                    EmitStabilityUpdate()
+                    // EmitStabilityUpdate()
+                    EmitResourceUpdate();
                     break;
                 case "PoliticalPower":
                     if(hasNoChildNodes){PoliticalPowerCase(tooltip);}
-                    EmitPoliticalPowerUpdate()
+                    // EmitPoliticalPowerUpdate()
+                    EmitResourceUpdate();
                     break;
                 default:
                     tooltip.innerHTML='Resource info';

@@ -422,7 +422,7 @@ io.on('connection', (socket) => {
     }
     userSockets.get(socket.userId).add(socket.id);
 
-    socket.on('requestWoodUpdate', async () => {
+    socket.on('requestResourceUpdate', async () => {
         // console.log(`Resources requested by player: ${playerId}`);
         try{
             const user=await User.findOne({ _id: socket.userId })
@@ -432,113 +432,10 @@ io.on('connection', (socket) => {
             }
 
             await updateResourceForUser(user);
-            socket.emit("resourceWoodUpdate", user.Resources.Wood);
+            socket.emit("resourceUpdate", user.Resources);
         }catch(err){
         }
-        // .then(user => {
-        //     if (!user) {
-        //         console.log(`No user found for playerId: ${socket.userId}`);
-        //         return;
-        //     }
-        //     // console.log(user, ".....");
-            
-        //     socket.emit('resourceWoodUpdate', user.Resources.Wood);
-        // }).catch(err => {
-        //     console.error("Error fetching user:", err);
-        // });
-    });
 
-    socket.on('requestStoneUpdate', async() => {
-        // console.log(`Resources requested by player: ${playerId}`);
-
-        try{
-            const user=await User.findOne({ _id: socket.userId })
-            if(!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-
-            await updateResourceForUser(user);
-            socket.emit("resourceStoneUpdate", user.Resources.Stone);
-        }catch(err){
-        }
-    });
-
-    socket.on('requestGoldUpdate', async() => {
-        // console.log(`Resources requested by player: ${playerId}`);
-
-        try{
-            const user=await User.findOne({ _id: socket.userId })
-            if(!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-
-            await updateResourceForUser(user);
-            socket.emit("resourceGoldUpdate", user.Resources.Gold);
-        }catch(err){
-        }
-    });
-
-    socket.on('requestPoliticalPowerUpdate', async() => {
-        // console.log(`Resources requested by player: ${playerId}`);
-
-        try{
-            const user=await User.findOne({ _id: socket.userId })
-            if(!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-
-            await updateResourceForUser(user);
-            socket.emit("resourcePoliticalPowerUpdate", user.Resources.Political);
-        }catch(err){
-        }
-    });
-
-    socket.on('requestStabilityUpdate', () => {
-        // console.log(`Resources requested by player: ${playerId}`);
-
-        User.findOne({ _id: socket.userId }).then(user => {
-            if (!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-            // console.log(user, ".....");
-            socket.emit('resourceStabilityUpdate', user.Resources.Stability);
-        }).catch(err => {
-            console.error("Error fetching user:", err);
-        });
-    });
-
-    socket.on('requestWarSupportUpdate', () => {
-        // console.log(`Resources requested by player: ${playerId}`);
-
-        User.findOne({ _id: socket.userId }).then(user => {
-            if (!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-            // console.log(user, ".....");
-            socket.emit('resourceWarSupportUpdate', user.Resources.WarSupport);
-        }).catch(err => {
-            console.error("Error fetching user:", err);
-        });
-    });
-
-    socket.on('requestManPowerUpdate', () => {
-        // console.log(`Resources requested by player: ${playerId}`);
-
-        User.findOne({ _id: socket.userId }).then(user => {
-            if (!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-            // console.log(user, ".....");
-            socket.emit('resourceManPowerUpdate', user.Resources.ManPower);
-        }).catch(err => {
-            console.error("Error fetching user:", err);
-        });
     });
 
     socket.on('requestRewards',  () => {
