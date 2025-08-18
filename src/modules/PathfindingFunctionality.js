@@ -25,7 +25,7 @@ async function updateOccupancyMap(tile,UserId){
         UsersSeeingTileMap.set(`${tile.x},${tile.y}`,[UserId])
 
         const abtractMapOfTile=convertMongoPortalGraphToMap(tile.AbstractMap)
-        // console.log(abtractMapOfTile.get("9,11"),"abtractMapOfTile")
+        console.log(abtractMapOfTile,"abtractMapOfTile")
         var x=0
         var y=40
         // while(y!=48){

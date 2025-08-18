@@ -105,8 +105,7 @@ app.post('/Register-user', async (req, res) => {
     try{
         await user.save();
 
-        res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
-        res.json({ accessToken,user, success: true, message: 'User recognised'});
+
         
         const UserToCache = await User.findOne({ username });
         // await ChunkManager.RegisterUser(UserToCache._id.toString(),UserToCache)
@@ -172,7 +171,8 @@ app.post('/Register-user', async (req, res) => {
         } catch (err) {
             console.error("❌ Tile save failed:", err);
         }
-
+        res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
+        res.json({ accessToken,user, success: true, message: 'User recognised'});
 
     } catch (err) {
         console.log("Error saving user:", err);
@@ -447,29 +447,41 @@ io.on('connection', (socket) => {
 
     });
 
-    socket.on('requestRewards',  () => {
-        User.findOne({ _id: socket.userId }).then(user => {
-            if (!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-            const today = getTodayDateString();
-            if (user.lastClaimDate !== today) {  
-                const rewardToSend= calculateReward(user)
-                socket.emit('rewardUpdate', rewardToSend);
+    socket.on('requestRewards',  async () => {
+        const today = getTodayDateString();
+        const user=await ChunkManager.getUser(socket.userId)
+        if (!user) {
+            console.log(`No user found for playerId: ${socket.userId}`);
+            return;
+        }
+        if (user.lastClaimDate !== today) {  
+            const rewardToSend= calculateReward(user)
+            socket.emit('rewardUpdate', rewardToSend);
 
-                user.lastClaimDate = today;
-                user.save().then(() => {
-                    // console.log("User's last claim date updated successfully.");
-                }).catch(err => {
-                    console.error("Error updating user's last claim date:", err);
-                });
-            }else{
-                socket.emit('rewardUpdate', false);
-            }
-        }).catch(err => {
-            console.error("Error fetching user:", err);
-        });
+            user.lastClaimDate = today;
+        }
+        // User.findOne({ _id: socket.userId }).then(user => {
+        //     if (!user) {
+        //         console.log(`No user found for playerId: ${socket.userId}`);
+        //         return;
+        //     }
+        //     const today = getTodayDateString();
+        //     if (user.lastClaimDate !== today) {  
+        //         const rewardToSend= calculateReward(user)
+        //         socket.emit('rewardUpdate', rewardToSend);
+
+        //         user.lastClaimDate = today;
+        //         user.save().then(() => {
+        //             // console.log("User's last claim date updated successfully.");
+        //         }).catch(err => {
+        //             console.error("Error updating user's last claim date:", err);
+        //         });
+        //     }else{
+        //         socket.emit('rewardUpdate', false);
+        //     }
+        // }).catch(err => {
+        //     console.error("Error fetching user:", err);
+        // });
     })
 
     socket.on('BuildingPlacementRequest',async ({RequestMetaData}) =>{//BuildingAssetName,
@@ -499,7 +511,8 @@ io.on('connection', (socket) => {
             position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
 
             //lookup the tile 
-            const tile = await TileScheme.findOne({x: RequestMetaData.tile[0],y: RequestMetaData.tile[1]});//owner: user._id });
+            // const tile = await TileScheme.findOne({x: RequestMetaData.tile[0],y: RequestMetaData.tile[1]});//owner: user._id });
+            const tile = await ChunkManager.getTile(RequestMetaData.tile[0],RequestMetaData.tile[1]);
             console.log("TILE TARGET", tile.x,tile.y,"topindice",tile.topIndice)
             if(tile.freeIndices.length>0){
                 ServerIdProvided=tile.freeIndices.shift();//pops first element in array
@@ -507,7 +520,7 @@ io.on('connection', (socket) => {
                 ServerIdProvided=tile.topIndice
                 tile.topIndice+=1
             }
-            tile.save()
+            // tile.save()
         
         }
         console.log("what the hell come on:", ServerIdProvided)
@@ -532,9 +545,11 @@ io.on('connection', (socket) => {
         const userId=socket.userId
         const passIn=RequestMetaData.position//need to localise for the tile
         
-        const TheUser = await User.findOne({ _id: userId });
+        const TheUser = await ChunkManager.getUser(userId)//User.findOne({ _id: userId });
+        console.log(TheUser.OriginTile,"OriginTile")
         const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,passIn)
         // console.log("wonder what ill get",values.chunkCoords,values.pixelCoords)
+        
         const tileX=values.chunkCoords[0]
         const tileY=values.chunkCoords[1]
         const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
@@ -567,71 +582,40 @@ io.on('connection', (socket) => {
         const userId=socket.userId
         var chosenServerIndices=[];
         
-        const TheUser = await User.findOne({ _id: userId });
+        // const TheUser = await User.findOne({ _id: userId });
+        const TheUser = await ChunkManager.getUser(userId)
         const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,RequestMetaData.DeployPosition)
         const chunkX=values.chunkCoords[0]
         const chunkY=values.chunkCoords[1]
 
-        const tile = await TileScheme.findOne({x: chunkX,y: chunkY});
+        // const tile = await TileScheme.findOne({x: chunkX,y: chunkY});
+        const tile = await ChunkManager.getTile(chunkX,chunkY);
         
-        var tileFreeIndices=tile.freeIndices
-        var TileTopIndice=tile.topIndice
-        const compositeKey=`${userId},${RequestMetaData.UnitType}`
+        // var tileFreeIndices=tile.freeIndices
+        // var TileTopIndice=tile.topIndice
+        // const compositeKey=`${userId},${RequestMetaData.UnitType}`
         
         for(let i=0;i<RequestMetaData.UnitCount;i++){
-            if(tileFreeIndices.length>0){
+            if(tile.freeIndices.length>0){
                 // console.log(tileFreeIndices,"FREE INDICES!")
-                const freeIndice=tileFreeIndices.shift().toString();//pops first element in array
-
-                //add soldier to tile
-                // Ensure tile.units exists:
-                // if (!tile.units) tile.units = new Map(); // Or {}
-                
-                //ensure that the composite has a mapping
-                // if (!tile.units.has(compositeKey)) {
-                //     tile.units.set(compositeKey, { instances: new Map() });
-                // }
-
-                // tile.units.get(compositeKey).instances.set(freeIndice,{
-                //     templateId:null,
-                //     health:100,
-                //     state:"Idle",
-                //     position:values.pixelCoords//RequestMetaData.DeployPosition
-                // })
+                const freeIndice=tile.freeIndices.shift().toString();//pops first element in array
 
                 updatePixelLocAndOcc(chunkX,chunkY,freeIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
 
                 //add to chosenServerIndices to notify user of development
                 chosenServerIndices.push(freeIndice)
             }else{
-                //add soldier to tile
-                // console.log(compositeKey,"compositeKEY!!!!")
 
-                // Ensure tile.units exists:
-                // if (!tile.units) tile.units = new Map(); // Or {}
-                
-                //ensure that the composite has a mapping
-                // if (!tile.units.has(compositeKey)) {
-                //     tile.units.set(compositeKey, { instances: new Map() });
-                // }
-
-                // tile.units.get(compositeKey).instances.set(TileTopIndice.toString(),{
-                //     templateId:null,
-                //     health:100,
-                //     state:"Idle",
-                //     position:values.pixelCoords//RequestMetaData.DeployPosition
-                // })
-
-                updatePixelLocAndOcc(chunkX,chunkY,TileTopIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
+                updatePixelLocAndOcc(chunkX,chunkY,tile.topIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
                 //add to chosenServerIndices to notify user of development
-                chosenServerIndices.push(TileTopIndice)
-                TileTopIndice+=1
+                chosenServerIndices.push(tile.topIndice)
+                tile.topIndice+=1
             }
                  
         }
-        tile.freeIndices=tileFreeIndices
-        tile.topIndice=TileTopIndice
-        tile.save()
+        // tile.freeIndices=tileFreeIndices
+        // tile.topIndice=TileTopIndice
+        // tile.save()
         // console.log("chosen....",chosenServerIndices)
 
         // console.log("deploying units in pixel",values.pixelCoords)
@@ -650,7 +634,7 @@ io.on('connection', (socket) => {
     socket.on('MovementCommand',async ({RequestMetaData}) => {
         // console.log(RequestMetaData)//.SelectedUnits.Unit)
         const userId=socket.userId
-        const TheUser = await User.findOne({ _id: userId });
+        const TheUser = await ChunkManager.getUser(userId)//await User.findOne({ _id: userId });
         
         const destinationPoint=RequestMetaData.position
         const TargetTileXY=RequestMetaData.TargetTile

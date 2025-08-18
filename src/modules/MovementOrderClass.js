@@ -3,6 +3,8 @@ const {addMovementOrder,getPixelLocationsForTile,getDataOfTile,getUserIdArrayFor
 const {AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining,AstarPathCostPathIncluded}= require("./AbtractMapGeneration.js")
 const {unitPositionChangeForUsers,unitChunkCrossHandleForUsers}=require("./TickMessages.js")
 const TileScheme=require("../Schemas/Tile")
+const ChunkManager=require("./CacheChunkInfo.js")
+
 class MovementOrder{
     constructor(selectedUnits,ClickedPixel,TargetChunk,ownerId){
         this.owner=ownerId;
@@ -472,37 +474,37 @@ class MovementOrder{
                                 console.log("unit moved to a different chunk",chunkUnit,CX,CY,xPart,yPart)
                                 //create a new entry for the unit in the new chunk
                                 var chosenServerIndices;
-                                const tile = await TileScheme.findOne({x: xPart,y: yPart});
-                                var tileFreeIndices=tile.freeIndices
-                                var TileTopIndice=tile.topIndice
+                                const tile = await ChunkManager.getTile(xPart,yPart)//TileScheme.findOne({x: xPart,y: yPart});
+                                // var tileFreeIndices=tile.freeIndices
+                                // var TileTopIndice=tile.topIndice
 
-                                if(tileFreeIndices.length>0){
-                                    const freeIndice=tileFreeIndices.shift().toString();//pops first element in array
+                                if(tile.freeIndices.length>0){
+                                    const freeIndice=tile.freeIndices.shift().toString();//pops first element in array
                                     chosenServerIndices=freeIndice
                                 }else{
-                                    chosenServerIndices=TileTopIndice
-                                    TileTopIndice+=1
+                                    chosenServerIndices=tile.topIndice
+                                    tile.topIndice+=1
                                 }
                                 //add info to the pixel location
                                 
                                 updatePixelLocAndOcc(xPart,yPart,chosenServerIndices,valueunit[0],pixelsUnit,this.owner)
 
-                                tile.freeIndices=tileFreeIndices
-                                tile.topIndice=TileTopIndice
-                                tile.save()
+                                // tile.freeIndices=tileFreeIndices
+                                // tile.topIndice=TileTopIndice
+                                // tile.save()
 
-                                const oldTile = await TileScheme.findOne({x: CX,y: CY});
-                                var OldtileFreeIndices=oldTile.freeIndices
-                                var OldTileTopIndice=oldTile.topIndice
-                                if(unitId==OldTileTopIndice-1){
-                                    OldTileTopIndice-=1;
+                                const oldTile = await ChunkManager.getTile(CX,CY)//TileScheme.findOne({x: CX,y: CY});
+                                // var OldtileFreeIndices=oldTile.freeIndices
+                                // var OldTileTopIndice=oldTile.topIndice
+                                if(unitId==oldTile.topIndice-1){
+                                    oldTile.topIndice-=1;
                                 }else{
-                                    OldtileFreeIndices.push(unitId)
+                                    oldTile.freeIndices.push(unitId)
                                 }
                                 updatePixelLocAndOcc(CX,CY,unitId,valueunit[0],pixelsUnit,this.owner,true)
-                                oldTile.freeIndices=OldtileFreeIndices
-                                oldTile.topIndice=OldTileTopIndice
-                                oldTile.save()
+                                // oldTile.freeIndices=OldtileFreeIndices
+                                // oldTile.topIndice=OldTileTopIndice
+                                // oldTile.save()
                                 //send command to remove the unit from the old chunk
 
                                 await unitChunkCrossHandleForUsers(thoseIds,
