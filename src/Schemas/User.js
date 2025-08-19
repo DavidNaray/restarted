@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { WaterRefractionShader } = require('three/examples/jsm/Addons.js');
 
 const userSchema = new mongoose.Schema({
   username: { type: String, unique: true },
@@ -46,6 +47,56 @@ const userSchema = new mongoose.Schema({
     },
 
     lastUpdated: { type: Date, default: Date.now }
+
+  },
+  Technology:{
+    Bows: { type: Boolean, default: true },
+    Swords: { type: Boolean, default: true },
+    Shields: { type: Boolean, default: true },
+    Spears: { type: Boolean, default: true },
+    LeatherArmour: { type: Boolean, default: true },
+    BatteringRam: { type: Boolean, default: true },
+    WagonFort: { type: Boolean, default: true },
+
+    WoodWall: { type: Boolean, default: true },
+    StoneWall: { type: Boolean, default: true },
+    WoodGate: { type: Boolean, default: true },
+    StoneGate: { type: Boolean, default: true },
+    WoodenTower: { type: Boolean, default: true },
+    StoneTower: { type: Boolean, default: true },
+    WoodenKeep: { type: Boolean, default: true },
+    StoneKeep: { type: Boolean, default: true },
+    WoodHouse: { type: Boolean, default: true },
+    StoneHouse: { type: Boolean, default: true },
+    Pavement: { type: Boolean, default: true },
+
+    CivilianFactory: { type: Boolean, default: true },
+    MilitaryFactory: { type: Boolean, default: true },
+    Farm: { type: Boolean, default: true },
+    Quarry: { type: Boolean, default: true },
+    LumberMill: { type: Boolean, default: true },
+    Barracks: { type: Boolean, default: true },
+    SiegeWorkshop: { type: Boolean, default: true },
+    Market: { type: Boolean, default: true },
+    TownHall: { type: Boolean, default: true },
+    Warehouse: { type: Boolean, default: true },
+
+
+    ChainArmour: { type: Boolean, default: false },
+    PlateArmour: { type: Boolean, default: false },
+    Crossbows: { type: Boolean, default: false },
+    Trebuchet: { type: Boolean, default: false },
+    Catapult: { type: Boolean, default: false },
+    Ballista: { type: Boolean, default: false },
+
+    StandardisedParts: { type: Boolean, default: false },
+    RobustSupplyChains: { type: Boolean, default: false },
+    WorkerShifts: { type: Boolean, default: false },
+    FortifiedSettlements: { type: Boolean, default: false },
+    CropRotation: { type: Boolean, default: false },
+
+
+
 
   },
   lastClaimDate: { type: String, default: null }, // e.g. "2025-08-16"

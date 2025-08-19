@@ -2,7 +2,7 @@ import {updateGridColumns} from "./Utils.js"
 import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {renderer,UserId,InputState} from "../siteJS.js"
-import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed} from "./SceneInitiation.js"
+import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed,techTreeSetupEmit} from "./SceneInitiation.js"
 
 export var moveableSelected={value:{}};
 
@@ -1102,6 +1102,55 @@ export function UnitSelectionDisplay(Selected){
     
     UnitInfoDispContentBox.style.display="block"
 }
+
+//-------------------------------------------------------------------------
+//research section
+function ResearchElements(){
+    const contentBox=document.getElementById("Dropdown_Content_Box");
+    const ResearchcontentBox=document.getElementById("ResearchcontentBox");
+    if(!ResearchcontentBox){
+        
+        const creatingRCB=document.createElement("div");
+        {
+            creatingRCB.style.width="100%";
+            // creatingRCB.style.height="100px";
+            // creatingRCB.style.maxHeight="100px"
+            creatingRCB.style.height = "auto";    // let it grow naturally
+            creatingRCB.style.overflow = "visible"; // make sure it doesn't scroll itself
+            // creatingRCB.style.backgroundColor="black";
+            creatingRCB.id="ResearchcontentBox"
+        }
+        contentBox.appendChild(creatingRCB)
+
+        const ResearchOptionsInfo=document.createElement("div");
+        {
+            ResearchOptionsInfo.style.width="calc(100% - 1vw)";
+            ResearchOptionsInfo.style.aspectRatio="11/1";
+            ResearchOptionsInfo.style.margin="0 0.5vw 0 0.5vw";
+            ResearchOptionsInfo.style.alignContent="center";
+            ResearchOptionsInfo.innerText="Technology is unlocked by chance through Daily event (first login of the day).";
+            ResearchOptionsInfo.style.fontSize="max(1vw,1vh)";
+            ResearchOptionsInfo.style.color="white"
+            ResearchOptionsInfo.style.borderBottom="solid gray 0.25vw"
+        }
+        creatingRCB.appendChild(ResearchOptionsInfo)
+        
+        const TechBox=document.createElement("div");
+        {
+            TechBox.style.width="100%";
+            TechBox.style.display="grid";
+            TechBox.id="TechBox"
+            TechBox.style.gridTemplateColumns="1fr 1fr 1fr 1fr 1fr 1fr 1fr";
+        }
+        creatingRCB.appendChild(TechBox)
+
+        techTreeSetupEmit()
+    }else{
+        ResearchcontentBox.style.display="block"
+    }
+    
+}
+
 //------------------------------------------------------------------
 //below is setup for everything above or util for above
 
@@ -1147,6 +1196,7 @@ function buttonpressed(event){
             break;
         case "btn_Research":
             Title="Research"
+            ResearchElements()
             break;
         case "btn_Finance":
             Title="Trade & Cooperation"

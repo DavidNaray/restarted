@@ -312,6 +312,44 @@ function HandleSocketResponses(socket){
         }
 
     })
+
+    socket.on('TechnologyTreeResponse', (response) => {
+        function stringintoURL(str){
+            return `url('Icons/TechTree/${str}.png')`;
+        }
+        console.log("Technology Tree Response",response)
+        if(response){
+            const appendTo=document.getElementById("TechBox");
+            for (let key in response) {
+                const strURL=stringintoURL(key);
+
+                const option=document.createElement("div");
+                {
+                    option.style.aspectRatio="1/1";
+                    option.style.padding="0.75vw 0.75vw 0.75vw 0.75vw";
+                } 
+                const optionInner=document.createElement("div");
+                {
+                    // option.style.innerHTML=optionTags[i];
+                    optionInner.className="IconGeneral"
+                    optionInner.style.width="100%";
+                    optionInner.style.height="100%";
+                    optionInner.style.backgroundImage=strURL;
+                    if(response[key]){
+                        optionInner.style.outline="lightgray dashed 0.1vw"; // green for researched
+                        optionInner.style.backgroundColor="rgba(216,216,216,0.2)"; // green for researched
+                    }
+
+                } 
+
+
+                option.appendChild(optionInner)
+                appendTo.appendChild(option)
+
+            }
+            
+        }
+    });
 }
 
 function HandleInitialEmits(socket){
@@ -357,6 +395,10 @@ export function setupSocketConnection(){
     HandleSocketResponses(socket)
     HandleInitialEmits(socket)
 
+}
+
+export function techTreeSetupEmit(){
+    socket.emit('TechnologyTreeRequest');
 }
 
 setInterval(EmitResourceUpdate, 10000);// Emit resource updates every 10 seconds

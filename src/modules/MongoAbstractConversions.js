@@ -131,6 +131,53 @@ async function toCachedUser(userDoc) {
         ? new Date(userDoc.Resources.lastUpdated)
         : new Date(),
     },
+    Technology: {
+      Bows: userDoc.Technology.Bows ?? true,
+      Swords: userDoc.Technology.Swords ?? true,
+      Shields: userDoc.Technology.Shields ?? true,
+      Spears: userDoc.Technology.Spears ?? true,
+      LeatherArmour: userDoc.Technology.LeatherArmour ?? true,
+      BatteringRam: userDoc.Technology.BatteringRam ?? true,
+      WagonFort: userDoc.Technology.WagonFort ?? true,
+
+      WoodWall: userDoc.Technology.WoodWall ?? true,
+      StoneWall: userDoc.Technology.StoneWall ?? true,
+      WoodGate: userDoc.Technology.WoodGate ?? true,
+      StoneGate: userDoc.Technology.StoneGate ?? true,
+      WoodenTower: userDoc.Technology.WoodenTower ?? true,
+      StoneTower: userDoc.Technology.StoneTower ?? true,
+      WoodenKeep: userDoc.Technology.WoodenKeep ?? true,
+      StoneKeep: userDoc.Technology.StoneKeep ?? true,
+      WoodHouse: userDoc.Technology.WoodHouse ?? true,
+      StoneHouse: userDoc.Technology.StoneHouse ?? true,
+      Pavement: userDoc.Technology.Pavement ?? true,
+
+      CivilianFactory: userDoc.Technology.CivilianFactory ?? true,
+      MilitaryFactory: userDoc.Technology.MilitaryFactory ?? true,
+      Farm: userDoc.Technology.Farm ?? true,
+      Quarry: userDoc.Technology.Quarry ?? true,
+      LumberMill: userDoc.Technology.LumberMill ?? true,
+      Barracks: userDoc.Technology.Barracks ?? true,
+      SiegeWorkshop: userDoc.Technology.SiegeWorkshop ?? true,
+      Market: userDoc.Technology.Market ?? true,
+      TownHall: userDoc.Technology.TownHall ?? true,
+      Warehouse: userDoc.Technology.Warehouse ?? true,
+
+
+
+      ChainArmour: userDoc.Technology.ChainArmour ?? false,
+      PlateArmour: userDoc.Technology.PlateArmour ?? false,
+      Crossbows: userDoc.Technology.Crossbows ?? false,
+      Trebuchet: userDoc.Technology.Trebuchet ?? false,
+      Catapult: userDoc.Technology.Catapult ?? false,
+      Ballista: userDoc.Technology.Ballista ?? false,
+      StandardisedParts: userDoc.Technology.StandardisedParts ?? false,
+      RobustSupplyChains: userDoc.Technology.RobustSupplyChains ?? false,
+      WorkerShifts: userDoc.Technology.Rotations ?? false,
+      FortifiedSettlements: userDoc.Technology.FortifiedSettlements ?? false,
+      CropRotation: userDoc.Technology.CropRotation ?? false,
+
+    },
 
     lastClaimDate: userDoc.lastClaimDate ?? null,
   };

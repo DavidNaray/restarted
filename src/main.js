@@ -447,6 +447,21 @@ io.on('connection', (socket) => {
 
     });
 
+    socket.on('TechnologyTreeRequest', async () => {    
+        try{
+            // const user=await User.findOne({ _id: socket.userId })
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+
+            await updateResourceForUser(user);
+            socket.emit("TechnologyTreeResponse", user.Technology);
+        }catch(err){
+        }
+    });
+
     socket.on('requestRewards',  async () => {
         const today = getTodayDateString();
         const user=await ChunkManager.getUser(socket.userId)

@@ -1,0 +1,41 @@
+
+Military Units/upgrades:
+    bows (unlocked, cheaper)
+    spear (unlocked, cheaper)
+    sword (unlocked, more expensive)
+    LeatherArmour(unlocked, cheaper)
+    batteringRam(unlocked)
+    WagonFort
+    
+    Chain_Mail
+    Heavy_Plate 
+    crossbows
+    trebuche
+    catapult
+    ballista
+    
+Industry:
+    standardised parts (5% increase production)
+    supply chains (5% cheaper items)
+    Rotations (-0.8% stability hit instead of default -1% stability hit per military factory)
+    Fortified Farms (makes farms double up as a shorter range, weaker archer tower)
+
+
+Buildings:
+    Wall (wood and stone)
+    Archer Tower (wood and stone)
+    Keep (wood and stone)
+    house (wood and stone) (can stack them on top of each other)
+    pavement
+    City center (changes with population size)
+    Farm
+    Civilian factory (+1% stability)
+    Military factory (-1% stability, -0.8% with tech)
+    Barracks
+    Siege Workshop
+    Warehouse
+
+
+
+
+
