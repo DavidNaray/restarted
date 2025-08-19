@@ -1195,7 +1195,7 @@ function buttonpressed(event){
             Title="Events & Decisions"
             break;
         case "btn_Research":
-            Title="Research"
+            Title="Technology"
             ResearchElements()
             break;
         case "btn_Finance":

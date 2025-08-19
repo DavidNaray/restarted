@@ -184,4 +184,30 @@ export function MakeToolTips(){
 
     });
 
+
+
+}
+
+export function makeToolTipTechnology(element,tipInfo){
+    const tooltip = document.createElement('div');
+    tooltip.className = 'resource-tooltip';
+    document.body.appendChild(tooltip);
+
+    element.addEventListener('mouseenter', (e) => {
+        // console.log("Making tooltip for technology: ", tipInfo);
+        const hasNoChildNodes=!tooltip.hasChildNodes()
+        if(hasNoChildNodes){
+            GeneralToolTipTitleDiv(`Unlocked:${tipInfo.Unlocked}`,tooltip);
+            GeneralToolTipTitleDiv(`${tipInfo.Description}`,tooltip);
+        }
+        tooltip.style.display = 'block';
+        positionTooltip(element, tooltip);
+    });
+
+    element.addEventListener('mousemove', (e) => {
+        positionTooltip(element, tooltip);
+    });
+
+    element.addEventListener('mouseleave', (e) => {tooltip.style.display = 'none';});
+
 }

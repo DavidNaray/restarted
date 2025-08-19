@@ -158,7 +158,7 @@ async function toCachedUser(userDoc) {
       Quarry: userDoc.Technology.Quarry ?? true,
       LumberMill: userDoc.Technology.LumberMill ?? true,
       Barracks: userDoc.Technology.Barracks ?? true,
-      SiegeWorkshop: userDoc.Technology.SiegeWorkshop ?? true,
+      // SiegeWorkshop: userDoc.Technology.SiegeWorkshop ?? true,
       Market: userDoc.Technology.Market ?? true,
       TownHall: userDoc.Technology.TownHall ?? true,
       Warehouse: userDoc.Technology.Warehouse ?? true,
