@@ -2,7 +2,7 @@ import {updateGridColumns} from "./Utils.js"
 import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {renderer,UserId,InputState} from "../siteJS.js"
-import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed,techTreeSetupEmit} from "./SceneInitiation.js"
+import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed,techTreeSetupEmit,ConstructionSetupEmit} from "./SceneInitiation.js"
 
 export var moveableSelected={value:{}};
 
@@ -661,51 +661,10 @@ function ConstructionElements(){
         {
             BuildOptionsBox.style.width="100%";
             BuildOptionsBox.style.display="grid";
+            BuildOptionsBox.id="BuildOptionsBox"
             BuildOptionsBox.style.gridTemplateColumns="1fr 1fr 1fr 1fr 1fr 1fr 1fr";
         }
         creatingCCB.appendChild(BuildOptionsBox)
-
-        //important to keep up to date with asset names/ will change depending on research level to get the up-to-date assets
-        const optionObjNames=["ArmsFactory","CivilianFactory","Mine","SawMill","Mill","Storage","House"]
-
-        const ColouroptionTags=[
-            "url('Icons/ArmsFactoryIcon.png')","url('Icons/CivilianFactoryIcon.png')",
-            "url('Icons/quarryIcon.png')","url('Icons/SawmillIcon.png')",
-            "url('Icons/MillIcon.png')","url('Icons/WarehouseIcon.png')",
-            "url('Icons/HouseIcon.png')",
-            
-        ]
-
-        for(let i=0;i<7;i++){
-            const option=document.createElement("div");
-            {
-                // option.style.innerHTML=optionTags[i];
-                option.style.aspectRatio="1/1";
-                // option.style.backgroundColor=ColouroptionTags[i];
-                option.style.padding="0.75vw 0.75vw 0.75vw 0.75vw";
-            }  
-
-            const optionButton=document.createElement("div");
-            {
-                // option.style.innerHTML=optionTags[i];
-                optionButton.className="IconGeneral"
-                optionButton.style.width="100%";
-                optionButton.style.height="100%";
-                optionButton.style.backgroundImage=ColouroptionTags[i];
-                optionButton.style.backgroundColor="gray";//ColouroptionTags[i];
-                
-                optionButton.myParam=optionObjNames[i];//"Mill";
-                
-                
-                
-                optionButton.addEventListener("click",PlaceBuilding)
-            } 
-
-
-            option.appendChild(optionButton)
-            BuildOptionsBox.appendChild(option)
-
-        };
 
         const BuildQueueTitleBox=document.createElement("div");
         {
@@ -743,7 +702,7 @@ function ConstructionElements(){
             
         }
         BuildQueueTitleBox.appendChild(ManpowerAllocation)
-        
+        ConstructionSetupEmit()
     }else{
         ConstructioncontentBox.style.display="block"
     }

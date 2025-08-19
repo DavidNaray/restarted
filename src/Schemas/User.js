@@ -66,8 +66,8 @@ const userSchema = new mongoose.Schema({
     StoneTower: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A defensive stone tower for a wall or to stand alone"} },
     WoodenKeep: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A formidable defensive structure of wood, essential for holding ground"} },
     StoneKeep: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A formidable defensive structure of stone, essential for holding ground"} },
-    WoodHouse: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "Built to increase population capacity, can be upgraded to and be placed above a stone house"} },
-    StoneHouse: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "Built to increase population capacity, wooden houses can be placed above"} },
+    WoodHouse: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "Built to increase population capacity, can be placed above a stone house"} },
+    StoneHouse: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "Built to increase population capacity, many stone houses or one wooden house can be placed above"} },
     Pavement: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A road to increase movement speed of units or to simply change the texture of the map"} },
 
     CivilianFactory: { Unlocked:{type: Boolean, default: true}, Description: {type: String, default: "Offsets stability losses of Military factories. Increases stability by 1% each, up to % lost by Military factories total,requires population for full efficiency"} },

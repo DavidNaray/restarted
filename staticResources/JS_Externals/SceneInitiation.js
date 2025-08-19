@@ -253,6 +253,49 @@ function HandleSocketResponses(socket){
             
         }
     });
+
+    socket.on('ConstructionSetupResponse', (response) => {
+        function stringintoURL(str){
+            return `url('Icons/TechTree/${str}.png')`;
+        }
+        console.log("Construction Setup Response",response)
+
+        if(response){
+            const BuildOptionsBox=document.getElementById("BuildOptionsBox");
+            for (let key of response) {
+                const strURL=stringintoURL(key);
+
+                const option=document.createElement("div");
+                {
+                    // option.style.innerHTML=optionTags[i];
+                    option.style.aspectRatio="1/1";
+                    // option.style.backgroundColor=ColouroptionTags[i];
+                    option.style.padding="0.75vw 0.75vw 0.75vw 0.75vw";
+                }  
+
+                const optionButton=document.createElement("div");
+                {
+                    // option.style.innerHTML=optionTags[i];
+                    optionButton.className="IconGeneral"
+                    optionButton.style.width="100%";
+                    optionButton.style.height="100%";
+                    optionButton.style.backgroundImage=strURL;//ColouroptionTags[i];
+                    optionButton.style.backgroundColor="rgba(216,216,216,0.2)";//ColouroptionTags[i];
+                    
+                    optionButton.myParam=key//optionObjNames[i];//"Mill";
+                    
+                    
+                    
+                    // optionButton.addEventListener("click",PlaceBuilding)
+                } 
+
+
+                option.appendChild(optionButton)
+                BuildOptionsBox.appendChild(option)
+            }
+        }
+    });
+
 }
 
 function HandleInitialEmits(socket){
@@ -304,4 +347,7 @@ export function techTreeSetupEmit(){
     socket.emit('TechnologyTreeRequest');
 }
 
+export function ConstructionSetupEmit(){
+    socket.emit('ConstructionSetupRequest');
+}
 setInterval(EmitResourceUpdate, 10000);// Emit resource updates every 10 seconds

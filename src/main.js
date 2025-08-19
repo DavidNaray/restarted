@@ -456,10 +456,38 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            await updateResourceForUser(user);
+            // await updateResourceForUser(user);
             socket.emit("TechnologyTreeResponse", user.Technology);
         }catch(err){
         }
+    });
+
+    socket.on('ConstructionSetupRequest', async () => { 
+        const validBuilings = new Set([
+            "CivilianFactory", "MilitaryFactory", "Farm", "Quarry", "LumberMill",
+            "Barracks", "Market", "TownHall", "Warehouse","WoodHouse","StoneHouse",
+            "WoodenKeep", "StoneKeep", "WoodenTower", "StoneTower","WoodWall",
+            "StoneWall","Pavement","WoodGate","StoneGate"
+        ]);
+        try{
+            // const user=await User.findOne({ _id: socket.userId })
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const toSend=[];
+            for (let key in user.Technology) {
+                if (validBuilings.has(key)) {
+                    // user.Technology[key].Unlocked = true; // Set Unlocked to true
+                    toSend.push(key);
+                } else {}
+            }
+            // await updateResourceForUser(user);
+            socket.emit("ConstructionSetupResponse", toSend);
+        }catch(err){
+        }
+
     });
 
     socket.on('requestRewards',  async () => {

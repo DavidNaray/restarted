@@ -173,7 +173,7 @@ async function toCachedUser(userDoc) {
       Ballista: userDoc.Technology.Ballista ?? false,
       StandardisedParts: userDoc.Technology.StandardisedParts ?? false,
       RobustSupplyChains: userDoc.Technology.RobustSupplyChains ?? false,
-      WorkerShifts: userDoc.Technology.Rotations ?? false,
+      WorkerShifts: userDoc.Technology.WorkerShifts ?? false,
       FortifiedSettlements: userDoc.Technology.FortifiedSettlements ?? false,
       CropRotation: userDoc.Technology.CropRotation ?? false,
 
