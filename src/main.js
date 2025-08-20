@@ -547,7 +547,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('ChangeFactoryCountForProd',async ({RequestMetaData}) =>{
-        console.log("uh....")
+        // console.log("uh....",RequestMetaData)
         try{
             const user=await ChunkManager.getUser(socket.userId)
             if(!user) {
@@ -557,7 +557,6 @@ io.on('connection', (socket) => {
             const row=RequestMetaData.row
             const column=RequestMetaData.column
             const blockId=RequestMetaData.blockId
-            // console.log("requestedFactories",blockId,user.ProductBlocks.Values[`${blockId}`])
 
             const concernedLine=user.ProductBlocks.Values[`${blockId}`]
             const requestedFactories=((row-1)*5 +column)*concernedLine.MultiplierFactor
@@ -574,9 +573,39 @@ io.on('connection', (socket) => {
             const newFreeLines=user.ProductionLines.Free
             const FacCount=user.ProductBlocks.Values[blockId].FactoryCount
 
-            const visualRow=Math.floor(user.ProductBlocks.Values[blockId].FactoryCount /5)+1
-            const visualCol=user.ProductBlocks.Values[blockId].FactoryCount %5
+            const visualRow=Math.floor((user.ProductBlocks.Values[blockId].FactoryCount/concernedLine.MultiplierFactor) /5)+1
+            const visualCol=Math.ceil(user.ProductBlocks.Values[blockId].FactoryCount/concernedLine.MultiplierFactor) %5
             socket.emit("ChangeFactoryCountForProdResponse", {FreeLines:newFreeLines,blockId:blockId,FactoryCount:FacCount,row:visualRow,column:visualCol});
+        }catch(p){}
+    });
+
+    socket.on('ChangeFactoryScaleForProd',async ({RequestMetaData}) =>{
+        try{
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const Scale=Number(RequestMetaData.Scale)
+            const TargetBlock=user.ProductBlocks.Values[`${RequestMetaData.blockId}`]
+            TargetBlock.MultiplierFactor=Scale
+
+            const WholeCover=Math.floor(TargetBlock.FactoryCount/Scale)
+            const Partial=TargetBlock.FactoryCount%Scale
+
+            const VisRows=Math.floor((WholeCover)/5)+1
+            const VisCol=(Math.ceil(TargetBlock.FactoryCount/Scale))%5
+            if(Partial>0){
+                socket.emit(
+                    "ChangeFactoryScaleForProdResponse", 
+                    {blockId:RequestMetaData.blockId,Scale:Scale,Partial:Partial,row:VisRows,column:VisCol}
+                )
+            }else{
+                socket.emit(
+                    "ChangeFactoryScaleForProdResponse", 
+                    {blockId:RequestMetaData.blockId,Scale:Scale,row:VisRows,column:VisCol}
+                )
+            }
         }catch(p){}
     });
 

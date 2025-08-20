@@ -442,6 +442,7 @@ function HandleSocketResponses(socket){
                 const scaleFactor=document.createElement("div")
                 {
                     scaleFactor.id=`${response.blockId},scale,${val}`
+                    scaleFactor.ScaVal=`${response.blockId},${val}`;
                     scaleFactor.style.width="100%"
                     scaleFactor.style.height="100%"
                     scaleFactor.innerHTML=`${val}x`;
@@ -452,11 +453,12 @@ function HandleSocketResponses(socket){
                     scaleFactor.style.fontSize="max(1vw,1vh)"
                     scaleFactor.style.justifyContent="center"
                     scaleFactor.style.alignItems="center"
-                    // scaleFactor.style.border="solid white 1px"
                 }
                 if(val==1){
                     scaleFactor.style.backgroundColor="rgb(75, 75, 75)"
                 }
+
+                scaleFactor.addEventListener("click",changeProdDisplayScale)
                 scaleFactories.appendChild(scaleFactor)
             }
 
@@ -485,11 +487,10 @@ function HandleSocketResponses(socket){
                     }
                     if(i==1 && j==1){
                         FacBut.style.backgroundImage=`url('Icons/TechTree/MilitaryFactory.png')`
-                    }else{
-                        FacBut.addEventListener("mouseover",ChangeProdsFactories)
-                        FacBut.addEventListener("mouseout",ClearBackground)
-                        FacBut.addEventListener("click",UpdateCommitedFactories)
                     }
+                    FacBut.addEventListener("mouseover",ChangeProdsFactories)
+                    FacBut.addEventListener("mouseout",ClearBackground)
+                    FacBut.addEventListener("click",UpdateCommitedFactories)
 
 
                     Factories.appendChild(FacBut)
@@ -510,9 +511,38 @@ function HandleSocketResponses(socket){
     });
 
     socket.on('ChangeFactoryCountForProdResponse',(response) =>{
-        console.log("ChangeFactoryCountForProdResponse",response)
+        // console.log("ChangeFactoryCountForProdResponse",response)
         if(response){
-            // const target=document.getElementById(`${response.blockId},${response.row},${response.column}`)
+            const FreeCount=document.getElementById("FreeCount");
+            FreeCount.innerHTML=`Free Production Lines: ${response.FreeLines}`
+            
+            ClearBackground(`${response.blockId},${response.row},${response.column}`)
+            ChangeProdsFactories(`${response.blockId},${response.row},${response.column}`)
+            const el = document.getElementById(`${response.blockId},${response.row},${response.column}`);
+            if(el){
+                // el.click()
+                el.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, cancelable: true }));
+            }
+        }
+    });
+
+    socket.on('ChangeFactoryScaleForProdResponse',(response) =>{
+        console.log("ChangeFactoryScaleForProdResponse",response)
+        
+        if(response){
+            const pot=[1,5,10]
+            for(const scaler of pot){
+                if(scaler==response.Scale){continue}
+
+                const PotButton = document.getElementById(`${response.blockId},scale,${scaler}`);
+                PotButton.style.backgroundColor="rgb(98, 98, 98)"
+            }
+
+            const ClickedButton = document.getElementById(`${response.blockId},scale,${response.Scale}`);
+            ClickedButton.style.backgroundColor="rgb(75, 75, 75)"
+
+
+
             ClearBackground(`${response.blockId},${response.row},${response.column}`)
             ChangeProdsFactories(`${response.blockId},${response.row},${response.column}`)
             const el = document.getElementById(`${response.blockId},${response.row},${response.column}`);
@@ -660,5 +690,14 @@ function UpdateCommitedFactories(e){
 
     socket.emit('ChangeFactoryCountForProd',{
         "RequestMetaData":{blockId:prodBlockId,row:row,column:column}
+    })
+}
+
+function changeProdDisplayScale(e){
+    // console.log("scale value",e.target.ScaVal)
+    const target=e.target
+    const [prodBlockId,Scale]=target.ScaVal.split(",").map(Number)
+    socket.emit('ChangeFactoryScaleForProd',{
+        "RequestMetaData":{blockId:prodBlockId,Scale:Scale}
     })
 }
