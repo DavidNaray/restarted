@@ -258,7 +258,7 @@ function HandleSocketResponses(socket){
         function stringintoURL(str){
             return `url('Icons/TechTree/${str}.png')`;
         }
-        console.log("Construction Setup Response",response)
+        // console.log("Construction Setup Response",response)
 
         if(response){
             const BuildOptionsBox=document.getElementById("BuildOptionsBox");
@@ -292,6 +292,45 @@ function HandleSocketResponses(socket){
 
                 option.appendChild(optionButton)
                 BuildOptionsBox.appendChild(option)
+            }
+        }
+    });
+
+    socket.on('ProductionSetupResponse',(response) =>{ 
+        function stringintoURL(str){
+            return `url('Icons/TechTree/${str}.png')`;
+        }
+        console.log("ProductionSetupResponse",response)
+        if(response){
+            const ProdOptionsBox=document.getElementById("ProdBox");
+            for (let key of response) {
+                const strURL=stringintoURL(key);
+
+                const option=document.createElement("div");
+                {
+                    option.style.aspectRatio="1/1";
+                    option.style.padding="0.75vw 0.75vw 0.75vw 0.75vw";
+                }  
+
+                const optionButton=document.createElement("div");
+                {
+                    // option.style.innerHTML=optionTags[i];
+                    optionButton.className="IconGeneral"
+                    optionButton.style.width="100%";
+                    optionButton.style.height="100%";
+                    optionButton.style.backgroundImage=strURL;//ColouroptionTags[i];
+                    optionButton.style.backgroundColor="rgba(216,216,216,0.2)";//ColouroptionTags[i];
+                    
+                    optionButton.myParam=key//optionObjNames[i];//"Mill";
+                    
+                    
+                    
+                    // optionButton.addEventListener("click",PlaceBuilding)
+                } 
+
+
+                option.appendChild(optionButton)
+                ProdOptionsBox.appendChild(option)
             }
         }
     });
@@ -349,5 +388,10 @@ export function techTreeSetupEmit(){
 
 export function ConstructionSetupEmit(){
     socket.emit('ConstructionSetupRequest');
+}
+
+export function ProductionSetupEmit(){
+    console.log("should be emitting?")
+    socket.emit('ProductionSetupRequest');
 }
 setInterval(EmitResourceUpdate, 10000);// Emit resource updates every 10 seconds

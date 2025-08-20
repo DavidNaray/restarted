@@ -478,7 +478,7 @@ io.on('connection', (socket) => {
             }
             const toSend=[];
             for (let key in user.Technology) {
-                if (validBuilings.has(key)) {
+                if (validBuilings.has(key) && user.Technology[key].Unlocked) {
                     // user.Technology[key].Unlocked = true; // Set Unlocked to true
                     toSend.push(key);
                 } else {}
@@ -488,6 +488,33 @@ io.on('connection', (socket) => {
         }catch(err){
         }
 
+    });
+
+    socket.on('ProductionSetupRequest',async() => {
+        const validToProduce=new Set([
+            "Bows","Swords","Shields","Spears","LeatherArmour","BatteringRam",
+            "WagonFort","ChainArmour","PlateArmour","Crossbows","Trebuchet","Catapult",
+            "Ballista"
+        ])
+        try{
+            // const user=await User.findOne({ _id: socket.userId })
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const toSend=[];
+            for (let key in user.Technology) {
+                if (validToProduce.has(key) && user.Technology[key].Unlocked) {
+                    // user.Technology[key].Unlocked = true; // Set Unlocked to true
+                    toSend.push(key);
+                } else {}
+            }
+            // await updateResourceForUser(user);
+            // console.log("ProductionSetupResponse",toSend)
+            socket.emit("ProductionSetupResponse", toSend);
+        }catch(err){
+        }
     });
 
     socket.on('requestRewards',  async () => {

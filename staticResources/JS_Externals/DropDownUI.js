@@ -2,7 +2,8 @@ import {updateGridColumns} from "./Utils.js"
 import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {renderer,UserId,InputState} from "../siteJS.js"
-import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed,techTreeSetupEmit,ConstructionSetupEmit} from "./SceneInitiation.js"
+import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed,techTreeSetupEmit,
+    ConstructionSetupEmit,ProductionSetupEmit} from "./SceneInitiation.js"
 
 export var moveableSelected={value:{}};
 
@@ -1109,6 +1110,87 @@ function ResearchElements(){
     }
     
 }
+//-------------------------------------------------------------------------
+
+function ProductionElements(){
+    const contentBox=document.getElementById("Dropdown_Content_Box");
+    const ProductioncontentBox=document.getElementById("ProductioncontentBox");
+    if(!ProductioncontentBox){
+        
+        const creatingPCB=document.createElement("div");
+        {
+            creatingPCB.style.width="100%";
+            creatingPCB.style.height = "auto";    // let it grow naturally
+            creatingPCB.style.overflow = "visible"; // make sure it doesn't scroll itself
+            creatingPCB.id="ProductioncontentBox"
+        }
+        contentBox.appendChild(creatingPCB)
+
+        const ProductionOptionsInfo=document.createElement("div");
+        {
+            ProductionOptionsInfo.style.width="calc(100% - 1vw)";
+            ProductionOptionsInfo.style.aspectRatio="11/1";
+            ProductionOptionsInfo.style.margin="0 0.5vw 0 0.5vw";
+            ProductionOptionsInfo.style.alignContent="center";
+            ProductionOptionsInfo.innerText="Use your Military Factories to expand your production lines, produce what can be used or sold";
+            ProductionOptionsInfo.style.fontSize="max(1vw,1vh)";
+            ProductionOptionsInfo.style.color="white"
+            ProductionOptionsInfo.style.borderBottom="solid gray 0.25vw"
+        }
+        creatingPCB.appendChild(ProductionOptionsInfo)
+        
+        const ProdBox=document.createElement("div");
+        {
+            ProdBox.style.width="100%";
+            ProdBox.style.display="grid";
+            ProdBox.id="ProdBox"
+            ProdBox.style.gridTemplateColumns="1fr 1fr 1fr 1fr 1fr 1fr 1fr";
+            // ProdBox.style.borderBottom="solid gray 0.25vw"
+        }
+        creatingPCB.appendChild(ProdBox)
+
+        const ProdQueueTitleBox=document.createElement("div");
+        {
+            ProdQueueTitleBox.style.width="calc(100% - 1vw)";
+            ProdQueueTitleBox.style.display="grid";
+            ProdQueueTitleBox.style.gridTemplateColumns="1.5fr 1fr ";
+            ProdQueueTitleBox.style.margin="0 0.5vw 0 0.5vw";
+            ProdQueueTitleBox.style.borderBottom="solid gray 0.25vw"
+            ProdQueueTitleBox.style.marginBottom="1vw"
+            
+        }
+        creatingPCB.appendChild(ProdQueueTitleBox)
+
+        const FactoryNameAndManpower=document.createElement("div");
+        {
+            FactoryNameAndManpower.style.width="calc(100% - 1vw)";
+            FactoryNameAndManpower.style.padding="0 0.5vw 0 0.5vw";
+            FactoryNameAndManpower.style.alignContent="center";
+            FactoryNameAndManpower.innerText="Factory";
+            FactoryNameAndManpower.style.fontSize="max(1vw,1vh)";
+            FactoryNameAndManpower.style.color="white"        
+        }
+        ProdQueueTitleBox.appendChild(FactoryNameAndManpower)
+
+        const ProductionLevel=document.createElement("div");
+        {
+            ProductionLevel.style.width="calc(100% - 1vw)";
+            ProductionLevel.style.padding="0 0.5vw 0 0.5vw";
+            ProductionLevel.style.alignContent="center";
+            ProductionLevel.innerText="Output";
+            ProductionLevel.style.fontSize="max(1vw,1vh)";
+            ProductionLevel.style.color="white"
+            // ManpowerAllocation.style.backgroundColor="brown"
+            
+        }
+        ProdQueueTitleBox.appendChild(ProductionLevel)
+
+        ProductionSetupEmit()
+    }else{
+        ProductioncontentBox.style.display="block"
+    }
+    
+}
 
 //------------------------------------------------------------------
 //below is setup for everything above or util for above
@@ -1166,6 +1248,7 @@ function buttonpressed(event){
             break;
         case "btn_Production":
             Title="Production"
+            ProductionElements()
             break;
         case "btn_Train":
             Title="Military Training"
