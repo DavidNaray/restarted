@@ -532,6 +532,7 @@ io.on('connection', (socket) => {
                 const AssignedTopBlock=user.ProductBlocks.TopBlock
                 socket.emit("ProductionResponse", {FreeLines:newFreeLines,Item:RequestMetaData,blockId:AssignedTopBlock});
                 user.ProductionLines.Free=newFreeLines
+                user.ProductBlocks.Values[AssignedTopBlock]={FactoryCount:1,MultiplierFactor:1,ItemProduced:RequestMetaData}
                 user.ProductBlocks.TopBlock+=1
             }else{
                 // console.log("no more lines bro")
@@ -543,6 +544,37 @@ io.on('connection', (socket) => {
         }catch(err){
         }
 
+    });
+
+    socket.on('ChangeFactoryCountForProd',async ({RequestMetaData}) =>{
+        console.log("uh....")
+        try{
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const row=RequestMetaData.row
+            const column=RequestMetaData.column
+            const blockId=RequestMetaData.blockId
+            // console.log("requestedFactories",blockId,user.ProductBlocks.Values[`${blockId}`])
+
+            const concernedLine=user.ProductBlocks.Values[`${blockId}`]
+            const requestedFactories=((row-1)*5 +column)*concernedLine.MultiplierFactor
+            
+            const freeLines=user.ProductionLines.Free + user.ProductBlocks.Values[`${blockId}`].FactoryCount
+            
+            //min free factories of 0
+            //because were recalculating the number of factories, we give back the current factories on the prod line back to free
+            //then subtract what is requested from that, so if request 30 but only have 20 free, 20 - max(0,-10)=20
+            
+            user.ProductionLines.Free=Math.max(0,freeLines - requestedFactories)
+            user.ProductBlocks.Values[`${blockId}`].FactoryCount=freeLines - Math.max(0,freeLines - requestedFactories)
+            
+            const newFreeLines=user.ProductionLines.Free
+            const FacCount=user.ProductBlocks.Values[blockId].FactoryCount
+            socket.emit("ChangeFactoryCountForProdResponse", {FreeLines:newFreeLines,blockId:blockId,FactoryCount:FacCount,row:row,column:column});
+        }catch(p){}
     });
 
     socket.on('requestRewards',  async () => {

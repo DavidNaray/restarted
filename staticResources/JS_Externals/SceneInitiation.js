@@ -485,9 +485,12 @@ function HandleSocketResponses(socket){
                     }
                     if(i==1 && j==1){
                         FacBut.style.backgroundImage=`url('Icons/TechTree/MilitaryFactory.png')`
+                    }else{
+                        FacBut.addEventListener("mouseover",ChangeProdsFactories)
+                        FacBut.addEventListener("mouseout",ClearBackground)
+                        FacBut.addEventListener("click",UpdateCommitedFactories)
                     }
-                    FacBut.addEventListener("mouseover",ChangeProdsFactories)
-                    FacBut.addEventListener("mouseout",ClearBackground)
+
 
                     Factories.appendChild(FacBut)
                 }
@@ -503,6 +506,20 @@ function HandleSocketResponses(socket){
                 CostsDetails.style.backgroundColor="purple"
             }
             UIProdContainer.appendChild(CostsDetails)
+        }
+    });
+
+    socket.on('ChangeFactoryCountForProdResponse',(response) =>{
+        console.log("ChangeFactoryCountForProdResponse",response)
+        if(response){
+            // const target=document.getElementById(`${response.blockId},${response.row},${response.column}`)
+            ClearBackground(`${response.blockId},${response.row},${response.column}`)
+            ChangeProdsFactories(`${response.blockId},${response.row},${response.column}`)
+            const el = document.getElementById(`${response.blockId},${response.row},${response.column}`);
+            if(el){
+                // el.click()
+                el.dispatchEvent(new MouseEvent("mouseout", { bubbles: true, cancelable: true }));
+            }
         }
     });
 }
@@ -568,47 +585,80 @@ setInterval(EmitResourceUpdate, 10000);// Emit resource updates every 10 seconds
 
 
 function ChangeProdsFactories(e){
-    // console.log(e.target.id)
+    const isevent=e instanceof Event
+    var target=e.target;
+    var prodBlockId,row,column;
+    var flag=false;
 
-    const target=e.target
-    const [prodBlockId,row,column]=target.id.split(",").map(Number)
-    const parent=target.parentElement
+    // const target=e.target
+    // const [prodBlockId,row,column]=target.id.split(",").map(Number)
+    
+    if(isevent){
+        [prodBlockId,row,column]=target.id.split(",").map(Number)
+    }else if(typeof e === "string"){
+        flag=true;
+        [prodBlockId,row,column]=e.split(",").map(Number);
+        target=document.getElementById(`${prodBlockId},${row},${column}`)
+    }
 
     // console.log([prodBlockId,row,column],parent,target.style.backgroundImage=='')
-    if(target.style.backgroundImage==''){
-        for (let r = 1; r <= row; r++) {
-            // if it's the last row, stop at 'column'
-            const maxCol = (r === row ? column : 5);
 
-            for (let c = 1; c <= maxCol; c++) {
-                const cell = document.getElementById(`${prodBlockId},${r},${c}`);
-                if (cell) {
-                    cell.style.backgroundColor = "rgb(75, 75, 75)";
+    for (let r = 1; r <= row; r++) {
+        // if it's the last row, stop at 'column'
+        const maxCol = (r === row ? column : 5);
+
+        for (let c = 1; c <= maxCol; c++) {
+            const cell = document.getElementById(`${prodBlockId},${r},${c}`);
+            if (cell) {
+                cell.style.backgroundColor = "rgb(75, 75, 75)";
+                if(flag){
+                    cell.style.backgroundImage=`url('Icons/TechTree/MilitaryFactory.png')`
                 }
             }
         }
-
     }
+
 }
 
 function ClearBackground(e){
-    const target=e.target
-    const [prodBlockId,row,column]=target.id.split(",").map(Number)
-    const parent=target.parentElement
+    
+    const isevent=e instanceof Event
+    
+    var target=e.target;
+    var prodBlockId,row,column;
+    var flag=false;
+    if(isevent){
+        // target=
+        [prodBlockId,row,column]=target.id.split(",").map(Number)
+    }else if(typeof e === "string"){
+        flag=true;
+        [prodBlockId,row,column]=e.split(",").map(Number);
+        target=document.getElementById(`${prodBlockId},${row},${column}`)
+    }
 
-    // console.log([prodBlockId,row,column],parent,target.style.backgroundImage=='')
-    if(target.style.backgroundImage==''){
-        for (let r = 1; r <= row; r++) {
-            // if it's the last row, stop at 'column'
-            const maxCol = (r === row ? column : 5);
+    for (let r = 1; r <= 3; r++) {
+        // if it's the last row, stop at 'column'
+        const maxCol = 5//(r === row ? column : 5);
 
-            for (let c = 1; c <= maxCol; c++) {
-                const cell = document.getElementById(`${prodBlockId},${r},${c}`);
-                if (cell) {
-                    cell.style.backgroundColor = "rgb(98, 98, 98)";
+        for (let c = 1; c <= maxCol; c++) {
+            const cell = document.getElementById(`${prodBlockId},${r},${c}`);
+            if (cell) {
+                cell.style.backgroundColor = "rgb(98, 98, 98)";
+                if(flag){
+                    cell.style.backgroundImage = ''
                 }
+                
             }
         }
-
     }
+
+}
+
+function UpdateCommitedFactories(e){
+    const target=e.target
+    const [prodBlockId,row,column]=target.id.split(",").map(Number)
+
+    socket.emit('ChangeFactoryCountForProd',{
+        "RequestMetaData":{blockId:prodBlockId,row:row,column:column}
+    })
 }
