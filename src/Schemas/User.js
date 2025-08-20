@@ -6,6 +6,15 @@ const userSchema = new mongoose.Schema({
   passwordHash: String,  // store hashed password here
   OriginTile:[Number],//which tile is centered on 0,0, the rest of the tiles built around
   refreshTokens: [String],  // Store issued refresh tokens (optional)
+  ProductionLines:{Total:{type: Number, default: 2},Free:{type: Number, default: 2}},
+  ProductBlocks: {TopBlock:{ type: Number, default: 0 },Values:{
+    type: Map,
+    of: {
+      FactoryCount: { type: Number, default: 0 },
+      MultiplierFactor: { type: Number, default: 1 },
+      ItemProduced: { type: String, default: "" }
+    }
+  }},
   Resources:{
     Gold:{
         Total:{ type: Number, default: 0 },
@@ -40,10 +49,11 @@ const userSchema = new mongoose.Schema({
 
     ManPower:{
         TotalManPower:{type: Number, default: 0},
-        TotalPopulation:{type: Number, default: 50},
+        TotalPopulation:{type: Number, default: 500},
         PopulationRate:{type: Number, default: 0.1},
         RecruitableFactor:{type: Number, default: 0.1},
-        MaxPopulation:{type: Number, default: 100},
+        MaxPopulation:{type: Number, default: 500},
+        FreePopulation:{type: Number, default: 500}
     },
 
     lastUpdated: { type: Date, default: Date.now }

@@ -302,8 +302,13 @@ function HandleSocketResponses(socket){
         }
         console.log("ProductionSetupResponse",response)
         if(response){
+            const ProdCount=document.getElementById("ProdCount");
+            ProdCount.innerHTML=`Total Production Lines: ${response.ProductionLines.Total}`
+            const FreeCount=document.getElementById("FreeCount");
+            FreeCount.innerHTML=`Free Production Lines: ${response.ProductionLines.Free}`
+
             const ProdOptionsBox=document.getElementById("ProdBox");
-            for (let key of response) {
+            for (let key of response.Products) {
                 const strURL=stringintoURL(key);
 
                 const option=document.createElement("div");
@@ -321,9 +326,9 @@ function HandleSocketResponses(socket){
                     optionButton.style.backgroundImage=strURL;//ColouroptionTags[i];
                     optionButton.style.backgroundColor="rgba(216,216,216,0.2)";//ColouroptionTags[i];
                     
-                    optionButton.myParam=key//optionObjNames[i];//"Mill";
+                    // optionButton.myParam=key//optionObjNames[i];//"Mill";
                     
-                    
+                    optionButton.addEventListener("click",()=>{socket.emit('requestProductionLine',{"RequestMetaData":key} )} )
                     
                     // optionButton.addEventListener("click",PlaceBuilding)
                 } 
@@ -335,6 +340,171 @@ function HandleSocketResponses(socket){
         }
     });
 
+    socket.on('ProductionResponse',(response) =>{
+        console.log("ProductionResponse",response.blockId)
+        if(response){
+
+            const FreeCount=document.getElementById("FreeCount");
+            FreeCount.innerHTML=`Free Production Lines: ${response.FreeLines}`
+            const ProdBlocks=document.getElementById("ProdBlocks");
+
+            const UIProdContainer=document.createElement("div")
+            {
+                UIProdContainer.style.width="calc(100% - 0.5vh)"
+                // UIProdContainer.style.minHeight="100px"
+                UIProdContainer.style.aspectRatio="5.5/1"
+                UIProdContainer.style.backgroundColor="gray"
+                UIProdContainer.style.marginBottom="1vh"
+                UIProdContainer.style.padding="0.25vh"
+                UIProdContainer.style.display="grid";
+                UIProdContainer.style.columnGap="0.5vw"
+                UIProdContainer.style.gridTemplateColumns="2fr 1.5fr 0.5fr";
+            }
+            ProdBlocks.appendChild(UIProdContainer)
+
+            //------------------------- first section
+            const ProdDetails=document.createElement("div")
+            {
+                ProdDetails.style.width="100%"
+                ProdDetails.style.height="100%"
+                // ProdDetails.style.backgroundColor="red"
+                ProdDetails.style.display="grid";
+                ProdDetails.style.gridTemplateRows="1fr 2.5fr 1fr"
+            }
+            UIProdContainer.appendChild(ProdDetails)
+
+            const ProductTitle=document.createElement("div")
+            {
+                ProductTitle.style.width="100%"
+                ProductTitle.style.height="100%"
+                // ProductTitle.style.backgroundColor="black"
+                ProductTitle.style.display="flex"
+                ProductTitle.style.alignItems="center"
+                ProductTitle.style.paddingLeft="0.25vw"
+                ProductTitle.innerHTML=`Product: ${response.Item}`
+                ProductTitle.style.fontSize="max(1vw,1vh)"
+                ProductTitle.style.color="white"
+            }
+            ProdDetails.appendChild(ProductTitle)
+
+            const ProductIcon=document.createElement("div")
+            {
+                ProductIcon.className="IconGeneral"
+                ProductIcon.style.width="100%"
+                ProductIcon.style.height="100%"
+                // ProductIcon.style.backgroundColor="rgba(216,216,216,0.2)";
+                const strimg=`url('Icons/TechTree/${response.Item}.png')`
+                ProductIcon.style.backgroundImage=strimg
+            }
+            ProdDetails.appendChild(ProductIcon)
+
+            
+            const ProductRate=document.createElement("div")
+            {
+                ProductRate.style.width="100%"
+                ProductRate.style.height="100%"
+                ProductRate.style.display="flex"
+                ProductRate.style.paddingLeft="0.25vw"
+                ProductRate.style.alignItems="center"
+                ProductRate.innerHTML=`Created per hour: `
+                ProductRate.style.fontSize="max(1vw,1vh)"
+                ProductRate.style.color="white"
+            }
+            ProdDetails.appendChild(ProductRate)
+
+
+            //---------------------------------------
+            //second section
+            const FactoryParticipation=document.createElement("div")
+            {
+                FactoryParticipation.style.width="100%"
+                FactoryParticipation.style.height="100%"
+                // FactoryParticipation.style.backgroundColor="black"
+                FactoryParticipation.style.display="grid"
+                FactoryParticipation.style.columnGap="0.25vw"
+                FactoryParticipation.style.gridTemplateColumns="1fr 5fr"
+            }
+            UIProdContainer.appendChild(FactoryParticipation)
+
+            const scaleFactories=document.createElement("div")
+            {
+                scaleFactories.style.width="100%"
+                scaleFactories.style.height="100%"
+                scaleFactories.style.display="grid"
+                scaleFactories.style.rowGap="0.25vh"
+                // scaleFactories.style.marginBottom="0.25vh"
+                // scaleFactories.style.marginTop="0.25vh"
+            }
+            FactoryParticipation.appendChild(scaleFactories)
+
+            const buttons=[1,5,10]
+            for(const val of buttons){
+                const scaleFactor=document.createElement("div")
+                {
+                    scaleFactor.id=`${response.blockId},scale,${val}`
+                    scaleFactor.style.width="100%"
+                    scaleFactor.style.height="100%"
+                    scaleFactor.innerHTML=`${val}x`;
+                    scaleFactor.style.display="flex"
+                    scaleFactor.style.backgroundColor="rgb(98, 98, 98)"
+                    scaleFactor.style.borderRadius="0.2vw"
+                    scaleFactor.style.color="white"
+                    scaleFactor.style.fontSize="max(1vw,1vh)"
+                    scaleFactor.style.justifyContent="center"
+                    scaleFactor.style.alignItems="center"
+                    // scaleFactor.style.border="solid white 1px"
+                }
+                if(val==1){
+                    scaleFactor.style.backgroundColor="rgb(75, 75, 75)"
+                }
+                scaleFactories.appendChild(scaleFactor)
+            }
+
+            const Factories=document.createElement("div")
+            {
+                Factories.style.width="100%"
+                Factories.style.height="100%"
+                // Factories.style.backgroundColor="red"
+                Factories.style.gridTemplateColumns="repeat(5, 1fr)"
+                Factories.style.display="grid"
+                Factories.style.rowGap="0.25vh"
+                Factories.style.columnGap="0.25vh"
+            }
+            FactoryParticipation.appendChild(Factories)
+
+            for (let i = 1; i <= 3; i++) {//3 rows
+                for (let j = 1; j <= 5; j++) {//5 across
+                    const FacBut=document.createElement("div")
+                    {
+                        FacBut.className="IconGeneral"
+                        // FacBut.style.backgroundImage="url";
+                        FacBut.style.width="100%"
+                        FacBut.style.height="100%"
+                        FacBut.id=`${response.blockId},${i},${j}`
+                        FacBut.style.backgroundColor="rgb(98, 98, 98)"
+                    }
+                    if(i==1 && j==1){
+                        FacBut.style.backgroundImage=`url('Icons/TechTree/MilitaryFactory.png')`
+                    }
+                    FacBut.addEventListener("mouseover",ChangeProdsFactories)
+                    FacBut.addEventListener("mouseout",ClearBackground)
+
+                    Factories.appendChild(FacBut)
+                }
+            }
+
+
+            //---------------------------------------
+            //costs section
+            const CostsDetails=document.createElement("div")
+            {
+                CostsDetails.style.width="100%"
+                CostsDetails.style.height="100%"
+                CostsDetails.style.backgroundColor="purple"
+            }
+            UIProdContainer.appendChild(CostsDetails)
+        }
+    });
 }
 
 function HandleInitialEmits(socket){
@@ -391,7 +561,54 @@ export function ConstructionSetupEmit(){
 }
 
 export function ProductionSetupEmit(){
-    console.log("should be emitting?")
+    // console.log("should be emitting?")
     socket.emit('ProductionSetupRequest');
 }
 setInterval(EmitResourceUpdate, 10000);// Emit resource updates every 10 seconds
+
+
+function ChangeProdsFactories(e){
+    // console.log(e.target.id)
+
+    const target=e.target
+    const [prodBlockId,row,column]=target.id.split(",").map(Number)
+    const parent=target.parentElement
+
+    // console.log([prodBlockId,row,column],parent,target.style.backgroundImage=='')
+    if(target.style.backgroundImage==''){
+        for (let r = 1; r <= row; r++) {
+            // if it's the last row, stop at 'column'
+            const maxCol = (r === row ? column : 5);
+
+            for (let c = 1; c <= maxCol; c++) {
+                const cell = document.getElementById(`${prodBlockId},${r},${c}`);
+                if (cell) {
+                    cell.style.backgroundColor = "rgb(75, 75, 75)";
+                }
+            }
+        }
+
+    }
+}
+
+function ClearBackground(e){
+    const target=e.target
+    const [prodBlockId,row,column]=target.id.split(",").map(Number)
+    const parent=target.parentElement
+
+    // console.log([prodBlockId,row,column],parent,target.style.backgroundImage=='')
+    if(target.style.backgroundImage==''){
+        for (let r = 1; r <= row; r++) {
+            // if it's the last row, stop at 'column'
+            const maxCol = (r === row ? column : 5);
+
+            for (let c = 1; c <= maxCol; c++) {
+                const cell = document.getElementById(`${prodBlockId},${r},${c}`);
+                if (cell) {
+                    cell.style.backgroundColor = "rgb(98, 98, 98)";
+                }
+            }
+        }
+
+    }
+}

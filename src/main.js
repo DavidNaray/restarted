@@ -512,9 +512,37 @@ io.on('connection', (socket) => {
             }
             // await updateResourceForUser(user);
             // console.log("ProductionSetupResponse",toSend)
-            socket.emit("ProductionSetupResponse", toSend);
+            socket.emit("ProductionSetupResponse", {ProductionLines:user.ProductionLines,Products:toSend});
         }catch(err){
         }
+    });
+
+    socket.on('requestProductionLine',async ({RequestMetaData}) =>{
+        try{
+            // const user=await User.findOne({ _id: socket.userId })
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const freeLines=user.ProductionLines.Free
+            if(freeLines>0){
+                const newFreeLines=freeLines-1
+                // console.log(RequestMetaData)
+                const AssignedTopBlock=user.ProductBlocks.TopBlock
+                socket.emit("ProductionResponse", {FreeLines:newFreeLines,Item:RequestMetaData,blockId:AssignedTopBlock});
+                user.ProductionLines.Free=newFreeLines
+                user.ProductBlocks.TopBlock+=1
+            }else{
+                // console.log("no more lines bro")
+                socket.emit("ProductionResponse", false);
+            }
+            // await updateResourceForUser(user);
+            // console.log("ProductionSetupResponse",toSend)
+            
+        }catch(err){
+        }
+
     });
 
     socket.on('requestRewards',  async () => {

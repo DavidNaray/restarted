@@ -1132,7 +1132,7 @@ function ProductionElements(){
             ProductionOptionsInfo.style.aspectRatio="11/1";
             ProductionOptionsInfo.style.margin="0 0.5vw 0 0.5vw";
             ProductionOptionsInfo.style.alignContent="center";
-            ProductionOptionsInfo.innerText="Use your Military Factories to expand your production lines, produce what can be used or sold";
+            ProductionOptionsInfo.innerText="Build Military Factories to expand your production lines, produce what can be used or sold";
             ProductionOptionsInfo.style.fontSize="max(1vw,1vh)";
             ProductionOptionsInfo.style.color="white"
             ProductionOptionsInfo.style.borderBottom="solid gray 0.25vw"
@@ -1149,41 +1149,89 @@ function ProductionElements(){
         }
         creatingPCB.appendChild(ProdBox)
 
+        const ProdCount=document.createElement("div");
+        {
+            ProdCount.style.width="calc(100% - 1vw)";
+            ProdCount.style.margin="0 0.5vw 0 0.5vw";
+            ProdCount.innerHTML="N.A"
+            ProdCount.id="ProdCount"
+            ProdCount.style.fontSize="max(1vw,1vh)";
+            ProdCount.style.color="white"   
+        }
+        creatingPCB.appendChild(ProdCount)
+
+        const FreeCount=document.createElement("div");
+        {
+            FreeCount.style.width="calc(100% - 1vw)";
+            FreeCount.style.margin="0 0.5vw 0 0.5vw";
+            FreeCount.innerHTML="N.A"
+            FreeCount.id="FreeCount"
+            FreeCount.style.fontSize="max(1vw,1vh)";
+            FreeCount.style.color="white"   
+        }
+        creatingPCB.appendChild(FreeCount)
+
         const ProdQueueTitleBox=document.createElement("div");
         {
             ProdQueueTitleBox.style.width="calc(100% - 1vw)";
             ProdQueueTitleBox.style.display="grid";
-            ProdQueueTitleBox.style.gridTemplateColumns="1.5fr 1fr ";
+            ProdQueueTitleBox.style.gridTemplateColumns="2fr 1.5fr 0.5fr";
+            ProdQueueTitleBox.style.columnGap="0.5vw"
             ProdQueueTitleBox.style.margin="0 0.5vw 0 0.5vw";
             ProdQueueTitleBox.style.borderBottom="solid gray 0.25vw"
-            ProdQueueTitleBox.style.marginBottom="1vw"
+            ProdQueueTitleBox.style.marginBottom="1vh"
             
         }
         creatingPCB.appendChild(ProdQueueTitleBox)
 
-        const FactoryNameAndManpower=document.createElement("div");
+        const ProductAndDetails=document.createElement("div");
         {
-            FactoryNameAndManpower.style.width="calc(100% - 1vw)";
-            FactoryNameAndManpower.style.padding="0 0.5vw 0 0.5vw";
-            FactoryNameAndManpower.style.alignContent="center";
-            FactoryNameAndManpower.innerText="Factory";
-            FactoryNameAndManpower.style.fontSize="max(1vw,1vh)";
-            FactoryNameAndManpower.style.color="white"        
+            ProductAndDetails.style.width="100%";
+            // ProductAndDetails.style.padding="0 0.5vw 0 0.5vw";
+            ProductAndDetails.style.alignContent="center";
+            ProductAndDetails.innerText="Product";
+            ProductAndDetails.style.fontSize="max(1vw,1vh)";
+            ProductAndDetails.style.color="white"        
         }
-        ProdQueueTitleBox.appendChild(FactoryNameAndManpower)
+        ProdQueueTitleBox.appendChild(ProductAndDetails)
 
-        const ProductionLevel=document.createElement("div");
+        const FactoriesInvolved=document.createElement("div");
         {
-            ProductionLevel.style.width="calc(100% - 1vw)";
-            ProductionLevel.style.padding="0 0.5vw 0 0.5vw";
-            ProductionLevel.style.alignContent="center";
-            ProductionLevel.innerText="Output";
-            ProductionLevel.style.fontSize="max(1vw,1vh)";
-            ProductionLevel.style.color="white"
+            FactoriesInvolved.style.width="100%";
+            // FactoriesInvolved.style.padding="0 0.5vw 0 0.5vw";
+            FactoriesInvolved.style.alignContent="center";
+            FactoriesInvolved.innerText="Factories";
+            FactoriesInvolved.style.fontSize="max(1vw,1vh)";
+            FactoriesInvolved.style.color="white"
             // ManpowerAllocation.style.backgroundColor="brown"
             
         }
-        ProdQueueTitleBox.appendChild(ProductionLevel)
+        ProdQueueTitleBox.appendChild(FactoriesInvolved)
+
+        const CostsInvolved=document.createElement("div");
+        {
+            CostsInvolved.style.width="100%";
+            // CostsInvolved.style.padding="0 0.5vw 0 0.5vw";
+            CostsInvolved.style.alignContent="center";
+            CostsInvolved.innerText="Costs";
+            CostsInvolved.style.fontSize="max(1vw,1vh)";
+            CostsInvolved.style.color="white"
+            // ManpowerAllocation.style.backgroundColor="brown"
+            
+        }
+        ProdQueueTitleBox.appendChild(CostsInvolved)
+
+
+
+        const ProdBlocks=document.createElement("div");
+        {
+            ProdBlocks.style.width="calc(100% - 1vw)";
+            ProdBlocks.style.margin="0 0.5vw 0 0.5vw";
+            ProdBlocks.id="ProdBlocks"
+            ProdBlocks.style.fontSize="max(1vw,1vh)";  
+        }
+        creatingPCB.appendChild(ProdBlocks)
+
 
         ProductionSetupEmit()
     }else{

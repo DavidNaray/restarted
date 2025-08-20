@@ -94,6 +94,12 @@ async function toCachedUser(userDoc) {
     passwordHash: userDoc.passwordHash,
     OriginTile: [...(userDoc.OriginTile || [])],
     refreshTokens: [...(userDoc.refreshTokens || [])],
+    ProductionLines:userDoc.ProductionLines ?? 2,
+    
+    ProductBlocks: {
+      TopBlock: userDoc.ProductBlocks?.TopBlock ?? 0,
+      Values: userDoc.ProductBlocks?.Values ? Object.fromEntries(userDoc.ProductBlocks.Values) : {}
+    },
 
     Resources: {
       Gold: {
@@ -122,10 +128,11 @@ async function toCachedUser(userDoc) {
       },
       ManPower: {
         TotalManPower: userDoc.Resources.ManPower.TotalManPower ?? 0,
-        TotalPopulation: userDoc.Resources.ManPower.TotalPopulation ?? 50,
+        TotalPopulation: userDoc.Resources.ManPower.TotalPopulation ?? 500,
         PopulationRate: userDoc.Resources.ManPower.PopulationRate ?? 0.1,
         RecruitableFactor: userDoc.Resources.ManPower.RecruitableFactor ?? 0.1,
-        MaxPopulation: userDoc.Resources.ManPower.MaxPopulation ?? 100,
+        MaxPopulation: userDoc.Resources.ManPower.MaxPopulation ?? 500,
+        FreePopulation: userDoc.Resources.ManPower.FreePopulation ?? 500,
       },
       lastUpdated: userDoc.Resources.lastUpdated
         ? new Date(userDoc.Resources.lastUpdated)
