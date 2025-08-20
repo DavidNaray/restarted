@@ -573,7 +573,10 @@ io.on('connection', (socket) => {
             
             const newFreeLines=user.ProductionLines.Free
             const FacCount=user.ProductBlocks.Values[blockId].FactoryCount
-            socket.emit("ChangeFactoryCountForProdResponse", {FreeLines:newFreeLines,blockId:blockId,FactoryCount:FacCount,row:row,column:column});
+
+            const visualRow=Math.floor(user.ProductBlocks.Values[blockId].FactoryCount /5)+1
+            const visualCol=user.ProductBlocks.Values[blockId].FactoryCount %5
+            socket.emit("ChangeFactoryCountForProdResponse", {FreeLines:newFreeLines,blockId:blockId,FactoryCount:FacCount,row:visualRow,column:visualCol});
         }catch(p){}
     });
 
