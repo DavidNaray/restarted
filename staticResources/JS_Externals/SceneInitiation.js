@@ -448,7 +448,7 @@ function HandleSocketResponses(socket){
                 StorageTitle.style.display="flex"
                 StorageTitle.style.alignItems="center"
                 StorageTitle.style.paddingLeft="0.25vw"
-                StorageTitle.innerHTML=`In Stoarge: ${response.Storage}`
+                StorageTitle.innerHTML=`In Storage: ${response.Storage}`
                 StorageTitle.style.fontSize="max(1vw,1vh)"
                 StorageTitle.style.color="white"
             }
@@ -678,6 +678,18 @@ function HandleSocketResponses(socket){
     socket.on('ProductionInventoryUpdate',(response) =>{
 
         console.log("ProductionInventoryUpdate",response)
+        if(response){
+            for (const [Item, values] of Object.entries(response)) {
+                const blockIds=values.blocks
+                const val=values.value
+
+                for(const blockId of blockIds){
+                    const el=document.getElementById(`${blockId},storageTitle`)
+                    el.innerHTML=`In Storage: ${val}`
+                }
+            }
+
+        }
     });
 }
 
