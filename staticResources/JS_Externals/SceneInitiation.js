@@ -348,30 +348,26 @@ function HandleSocketResponses(socket){
             FreeCount.innerHTML=`Free Production Lines: ${response.FreeLines}`
             const ProdBlocks=document.getElementById("ProdBlocks");
 
-            const UIProdContainer=document.createElement("div")
+            const ProdContainerContainer=document.createElement("div")
             {
-                UIProdContainer.style.width="calc(100% - 0.5vh)"
-                // UIProdContainer.style.minHeight="100px"
-                UIProdContainer.style.aspectRatio="5.5/1"
-                UIProdContainer.style.backgroundColor="gray"
-                UIProdContainer.style.marginBottom="1vh"
-                UIProdContainer.style.padding="0.25vh"
-                UIProdContainer.style.display="grid";
-                UIProdContainer.style.columnGap="0.5vw"
-                UIProdContainer.style.gridTemplateColumns="2fr 1.5fr 0.5fr";
-            }
-            ProdBlocks.appendChild(UIProdContainer)
+                ProdContainerContainer.style.width="calc(100% - 0.5vh)"
+                ProdContainerContainer.style.backgroundColor="gray"
+                ProdContainerContainer.style.marginBottom="1vh"
+                ProdContainerContainer.style.padding="0.25vh"
 
-            //------------------------- first section
-            const ProdDetails=document.createElement("div")
-            {
-                ProdDetails.style.width="100%"
-                ProdDetails.style.height="100%"
-                // ProdDetails.style.backgroundColor="red"
-                ProdDetails.style.display="grid";
-                ProdDetails.style.gridTemplateRows="1fr 2.5fr 1fr"
             }
-            UIProdContainer.appendChild(ProdDetails)
+            ProdBlocks.appendChild(ProdContainerContainer)
+
+            const UIProdDetails=document.createElement("div")
+            {
+                UIProdDetails.style.width="100%"
+                UIProdDetails.style.minHeight="20px"
+                // UIProdDetails.style.backgroundColor="orange"
+                UIProdDetails.style.display="grid";
+                UIProdDetails.style.columnGap="0.5vw"
+                UIProdDetails.style.gridTemplateColumns="1.7fr 1.5fr 1fr";
+            }
+            ProdContainerContainer.appendChild(UIProdDetails)
 
             const ProductTitle=document.createElement("div")
             {
@@ -384,8 +380,76 @@ function HandleSocketResponses(socket){
                 ProductTitle.innerHTML=`Product: ${response.Item}`
                 ProductTitle.style.fontSize="max(1vw,1vh)"
                 ProductTitle.style.color="white"
+                // ProductTitle.style.lineHeight="0.75"
             }
-            ProdDetails.appendChild(ProductTitle)
+            UIProdDetails.appendChild(ProductTitle)
+
+            const FactoryCount=document.createElement("div")
+            {
+                FactoryCount.style.width="100%"
+                FactoryCount.id=`${response.blockId},count`
+                FactoryCount.style.height="100%"
+                FactoryCount.style.display="flex"
+                FactoryCount.style.alignItems="center"
+                FactoryCount.innerHTML=`Factory Count: 1`
+                FactoryCount.style.fontSize="max(1vw,1vh)"
+                FactoryCount.style.color="white"
+                // FactoryCount.style.lineHeight="0.75"
+            }
+            UIProdDetails.appendChild(FactoryCount)
+
+            const closeBoxContainer=document.createElement("div")
+            {
+                closeBoxContainer.style.height="100%"
+                closeBoxContainer.style.width="100%"
+            }
+            UIProdDetails.appendChild(closeBoxContainer)
+            const closeBox=document.createElement("div")
+            {
+                closeBox.style.height="100%"
+                closeBox.style.aspectRatio="1/1"
+                closeBox.style.backgroundColor="black"
+                closeBox.style.justifySelf = "end";   // slams to right edge
+            }
+            closeBoxContainer.appendChild(closeBox)
+
+            const UIProdContainer=document.createElement("div")
+            {
+                UIProdContainer.style.width="100%"//"calc(100% - 0.5vh)"
+                // UIProdContainer.style.minHeight="100px"
+                UIProdContainer.style.aspectRatio="5.5/1"
+                // UIProdContainer.style.backgroundColor="gray"
+                UIProdContainer.style.marginTop="0.25vh"
+                UIProdContainer.style.display="grid";
+                UIProdContainer.style.columnGap="0.5vw"
+                UIProdContainer.style.gridTemplateColumns="1.7fr 1.5fr 1fr";
+            }
+            ProdContainerContainer.appendChild(UIProdContainer)
+
+            //------------------------- first section
+            const ProdDetails=document.createElement("div")
+            {
+                ProdDetails.style.width="100%"
+                ProdDetails.style.height="100%"
+                // ProdDetails.style.backgroundColor="red"
+                ProdDetails.style.display="grid";
+                ProdDetails.style.gridTemplateRows="1fr 2.5fr 1fr"
+            }
+            UIProdContainer.appendChild(ProdDetails)
+
+            const StorageTitle=document.createElement("div")
+            {
+                StorageTitle.style.width="100%"
+                StorageTitle.style.height="100%"
+                // ProductTitle.style.backgroundColor="black"
+                StorageTitle.style.display="flex"
+                StorageTitle.style.alignItems="center"
+                StorageTitle.style.paddingLeft="0.25vw"
+                StorageTitle.innerHTML=`In Stoarge: ${response.Item}`
+                StorageTitle.style.fontSize="max(1vw,1vh)"
+                StorageTitle.style.color="white"
+            }
+            ProdDetails.appendChild(StorageTitle)
 
             const ProductIcon=document.createElement("div")
             {
@@ -504,17 +568,54 @@ function HandleSocketResponses(socket){
             {
                 CostsDetails.style.width="100%"
                 CostsDetails.style.height="100%"
-                CostsDetails.style.backgroundColor="purple"
+                // CostsDetails.style.backgroundColor="purple"
+                CostsDetails.style.display="grid";
+                CostsDetails.style.gridTemplateRows="2fr 1fr 1fr 1fr"
             }
             UIProdContainer.appendChild(CostsDetails)
+
+            const ManpowerDetails=document.createElement("div")
+            {
+                ManpowerDetails.style.width="100%"
+                ManpowerDetails.style.height="100%"
+                ManpowerDetails.style.backgroundColor="purple"
+            }
+            CostsDetails.appendChild(ManpowerDetails)
+
+            const GoldDetails=document.createElement("div")
+            {
+                GoldDetails.style.width="100%"
+                GoldDetails.style.height="100%"
+                GoldDetails.style.backgroundColor="yellow"
+            }
+            CostsDetails.appendChild(GoldDetails)
+
+            const StoneDetails=document.createElement("div")
+            {
+                StoneDetails.style.width="100%"
+                StoneDetails.style.height="100%"
+                StoneDetails.style.backgroundColor="gray"
+            }
+            CostsDetails.appendChild(StoneDetails)
+
+            const WoodDetails=document.createElement("div")
+            {
+                WoodDetails.style.width="100%"
+                WoodDetails.style.height="100%"
+                WoodDetails.style.backgroundColor="brown"
+            }
+            CostsDetails.appendChild(WoodDetails)
         }
     });
 
     socket.on('ChangeFactoryCountForProdResponse',(response) =>{
-        // console.log("ChangeFactoryCountForProdResponse",response)
+        console.log("ChangeFactoryCountForProdResponse",response)
         if(response){
             const FreeCount=document.getElementById("FreeCount");
             FreeCount.innerHTML=`Free Production Lines: ${response.FreeLines}`
+
+            const Used=document.getElementById(`${response.blockId},count`);
+            Used.innerHTML=`Factory Count: ${response.FactoryCount}`
             
             ClearBackground(`${response.blockId},${response.row},${response.column}`)
             ChangeProdsFactories(`${response.blockId},${response.row},${response.column}`)

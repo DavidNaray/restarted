@@ -1175,7 +1175,7 @@ function ProductionElements(){
         {
             ProdQueueTitleBox.style.width="calc(100% - 1vw)";
             ProdQueueTitleBox.style.display="grid";
-            ProdQueueTitleBox.style.gridTemplateColumns="2fr 1.5fr 0.5fr";
+            ProdQueueTitleBox.style.gridTemplateColumns="1.7fr 1.5fr 1fr";
             ProdQueueTitleBox.style.columnGap="0.5vw"
             ProdQueueTitleBox.style.margin="0 0.5vw 0 0.5vw";
             ProdQueueTitleBox.style.borderBottom="solid gray 0.25vw"
