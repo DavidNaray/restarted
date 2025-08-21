@@ -3,7 +3,7 @@ import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {renderer,UserId,InputState} from "../siteJS.js"
 import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed,techTreeSetupEmit,
-    ConstructionSetupEmit,ProductionSetupEmit} from "./SceneInitiation.js"
+    ConstructionSetupEmit,ProductionSetupEmit,openProductionTab,closeProductionTab} from "./SceneInitiation.js"
 
 export var moveableSelected={value:{}};
 
@@ -1237,7 +1237,7 @@ function ProductionElements(){
     }else{
         ProductioncontentBox.style.display="block"
     }
-    
+    openProductionTab();
 }
 
 //------------------------------------------------------------------
@@ -1260,6 +1260,9 @@ export function addEventListenersToButtons(){//opens the dropdown
 }
 
 function resetButtonDropDown(){
+    
+    closeProductionTab()
+    
     // console.log("parameter of pressed button:", event.currentTarget.myParam)
     const dropdownElement=document.getElementById("Button_Dropdown")
     if(dropdownElement.style.display=="none"){
@@ -1277,7 +1280,7 @@ function resetButtonDropDown(){
 
 function buttonpressed(event){
     resetButtonDropDown()
-
+    
     let Title;
     switch(event.currentTarget.myParam){
         case "btn_Decisions":

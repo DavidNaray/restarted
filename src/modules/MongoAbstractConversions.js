@@ -186,7 +186,7 @@ async function toCachedUser(userDoc) {
       CropRotation: userDoc.Technology.CropRotation ?? false,
 
     },
-
+    Inventory:userDoc.Inventory ? Object.fromEntries(userDoc.Inventory) : {},
     lastClaimDate: userDoc.lastClaimDate ?? null,
   };
 }

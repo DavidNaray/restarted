@@ -18,6 +18,7 @@ const userSchema = new mongoose.Schema({
       ItemProduced: { type: String, default: "" }
     }
   }},
+  WareHouses:{ type: Number, default: 0 },
   Resources:{
     Gold:{
         Total:{ type: Number, default: 0 },
@@ -63,13 +64,26 @@ const userSchema = new mongoose.Schema({
 
   },
   Technology:{
-    Bows: { Unlocked: {type: Boolean, default: true },Description: {type: String, default: "An archers armament"} },
-    Swords: { Unlocked:{type: Boolean, default: true }, Description: {type: String, default: "An offensive option for soldiers"} },
-    Shields: { Unlocked:{type: Boolean, default: true }, Description: {type: String, default: "A defensive option for soldiers"} },
-    Spears: { Unlocked:{type: Boolean, default: true }, Description: {type: String, default: "An offensive option for soldiers"} },
-    LeatherArmour: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A defensive option for soldiers"} },
-    BatteringRam: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A siege weapon for breaking down structures"} },
-    WagonFort: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A mobile defensive/offensive structure"} },
+    Bows: { Unlocked: {type: Boolean, default: true },Description: {type: String, default: "An archers armament"},
+    Capacity: { type: Number, default: 1 },Rate:{ type: Number, default: 1 }},
+    
+    Swords: { Unlocked:{type: Boolean, default: true }, Description: {type: String, default: "An offensive option for soldiers"},
+    Capacity: { type: Number, default: 1 },Rate:{ type: Number, default: 1 } },
+    
+    Shields: { Unlocked:{type: Boolean, default: true }, Description: {type: String, default: "A defensive option for soldiers"},
+    Capacity: { type: Number, default: 1 },Rate:{ type: Number, default: 1 } },
+    
+    Spears: { Unlocked:{type: Boolean, default: true }, Description: {type: String, default: "An offensive option for soldiers"},
+    Capacity: { type: Number, default: 1 },Rate:{ type: Number, default: 1 } },
+    
+    LeatherArmour: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A defensive option for soldiers"},
+    Capacity: { type: Number, default: 1 },Rate:{ type: Number, default: 7 } },
+    
+    BatteringRam: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A siege weapon for breaking down structures"},
+    Capacity: { type: Number, default: 20 },Rate:{ type: Number, default: 14 } },
+    
+    WagonFort: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A mobile defensive/offensive structure"},
+    Capacity: { type: Number, default: 20 },Rate:{ type: Number, default: 14 } },
 
     WoodWall: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A wall of wood"} },
     StoneWall: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A wall of stone"} },
@@ -94,12 +108,23 @@ const userSchema = new mongoose.Schema({
     Warehouse: { Unlocked:{type: Boolean, default: true },Description: {type: String, default: "A building to store resources, increases storage capacity by 1000"} },
 
 
-    ChainArmour: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A defensive option for soldiers, better than leather"} },
-    PlateArmour: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A defensive option for soldiers, better than chain"} },
-    Crossbows: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "An alternative for archers"} },
-    Trebuchet: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A powerful ranged siege weapon for breaking down structures"} },
-    Catapult: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A siege weapon for bringing down structures or groups of foes"} },
-    Ballista: { Unlocked:{type: Boolean, default: false }, Description: {type: String, default: "A powerful ranged siege weapon for destroying light structures or targetting the toughest troops"} },
+    ChainArmour: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A defensive option for soldiers, better than leather"},
+    Capacity: { type: Number, default: 1 },Rate:{ type: Number, default: 28 } },
+    
+    PlateArmour: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A defensive option for soldiers, better than chain"},
+    Capacity: { type: Number, default: 1 },Rate:{ type: Number, default: 14 }},
+    
+    Crossbows: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "An alternative for archers"},
+    Capacity: { type: Number, default: 1 },Rate:{ type: Number, default: 1 } },
+
+    Trebuchet: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A powerful ranged siege weapon for breaking down structures"},
+    Capacity: { type: Number, default: 50 },Rate:{ type: Number, default: 35 } },
+    
+    Catapult: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A siege weapon for bringing down structures or groups of foes"},
+    Capacity: { type: Number, default: 40 },Rate:{ type: Number, default: 21 } },
+    
+    Ballista: { Unlocked:{type: Boolean, default: false }, Description: {type: String, default: "A powerful ranged siege weapon for destroying light structures or targetting the toughest troops"},
+    Capacity: { type: Number, default: 20 },Rate:{ type: Number, default: 14 } },
 
     StandardisedParts: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A technology that raises goods produced by 5%"} },
     RobustSupplyChains: { Unlocked:{type: Boolean, default: false },Description: {type: String, default: "A technology that makes goods cheaper to produce by 5%"} },
@@ -110,6 +135,13 @@ const userSchema = new mongoose.Schema({
 
 
 
+  },
+  Inventory:{
+    type: Map,
+    of: {
+      Total:{ type: Number, default: 0 },
+      lastUpdated:{ type: String, default: null }
+    }
   },
   lastClaimDate: { type: String, default: null }, // e.g. "2025-08-16"
 });

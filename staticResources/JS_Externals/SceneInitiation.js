@@ -341,7 +341,7 @@ function HandleSocketResponses(socket){
     });
 
     socket.on('ProductionResponse',(response) =>{
-        console.log("ProductionResponse",response.blockId)
+        // console.log("ProductionResponse",response)
         if(response){
 
             const FreeCount=document.getElementById("FreeCount");
@@ -444,11 +444,11 @@ function HandleSocketResponses(socket){
             {
                 StorageTitle.style.width="100%"
                 StorageTitle.style.height="100%"
-                // ProductTitle.style.backgroundColor="black"
+                StorageTitle.id=`${response.blockId},storageTitle`
                 StorageTitle.style.display="flex"
                 StorageTitle.style.alignItems="center"
                 StorageTitle.style.paddingLeft="0.25vw"
-                StorageTitle.innerHTML=`In Stoarge: ${response.Item}`
+                StorageTitle.innerHTML=`In Stoarge: ${response.Storage}`
                 StorageTitle.style.fontSize="max(1vw,1vh)"
                 StorageTitle.style.color="white"
             }
@@ -470,10 +470,11 @@ function HandleSocketResponses(socket){
             {
                 ProductRate.style.width="100%"
                 ProductRate.style.height="100%"
+                ProductRate.id=`${response.blockId},ProductRate`
                 ProductRate.style.display="flex"
                 ProductRate.style.paddingLeft="0.25vw"
                 ProductRate.style.alignItems="center"
-                ProductRate.innerHTML=`Created per hour: `
+                ProductRate.innerHTML=`Created per Day: ${response.Rate}`
                 ProductRate.style.fontSize="max(1vw,1vh)"
                 ProductRate.style.color="white"
             }
@@ -617,6 +618,12 @@ function HandleSocketResponses(socket){
             const FreeCount=document.getElementById("FreeCount");
             FreeCount.innerHTML=`Free Production Lines: ${response.FreeLines}`
 
+            // const StorageT=document.getElementById(`${response.blockId},storageTitle`);
+            // StorageT.innerHTML=`In Storage: ${response.FreeLines}`
+
+            const Rate=document.getElementById(`${response.blockId},ProductRate`);
+            Rate.innerHTML=`Created per Day: ${response.Rate}`
+
             const Used=document.getElementById(`${response.blockId},count`);
             Used.innerHTML=`Factory Count: ${response.FactoryCount}`
             
@@ -666,6 +673,11 @@ function HandleSocketResponses(socket){
             const FreeCount=document.getElementById("FreeCount");
             FreeCount.innerHTML=`Free Production Lines: ${response.FreeLines}`
         }
+    });
+
+    socket.on('ProductionInventoryUpdate',(response) =>{
+
+        console.log("ProductionInventoryUpdate",response)
     });
 }
 
@@ -824,4 +836,24 @@ function removeProductionLine(e){
     socket.emit('CloseProductionLine',{
         "RequestMetaData":{blockId:prodBlockId}
     })
+}
+
+
+let productionInterval = null;
+
+export function openProductionTab() {
+    console.log("pinging for inventory updates")
+    if (!productionInterval) {
+        // Emit every 5 seconds while tab is open
+        productionInterval = setInterval(() => {
+            socket.emit("requestingProductionInventory");
+        }, 5000);
+    }
+}
+
+export function closeProductionTab() {
+    if (productionInterval) {
+        clearInterval(productionInterval);
+        productionInterval = null;
+    }
 }

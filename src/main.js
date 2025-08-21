@@ -534,9 +534,23 @@ io.on('connection', (socket) => {
                     AssignedTopBlock=user.ProductBlocks.FreeBlocks.pop()
                 }else{AssignedTopBlock=user.ProductBlocks.TopBlock}
                 
-                
-                
-                socket.emit("ProductionResponse", {FreeLines:newFreeLines,Item:RequestMetaData,blockId:AssignedTopBlock});
+                var InventoryRecord;
+                try{
+                    InventoryRecord =user.Inventory[`${RequestMetaData}`]
+                    if(InventoryRecord==undefined){
+                        // console.log("^_^")
+                        InventoryRecord={Total:0}
+                        user.Inventory[`${RequestMetaData}`]={Total:0,lastUpdated:new Date()}
+                    }
+                }catch(sad){}
+               
+                // if(!InventoryRecord){
+                //     InventoryRecord={Total:0}
+                //     user.Inventory[item]={Total:0,lastUpdated:new Date()}
+                // }
+                // console.log("InventoryRecord",InventoryRecord)
+                const Rate=user.Technology[RequestMetaData].Rate
+                socket.emit("ProductionResponse", {FreeLines:newFreeLines,Item:RequestMetaData,blockId:AssignedTopBlock,Rate:Rate,Storage:InventoryRecord.Total});
                 user.ProductionLines.Free=newFreeLines
                 user.ProductBlocks.Values[AssignedTopBlock]={FactoryCount:1,MultiplierFactor:1,ItemProduced:RequestMetaData}
                 user.ProductBlocks.TopBlock+=1
@@ -579,9 +593,12 @@ io.on('connection', (socket) => {
             const newFreeLines=user.ProductionLines.Free
             const FacCount=user.ProductBlocks.Values[blockId].FactoryCount
 
+            const ItemProduced=user.ProductBlocks.Values[`${blockId}`].ItemProduced
+            const Rate=FacCount*user.Technology[`${ItemProduced}`].Rate
+
             const visualRow=Math.floor((user.ProductBlocks.Values[blockId].FactoryCount/concernedLine.MultiplierFactor) /5)+1
             const visualCol=Math.ceil(user.ProductBlocks.Values[blockId].FactoryCount/concernedLine.MultiplierFactor) %5
-            socket.emit("ChangeFactoryCountForProdResponse", {FreeLines:newFreeLines,blockId:blockId,FactoryCount:FacCount,row:visualRow,column:visualCol});
+            socket.emit("ChangeFactoryCountForProdResponse", {FreeLines:newFreeLines,blockId:blockId,FactoryCount:FacCount,row:visualRow,column:visualCol,Rate:Rate});
         }catch(p){}
     });
 
@@ -601,12 +618,68 @@ io.on('connection', (socket) => {
             const freeLines=user.ProductionLines.Free + user.ProductBlocks.Values[`${blockId}`].FactoryCount
             user.ProductionLines.Free=freeLines
 
+            user.Inventory[`${user.ProductBlocks.Values[`${blockId}`].ItemProduced}`].lastUpdated=null
             delete user.ProductBlocks.Values[`${blockId}`]
 
             socket.emit("closeProdLine", {Remove:blockId,FreeLines:freeLines});
 
         }catch(p){}
     });
+
+    socket.on('requestingProductionInventory',async ()=>{
+        // console.log("yo")
+        try{
+            // const user=await User.findOne({ _id: socket.userId })
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+
+            const toReturn={}
+            const ProductionLines=user.ProductBlocks.Values
+            // console.log("before erm?",ProductionLines)
+            for(const [ProductLineNumber, values] of Object.entries(ProductionLines)){
+                // console.log(ProductLineNumber,values)
+                
+                const item=values.ItemProduced
+                if(toReturn[item]){
+                    // console.log("stright away? or no...",toReturn)
+                    toReturn[item].blocks.push(ProductLineNumber)
+                    continue
+                }
+                // console.log("dying here?")
+                const FactoryCount=values.FactoryCount
+                const Rate=user.Technology[item].Rate//rate is in days
+                // console.log("what about dying here?",user.Inventory)
+                var lastUpdated=new Date(user.Inventory[`${item}`].lastUpdated || Date.now());//user.Inventory[item].lastUpdated
+                // if(!InventoryRecord){InventoryRecord={Total:0,lastUpdated:new Date()}}
+                // console.log("lastUpdated",lastUpdated)
+                const TimeNow= new Date()
+
+                const TimeDifferenceDays=((((TimeNow-lastUpdated)/1000)/60)/60)/24 //for seconds / minutes/ hours/days
+                // console.log("TimeDifferenceDays",TimeDifferenceDays)
+                const productionPerDay=FactoryCount*Rate
+                const AmountProduced=productionPerDay*TimeDifferenceDays
+
+                const cutOffAmount=Math.floor(AmountProduced)
+                if(cutOffAmount>0){
+                    const timeForCutOffAmountDays = cutOffAmount / productionPerDay;
+                    const timeForCutOffAmountMilli = timeForCutOffAmountDays * 24 * 60 * 60 * 1000;
+
+                    const ToSetLastUpdated = new Date(lastUpdated.getTime() + timeForCutOffAmountMilli);
+
+                    user.Inventory[item].Total += cutOffAmount;
+                    user.Inventory[item].lastUpdated = ToSetLastUpdated;
+                    
+                    toReturn[item]={blocks:[ProductLineNumber],value:user.Inventory[item].Total}
+                }else{}
+
+            }
+            // console.log("erm?")
+            socket.emit("ProductionInventoryUpdate", toReturn)
+        }catch(p){}
+    })
 
     socket.on('ChangeFactoryScaleForProd',async ({RequestMetaData}) =>{
         try{
