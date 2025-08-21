@@ -448,7 +448,7 @@ function HandleSocketResponses(socket){
                 StorageTitle.style.display="flex"
                 StorageTitle.style.alignItems="center"
                 StorageTitle.style.paddingLeft="0.25vw"
-                StorageTitle.innerHTML=`In Storage: ${response.Storage}`
+                StorageTitle.innerHTML=`In Storage (Appr~): ${response.Storage}`
                 StorageTitle.style.fontSize="max(1vw,1vh)"
                 StorageTitle.style.color="white"
             }
@@ -574,7 +574,7 @@ function HandleSocketResponses(socket){
                 CostsDetails.style.height="100%"
                 // CostsDetails.style.backgroundColor="purple"
                 CostsDetails.style.display="grid";
-                CostsDetails.style.gridTemplateRows="2fr 1fr 1fr 1fr"
+                CostsDetails.style.gridTemplateRows="1.5fr 1fr 1fr 1fr"
             }
             UIProdContainer.appendChild(CostsDetails)
 
@@ -582,15 +582,47 @@ function HandleSocketResponses(socket){
             {
                 ManpowerDetails.style.width="100%"
                 ManpowerDetails.style.height="100%"
-                ManpowerDetails.style.backgroundColor="purple"
+                // ManpowerDetails.style.backgroundColor="purple"
+                ManpowerDetails.style.display="grid"
+                ManpowerDetails.style.gridTemplateRows="1fr 1fr"
             }
             CostsDetails.appendChild(ManpowerDetails)
+
+            const ManpowerTxt=document.createElement("div")
+            {
+                ManpowerTxt.style.width="100%"
+                ManpowerTxt.style.height="100%"
+                ManpowerTxt.innerHTML="Manpower:"
+                ManpowerTxt.style.display="flex"
+                ManpowerTxt.style.alignItems="center"
+                ManpowerTxt.style.fontSize="max(1vw,1vh)"
+                ManpowerTxt.style.color="white"
+            }
+            ManpowerDetails.appendChild(ManpowerTxt)
+            const ManpowerSlider=document.createElement("input")
+            {
+                ManpowerSlider.style.margin="0"
+                ManpowerSlider.type="range"
+                ManpowerSlider.min="0"
+                ManpowerSlider.max="100"
+                ManpowerSlider.value="50"
+                ManpowerSlider.step="1"
+                ManpowerSlider.style.width="100%"
+                ManpowerSlider.style.height="max(1vw,1vh)"
+            }
+            ManpowerDetails.appendChild(ManpowerSlider)
+
+
 
             const GoldDetails=document.createElement("div")
             {
                 GoldDetails.style.width="100%"
                 GoldDetails.style.height="100%"
-                GoldDetails.style.backgroundColor="yellow"
+                GoldDetails.innerHTML="Gold:"
+                GoldDetails.style.display="flex"
+                GoldDetails.style.alignItems="center"
+                GoldDetails.style.fontSize="max(1vw,1vh)"
+                GoldDetails.style.color="white"
             }
             CostsDetails.appendChild(GoldDetails)
 
@@ -598,7 +630,11 @@ function HandleSocketResponses(socket){
             {
                 StoneDetails.style.width="100%"
                 StoneDetails.style.height="100%"
-                StoneDetails.style.backgroundColor="gray"
+                StoneDetails.innerHTML="Stone:"
+                StoneDetails.style.display="flex"
+                StoneDetails.style.alignItems="center"
+                StoneDetails.style.fontSize="max(1vw,1vh)"
+                StoneDetails.style.color="white"
             }
             CostsDetails.appendChild(StoneDetails)
 
@@ -606,7 +642,11 @@ function HandleSocketResponses(socket){
             {
                 WoodDetails.style.width="100%"
                 WoodDetails.style.height="100%"
-                WoodDetails.style.backgroundColor="brown"
+                WoodDetails.innerHTML="Wood:"
+                WoodDetails.style.display="flex"
+                WoodDetails.style.alignItems="center"
+                WoodDetails.style.fontSize="max(1vw,1vh)"
+                WoodDetails.style.color="white"
             }
             CostsDetails.appendChild(WoodDetails)
         }
@@ -685,7 +725,7 @@ function HandleSocketResponses(socket){
 
                 for(const blockId of blockIds){
                     const el=document.getElementById(`${blockId},storageTitle`)
-                    el.innerHTML=`In Storage: ${val}`
+                    el.innerHTML=`In Storage (Appr~): ${val}`
                 }
             }
 
@@ -856,10 +896,10 @@ let productionInterval = null;
 export function openProductionTab() {
     console.log("pinging for inventory updates")
     if (!productionInterval) {
-        // Emit every 5 seconds while tab is open
+        // Emit every 20 seconds while tab is open
         productionInterval = setInterval(() => {
             socket.emit("requestingProductionInventory");
-        }, 5000);
+        }, 20000);
     }
 }
 
