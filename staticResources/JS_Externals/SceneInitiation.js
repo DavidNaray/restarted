@@ -351,6 +351,7 @@ function HandleSocketResponses(socket){
             const ProdContainerContainer=document.createElement("div")
             {
                 ProdContainerContainer.style.width="calc(100% - 0.5vh)"
+                ProdContainerContainer.id=`${response.blockId},container`
                 ProdContainerContainer.style.backgroundColor="gray"
                 ProdContainerContainer.style.marginBottom="1vh"
                 ProdContainerContainer.style.padding="0.25vh"
@@ -407,10 +408,12 @@ function HandleSocketResponses(socket){
             const closeBox=document.createElement("div")
             {
                 closeBox.style.height="100%"
+                closeBox.id=`${response.blockId},close`
                 closeBox.style.aspectRatio="1/1"
                 closeBox.style.backgroundColor="black"
                 closeBox.style.justifySelf = "end";   // slams to right edge
             }
+            closeBox.addEventListener("click",removeProductionLine)
             closeBoxContainer.appendChild(closeBox)
 
             const UIProdContainer=document.createElement("div")
@@ -653,6 +656,17 @@ function HandleSocketResponses(socket){
             }
         }
     });
+
+    socket.on('closeProdLine',(response) =>{
+        console.log(response,"!!")//`${response.blockId},container`
+        if(response){
+            const removeit=document.getElementById(`${response.Remove},container`)
+            removeit.remove()
+            
+            const FreeCount=document.getElementById("FreeCount");
+            FreeCount.innerHTML=`Free Production Lines: ${response.FreeLines}`
+        }
+    });
 }
 
 function HandleInitialEmits(socket){
@@ -800,5 +814,14 @@ function changeProdDisplayScale(e){
     const [prodBlockId,Scale]=target.ScaVal.split(",").map(Number)
     socket.emit('ChangeFactoryScaleForProd',{
         "RequestMetaData":{blockId:prodBlockId,Scale:Scale}
+    })
+}
+
+function removeProductionLine(e){
+    // console.log(e.target.id)
+    const target=e.target
+    const [prodBlockId,extra]=target.id.split(",").map(Number)
+    socket.emit('CloseProductionLine',{
+        "RequestMetaData":{blockId:prodBlockId}
     })
 }

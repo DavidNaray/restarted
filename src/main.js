@@ -529,7 +529,13 @@ io.on('connection', (socket) => {
             if(freeLines>0){
                 const newFreeLines=freeLines-1
                 // console.log(RequestMetaData)
-                const AssignedTopBlock=user.ProductBlocks.TopBlock
+                var AssignedTopBlock
+                if(user.ProductBlocks.FreeBlocks.length>0){
+                    AssignedTopBlock=user.ProductBlocks.FreeBlocks.pop()
+                }else{AssignedTopBlock=user.ProductBlocks.TopBlock}
+                
+                
+                
                 socket.emit("ProductionResponse", {FreeLines:newFreeLines,Item:RequestMetaData,blockId:AssignedTopBlock});
                 user.ProductionLines.Free=newFreeLines
                 user.ProductBlocks.Values[AssignedTopBlock]={FactoryCount:1,MultiplierFactor:1,ItemProduced:RequestMetaData}
@@ -576,6 +582,29 @@ io.on('connection', (socket) => {
             const visualRow=Math.floor((user.ProductBlocks.Values[blockId].FactoryCount/concernedLine.MultiplierFactor) /5)+1
             const visualCol=Math.ceil(user.ProductBlocks.Values[blockId].FactoryCount/concernedLine.MultiplierFactor) %5
             socket.emit("ChangeFactoryCountForProdResponse", {FreeLines:newFreeLines,blockId:blockId,FactoryCount:FacCount,row:visualRow,column:visualCol});
+        }catch(p){}
+    });
+
+    socket.on('CloseProductionLine',async ({RequestMetaData}) =>{
+        try{
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const blockId=RequestMetaData.blockId
+            if(blockId==user.ProductBlocks.TopBlock -1){
+                user.ProductBlocks.TopBlock -=1
+            }else{
+                user.ProductBlocks.FreeBlocks.push(blockId)
+            }
+            const freeLines=user.ProductionLines.Free + user.ProductBlocks.Values[`${blockId}`].FactoryCount
+            user.ProductionLines.Free=freeLines
+
+            delete user.ProductBlocks.Values[`${blockId}`]
+
+            socket.emit("closeProdLine", {Remove:blockId,FreeLines:freeLines});
+
         }catch(p){}
     });
 

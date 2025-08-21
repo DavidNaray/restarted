@@ -98,6 +98,7 @@ async function toCachedUser(userDoc) {
     
     ProductBlocks: {
       TopBlock: userDoc.ProductBlocks?.TopBlock ?? 0,
+      FreeBlocks:userDoc.ProductBlocks?.FreeBlocks ??[],
       Values: userDoc.ProductBlocks?.Values ? Object.fromEntries(userDoc.ProductBlocks.Values) : {}
     },
 

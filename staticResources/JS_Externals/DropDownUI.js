@@ -1132,7 +1132,7 @@ function ProductionElements(){
             ProductionOptionsInfo.style.aspectRatio="11/1";
             ProductionOptionsInfo.style.margin="0 0.5vw 0 0.5vw";
             ProductionOptionsInfo.style.alignContent="center";
-            ProductionOptionsInfo.innerText="Build Military Factories to expand your production lines, produce what can be used or sold";
+            ProductionOptionsInfo.innerText="Build Military Factories to expand your production lines, produce what can be used or sold. Each factory has a capacity of 400 population. For full productivity, 400 population must be assigned to each factory of a produciton line.";
             ProductionOptionsInfo.style.fontSize="max(1vw,1vh)";
             ProductionOptionsInfo.style.color="white"
             ProductionOptionsInfo.style.borderBottom="solid gray 0.25vw"

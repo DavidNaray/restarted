@@ -7,7 +7,10 @@ const userSchema = new mongoose.Schema({
   OriginTile:[Number],//which tile is centered on 0,0, the rest of the tiles built around
   refreshTokens: [String],  // Store issued refresh tokens (optional)
   ProductionLines:{Total:{type: Number, default: 2},Free:{type: Number, default: 2}},
-  ProductBlocks: {TopBlock:{ type: Number, default: 0 },Values:{
+  ProductBlocks: {
+    TopBlock:{ type: Number, default: 0 },
+    FreeBlocks:[Number],
+    Values:{
     type: Map,
     of: {
       FactoryCount: { type: Number, default: 0 },
