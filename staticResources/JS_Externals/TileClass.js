@@ -133,12 +133,12 @@ export class Tile{
         // .catch(err => {console.error('Texture load error:', err);});
 
         // -------------------------------//
-        loadWalkMapWithAuth(this.WalkMapUrl, localStorage.getItem('accessToken'))
-        .then(texture => {
-            this.walkMap=texture;
+        // loadWalkMapWithAuth(this.WalkMapUrl, localStorage.getItem('accessToken'))
+        // .then(texture => {
+        //     this.walkMap=texture;
 
-        })
-        .catch(err => {console.error('Texture load error:', err);});
+        // })
+        // .catch(err => {console.error('Texture load error:', err);});
     }
     BuildTileBase(){
         // if (this.heightmap && this.texture) {
@@ -198,7 +198,7 @@ export class Tile{
             const uvOffset=Rect[0]
             const uvScale=Rect[1]
             // console.log(uvOffset,this.x,this.y,uvScale)
-            uvOffset.x=(uvOffset.x + x*uvScale.x)     
+            uvOffset.x=(uvOffset.x + x*uvScale.x)
             uvOffset.y= uvOffset.y  - (y+1)*uvScale.y  
 
             const material = new THREE.ShaderMaterial({
