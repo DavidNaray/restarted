@@ -48,7 +48,7 @@ export class Tile{
         this.BuildTileBase()
     }
 
-    loadtextures(){
+    async loadtextures(){
         // console.log("REQUEST THESE FILES",this.HeightUrl,this.texUrl)
          
         async function loadTextureWithAuth(url, token) {
@@ -75,6 +75,11 @@ export class Tile{
 
             const texture = new THREE.Texture(canvas )//imageBitmap);
             // texture.flipY = true;
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.generateMipmaps = false;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
             texture.needsUpdate = true;
             return [texture,canvas,imageBitmap];
         }
@@ -93,6 +98,7 @@ export class Tile{
             const canvas = document.createElement('canvas');
             canvas.width = imageBitmap.width;
             canvas.height = imageBitmap.height;
+            
 
             const ctx = canvas.getContext('2d');
             ctx.drawImage(imageBitmap, 0, 0);
@@ -103,26 +109,28 @@ export class Tile{
         }
 
         // Usage:
-        loadTextureWithAuth(this.HeightUrl, localStorage.getItem('accessToken'))
-        .then(texCanv => {
+        try{
+            const texCanv=await loadTextureWithAuth(this.HeightUrl, localStorage.getItem('accessToken'))
+            // .then(texCanv => {
             this.heightmap = texCanv[0];
             this.heightMapCanvas =texCanv[1];
-            superHeightMapTexture.addTile(-this.offSet[0],-this.offSet[1],texCanv[2],this)
+            await superHeightMapTexture.addTile(-this.offSet[0],-this.offSet[1],texCanv[2],this)
             // console.log(superHeightMapTexture.canvas.width, "canvas width!",superHeightMapTexture.canvas.height)
             // this.BuildTileBase();
-        })
-        .catch(err => {console.error('Texture load error:', err);});
+        }catch(p){console.error('Texture load error:')}
+        // .catch(err => {console.error('Texture load error:', err);});
 
         // -------------------------------//
-        loadTextureWithAuth(this.texUrl, localStorage.getItem('accessToken'))
-        .then(texture => {
+        try{
+            const texture=await loadTextureWithAuth(this.texUrl, localStorage.getItem('accessToken'))
+
             this.texture = texture[0];
             this.TextureMapCanvas=texture[1];
             //negated parameter of offset since "to the right", -1 for offset so yeah...
-            superColourMapTexture.addTile(-this.offSet[0],-this.offSet[1],texture[2],this)
-            // this.BuildTileBase();
-        })
-        .catch(err => {console.error('Texture load error:', err);});
+            await superColourMapTexture.addTile(-this.offSet[0],-this.offSet[1],texture[2],this)
+
+        }catch(pp){console.error('Texture load error:')}
+        // .catch(err => {console.error('Texture load error:', err);});
 
         // -------------------------------//
         loadWalkMapWithAuth(this.WalkMapUrl, localStorage.getItem('accessToken'))
@@ -190,8 +198,8 @@ export class Tile{
             const uvOffset=Rect[0]
             const uvScale=Rect[1]
             // console.log(uvOffset,this.x,this.y,uvScale)
-            uvOffset.x=(uvOffset.x + x*uvScale.x)     +0.001 
-            uvOffset.y= uvOffset.y  - (y+1)*uvScale.y  +0.001
+            uvOffset.x=(uvOffset.x + x*uvScale.x)     
+            uvOffset.y= uvOffset.y  - (y+1)*uvScale.y  
 
             const material = new THREE.ShaderMaterial({
                 uniforms: {

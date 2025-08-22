@@ -17,7 +17,7 @@ class SuperTextureManager{
         this.tiles = new Map(); //a mapping to see if canvas has been updated for a tile
     }
 
-    resizeIfNeeded(x, y) {
+    async resizeIfNeeded(x, y) {
         // console.log(x,y,"bruh, xy",this.minimumChunkX)
         const oldMinX = this.minimumChunkX;
         const oldMinY = this.minimumChunkY;
@@ -37,38 +37,45 @@ class SuperTextureManager{
         const requiredWidth = (magX+ 1) * this.tileSize
         const requiredHeight = (magY + 1) * this.tileSize
         // console.log("required",requiredWidth,requiredHeight)
-        if (requiredWidth <= this.canvas.width && requiredHeight <= this.canvas.height)
-            return;
 
-        const newWidth = Math.max(requiredWidth, this.canvas.width);
-        const newHeight = Math.max(requiredHeight, this.canvas.height);
+        // if (requiredWidth <= this.canvas.width && requiredHeight <= this.canvas.height){return;}
+            
+        if (requiredWidth > this.canvas.width || requiredHeight > this.canvas.height) {
+            // const newWidth = Math.max(requiredWidth, this.canvas.width);
+            // const newHeight = Math.max(requiredHeight, this.canvas.height);
 
-        const oldCanvas = this.canvas;
+            const oldCanvas = this.canvas;
+            const newCanvas = document.createElement('canvas');
+            
+            newCanvas.width = requiredWidth//newWidth;
+            newCanvas.height = requiredHeight//newHeight;
 
-        const newCanvas = document.createElement('canvas');
-        newCanvas.width = newWidth;
-        newCanvas.height = newHeight;
+            const newCtx = newCanvas.getContext('2d');
+            // Clear new canvas to avoid leftover artifacts
+            // newCtx.clearRect(0, 0, newWidth, newHeight);
+            
+            // console.log("the shift", shiftX*this.tileSize,shiftY*this.tileSize)
+            // newCtx.drawImage(oldCanvas, shiftX*this.tileSize,shiftY*this.tileSize ); // preserve existing content
+            const offsetX = (oldMinX - this.minimumChunkX) * this.tileSize;
+            const offsetY = (oldMinY - this.minimumChunkY) * this.tileSize;
+            newCtx.drawImage(oldCanvas, offsetX, offsetY);
 
-        const newCtx = newCanvas.getContext('2d');
-        // Clear new canvas to avoid leftover artifacts
-        newCtx.clearRect(0, 0, newWidth, newHeight);
-        
-        // console.log("the shift", shiftX*this.tileSize,shiftY*this.tileSize)
-        newCtx.drawImage(oldCanvas, shiftX*this.tileSize,shiftY*this.tileSize ); // preserve existing content
 
-        this.canvas = newCanvas;
-        this.ctx = newCtx;
+            this.canvas = newCanvas;
+            this.ctx = newCtx;
 
-        // Update texture
-        this.texture.image = newCanvas;
-        this.texture.needsUpdate = true;
+            // Update texture
+            this.texture.image = newCanvas;
+            this.texture.needsUpdate = true;
+        }
     }
 
-    addTile(x, y, tileImageBitmap,TileClassObject) {
+    async addTile(x, y, tileImageBitmap,TileClassObject) {
+        // console.log("LOADING INTO SUPER TILE ",x,y)
         // console.log(`${x},${y}`,"tile requesting updating supertexture")
         // if(this.tiles.get(`${x},${y}`)){return;}
         // console.log(this.tiles.get(`${x},${y}`),"in?")
-        this.resizeIfNeeded(x, y);
+        await this.resizeIfNeeded(x, y);
         
         const px = (x-this.minimumChunkX) * this.tileSize;
         const py = (y - this.minimumChunkY) * this.tileSize;
@@ -93,18 +100,27 @@ class SuperTextureManager{
     }
 
     getUVOffset(x, y) {
-        const widthInTiles = this.canvas.width / this.tileSize;
-        const heightInTiles = this.canvas.height / this.tileSize;
-        // console.log(x,y,"difference",x- this.minimumChunkX)
-        return new THREE.Vector2(//0.001 +512*x,0.999
-            ((x- this.minimumChunkX) /widthInTiles),
-            1 - ( y -this.minimumChunkY )/(heightInTiles) 
+        const widthInTiles  = (this.maximumChunkX - this.minimumChunkX + 1);
+        const heightInTiles = (this.maximumChunkY - this.minimumChunkY + 1);
+
+        return new THREE.Vector2(
+            (x - this.minimumChunkX) / widthInTiles,
+            1 - (y - this.minimumChunkY) / heightInTiles
         );
+        // const widthInTiles = this.canvas.width / this.tileSize;
+        // const heightInTiles = this.canvas.height / this.tileSize;
+        // // console.log(x,y,"difference",x- this.minimumChunkX)
+        // return new THREE.Vector2(//0.001 +512*x,0.999
+        //     ((x- this.minimumChunkX) /widthInTiles),
+        //     1 - ( y -this.minimumChunkY )/(heightInTiles) 
+        // );
     }
 
     getUVScale() {
-        const widthInTiles = this.canvas.width / this.tileSize;
-        const heightInTiles = this.canvas.height / this.tileSize;
+        // const widthInTiles = this.canvas.width / this.tileSize;
+        // const heightInTiles = this.canvas.height / this.tileSize;
+        const widthInTiles  = (this.maximumChunkX - this.minimumChunkX + 1);
+        const heightInTiles = (this.maximumChunkY - this.minimumChunkY + 1);
 
         return new THREE.Vector2(
             //1/width so that focus on scope of one tile, then /4 because each tile split into 4 subtiles
