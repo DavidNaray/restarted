@@ -96,25 +96,25 @@ class SuperTextureManager{
             const py = (yy - this.minimumChunkY) * this.tileSize;
 
             // left neighbor missing
-            if (!this.tiles.has(`${xx+1},${yy}`) && xx !=this.minimumChunkX ) {//&&  xx < this.maximumChunkX
+            if (!this.tiles.has(`${xx+1},${yy}`) ){//&& xx !=this.minimumChunkX ) {//&&  xx < this.maximumChunkX
                 console.log("bruh",xx,yy)
                 this.ctx.drawImage(img, 0, 0, 1, this.tileSize, px - 1, py, 1, this.tileSize);
             }
             
             // right neighbor missing
-            if (!this.tiles.has(`${xx-1},${yy}`) && xx > this.maximumChunkX) {
+            if (!this.tiles.has(`${xx-1},${yy}`) ){//&& xx > this.maximumChunkX) {
                 // Copy leftmost column
                 this.ctx.drawImage(img, this.tileSize-1, 0, 1, this.tileSize, px + this.tileSize, py, 1, this.tileSize);
                 // this.ctx.drawImage(tileImageBitmap, 0, 0, 1, this.tileSize, px - p, py, 1, this.tileSize);
             }
 
             // Bottom neighbor missing
-            if (!this.tiles.has(`${xx},${yy+1}`) && yy < this.maximumChunkY) {
+            if (!this.tiles.has(`${xx},${yy+1}`) ){//&& yy < this.maximumChunkY) {
                 this.ctx.drawImage(img, 0, this.tileSize-1, this.tileSize, 1, px, py + this.tileSize, this.tileSize, 1);
             }
 
             // Top neighbor missing
-            if (!this.tiles.has(`${xx},${yy-1}`) && yy != this.minimumChunkY) {
+            if (!this.tiles.has(`${xx},${yy-1}`) ){//&& yy != this.minimumChunkY) {
                 this.ctx.drawImage(img, 0, 0, this.tileSize, 1, px, py - p, this.tileSize, 1);
             }
         })
