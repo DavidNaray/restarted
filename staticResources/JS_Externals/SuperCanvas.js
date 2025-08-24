@@ -27,10 +27,6 @@ class SuperTextureManager{
         if (y < this.minimumChunkY) this.minimumChunkY = y;
         if (y > this.maximumChunkY) this.maximumChunkY = y;
 
-        const shiftX = oldMinX - this.minimumChunkX;
-        const shiftY = oldMinY - this.minimumChunkY;
-        // console.log(shiftX,shiftY, "shifty")
-
 
         const magX=this.maximumChunkX-this.minimumChunkX
         const magY=this.maximumChunkY-this.minimumChunkY
@@ -65,16 +61,19 @@ class SuperTextureManager{
             this.ctx = newCtx;
 
             // Update texture
-            this.texture.image = newCanvas;
+            // this.texture.image=newCanvas;
+            this.texture = new THREE.Texture(newCanvas);//newCanvas;
+            this.texture.wrapS = THREE.ClampToEdgeWrapping;
+            this.texture.wrapT = THREE.ClampToEdgeWrapping;
+            this.texture.magFilter = THREE.LinearFilter//THREE.NearestFilter;
+            this.texture.minFilter = THREE.LinearFilter//THREE.NearestFilter;
+            this.texture.generateMipmaps = false; // optional, avoids mip sea
             this.texture.needsUpdate = true;
         }
     }
 
     async addTile(x, y, tileImageBitmap,TileClassObject) {
-        // console.log("LOADING INTO SUPER TILE ",x,y)
-        // console.log(`${x},${y}`,"tile requesting updating supertexture")
-        // if(this.tiles.get(`${x},${y}`)){return;}
-        // console.log(this.tiles.get(`${x},${y}`),"in?")
+
         await this.resizeIfNeeded(x, y);
         
         const px = (x-this.minimumChunkX) * this.tileSize;
@@ -87,12 +86,7 @@ class SuperTextureManager{
 
         this.tiles.set(`${x},${y}`, TileClassObject);
 
-        // console.log("set?",this.tiles)
-        //go through this.tiles and run BuildMaterials for each object
-        // for (const [key, tileObj] of Object.entries(this.tiles)) {
-        //     console.log(key, "key?")
-        //     // tileObj.BuildMaterials();
-        // }
+
         this.tiles.forEach((tileObj)=>{
             // console.log(tileObj)
             tileObj.BuildMaterials();
@@ -103,8 +97,11 @@ class SuperTextureManager{
         const widthInTiles  = (this.maximumChunkX - this.minimumChunkX + 1);
         const heightInTiles = (this.maximumChunkY - this.minimumChunkY + 1);
 
+        //if a chunk does not have a chunk to its left and its > than the minimum X, it needs to be shifted right
+        // console.log("DOES IT HAVE ",`${x+1},${y}`,x,y,x<this.minimumChunkX,this.maximumChunkX)
+        
         return new THREE.Vector2(
-            (x - this.minimumChunkX) / widthInTiles,
+            ((x - this.minimumChunkX) / widthInTiles),
             1 - (y - this.minimumChunkY) / heightInTiles
         );
         // const widthInTiles = this.canvas.width / this.tileSize;
@@ -124,14 +121,38 @@ class SuperTextureManager{
 
         return new THREE.Vector2(
             //1/width so that focus on scope of one tile, then /4 because each tile split into 4 subtiles
-            ( 1.0 / (widthInTiles) ) / (4),
-            (1.0 / (heightInTiles)) / 4
+            ( 1.0 / (widthInTiles) ), /// (4),
+            (1.0 / (heightInTiles)),// / 4
 
         );
     }
 
     getTileUVRect(x, y){
-        return [this.getUVOffset(x,y),this.getUVScale()]
+        // return [this.getUVOffset(x,y),this.getUVScale()]
+        const texWidth = this.canvas.width;
+        const texHeight = this.canvas.height;
+
+        let uvOffset =  this.getUVOffset(x,y)
+
+        let uvScale = this.getUVScale()
+
+
+        // Apply half-texel correction ONCE per chunk
+        const texelX = 1.0 / texWidth;
+        const texelY = 1.0 / texHeight;
+
+        // uvOffset.x += texelX * 0.5;
+        // uvOffset.y += texelY * 0.5;
+        // uvScale.x -= texelX;
+        // uvScale.y -= texelY;
+        var xAdjust=0
+        if(!this.tiles.has(`${x+1},${y}`) && x<this.maximumChunkX){
+            console.log("erm")
+            xAdjust=texelX
+            uvScale.x -= texelX;
+        }
+        // uvOffset.y+=xAdjust
+        return [uvOffset, uvScale,xAdjust];
     }
 
     getXYZ(chunkX,chunkY,pixelCoords){

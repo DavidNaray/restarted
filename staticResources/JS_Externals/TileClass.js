@@ -188,26 +188,34 @@ export class Tile{
         const heightTexToUse=superHeightMapTexture.texture
         const ColourTexToUse=superColourMapTexture.texture
 
+        const Rect=superHeightMapTexture.getTileUVRect(-this.offSet[0],-this.offSet[1])
+        const uvOffset=Rect[0]
+        const uvScale=Rect[1]
         this.meshes.forEach((mesh,key)=>{
             // console.log("pairing",key, mesh)
             const processedKey=key.split(",")
             const x=Number(processedKey[0])
             const y=Number(processedKey[1])
             // console.log(x,y,"split up key")
-            const Rect=superHeightMapTexture.getTileUVRect(-this.offSet[0],-this.offSet[1])
-            const uvOffset=Rect[0]
-            const uvScale=Rect[1]
+
             // console.log(uvOffset,this.x,this.y,uvScale)
-            uvOffset.x=(uvOffset.x + x*uvScale.x)
-            uvOffset.y= uvOffset.y  - (y+1)*uvScale.y  
+            const subgridOffset=new THREE.Vector2(
+                Rect[2]+uvOffset.x + x*(uvScale.x/4),
+                uvOffset.y  - (y+1)*(uvScale.y/4)
+            )
+            const subgridScale=new THREE.Vector2(
+                uvScale.x/4,
+                uvScale.y/4
+            )
+
 
             const material = new THREE.ShaderMaterial({
                 uniforms: {
                     heightmap: { value:heightTexToUse },
                     textureMap: { value: ColourTexToUse },
                     heightScale: { value: HEIGHT_SCALE },
-                    uvOffset: { value: uvOffset },
-                    uvScale: { value: uvScale }
+                    uvOffset: { value: subgridOffset},//uvOffset },
+                    uvScale: { value: subgridScale}//uvScale }
                 },
                 vertexShader: `
                     precision highp  float;
