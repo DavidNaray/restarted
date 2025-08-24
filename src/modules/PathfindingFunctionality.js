@@ -18,16 +18,16 @@ const UsersSeeingTileMap=new Map()
 
 
 async function updateOccupancyMap(tile,UserId){
-    console.log("hello?")
+    // console.log("hello?")
     const MapContainsTile=TilePixelOccupancyMap.has(`${tile.x},${tile.y}`)
     if(!MapContainsTile){
         console.log("loading tile to cache")
         UsersSeeingTileMap.set(`${tile.x},${tile.y}`,[UserId])
 
         const abtractMapOfTile=convertMongoPortalGraphToMap(tile.AbstractMap)
-        console.log(abtractMapOfTile,"abtractMapOfTile")
-        var x=0
-        var y=40
+        // console.log(abtractMapOfTile,"abtractMapOfTile")
+        // var x=0
+        // var y=40
         // while(y!=48){
         //     if(abtractMapOfTile.get(`${x},${y}`).get("connections").values().next().value.size <4){
         //         console.log(`${x},${y}`,"subgrid:",abtractMapOfTile.get(`${x},${y}`).get("connections"))

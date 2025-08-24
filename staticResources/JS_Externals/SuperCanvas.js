@@ -63,8 +63,8 @@ class SuperTextureManager{
             // Update texture
             // this.texture.image=newCanvas;
             this.texture = new THREE.Texture(newCanvas);//newCanvas;
-            this.texture.wrapS = THREE.ClampToEdgeWrapping;
-            this.texture.wrapT = THREE.ClampToEdgeWrapping;
+            // this.texture.wrapS = THREE.ClampToEdgeWrapping;
+            // this.texture.wrapT = THREE.ClampToEdgeWrapping;
             this.texture.magFilter = THREE.LinearFilter//THREE.NearestFilter;
             this.texture.minFilter = THREE.LinearFilter//THREE.NearestFilter;
             this.texture.generateMipmaps = false; // optional, avoids mip sea
@@ -74,23 +74,54 @@ class SuperTextureManager{
 
     async addTile(x, y, tileImageBitmap,TileClassObject) {
 
+        // console.log(x,y, "TILEEEEEEEEE")
         await this.resizeIfNeeded(x, y);
         
         const px = (x-this.minimumChunkX) * this.tileSize;
         const py = (y - this.minimumChunkY) * this.tileSize;
-        // console.log(x,y,"addtile",px,py)
+
         this.ctx.drawImage(tileImageBitmap,px, py);
         
         this.texture.needsUpdate = true;
         // console.log(this.texture.image.width, "image width")
 
-        this.tiles.set(`${x},${y}`, TileClassObject);
+        this.tiles.set(`${x},${y}`, { imageBitmap: tileImageBitmap, obj: TileClassObject });
 
+        const p = 1; // 1-pixel strip
 
-        this.tiles.forEach((tileObj)=>{
-            // console.log(tileObj)
-            tileObj.BuildMaterials();
+        this.tiles.forEach((tileObj,key)=>{
+            const [xx,yy]=key.split(",").map(Number)
+            const img = tileObj.imageBitmap; // use the correct tile’s bitmap
+            const px = (xx - this.minimumChunkX) * this.tileSize;
+            const py = (yy - this.minimumChunkY) * this.tileSize;
+
+            // left neighbor missing
+            if (!this.tiles.has(`${xx+1},${yy}`) && xx !=this.minimumChunkX ) {//&&  xx < this.maximumChunkX
+                console.log("bruh",xx,yy)
+                this.ctx.drawImage(img, 0, 0, 1, this.tileSize, px - 1, py, 1, this.tileSize);
+            }
+            
+            // right neighbor missing
+            if (!this.tiles.has(`${xx-1},${yy}`) && xx > this.maximumChunkX) {
+                // Copy leftmost column
+                this.ctx.drawImage(img, this.tileSize-1, 0, 1, this.tileSize, px + this.tileSize, py, 1, this.tileSize);
+                // this.ctx.drawImage(tileImageBitmap, 0, 0, 1, this.tileSize, px - p, py, 1, this.tileSize);
+            }
+
+            // Bottom neighbor missing
+            if (!this.tiles.has(`${xx},${yy+1}`) && yy < this.maximumChunkY) {
+                this.ctx.drawImage(img, 0, this.tileSize-1, this.tileSize, 1, px, py + this.tileSize, this.tileSize, 1);
+            }
+
+            // Top neighbor missing
+            if (!this.tiles.has(`${xx},${yy-1}`) && yy != this.minimumChunkY) {
+                this.ctx.drawImage(img, 0, 0, this.tileSize, 1, px, py - p, this.tileSize, 1);
+            }
         })
+
+
+
+        this.tiles.forEach((tileObj)=>{tileObj.obj.BuildMaterials();})
     }
 
     getUVOffset(x, y) {
@@ -145,14 +176,15 @@ class SuperTextureManager{
         // uvOffset.y += texelY * 0.5;
         // uvScale.x -= texelX;
         // uvScale.y -= texelY;
-        var xAdjust=0
-        if(!this.tiles.has(`${x+1},${y}`) && x<this.maximumChunkX){
-            console.log("erm")
-            xAdjust=texelX
-            uvScale.x -= texelX;
-        }
+        // var xAdjust=0
+        // console.log(x,y,this.minimumChunkX)
+        // if(!this.tiles.has(`${x+1},${y}`) && x<this.maximumChunkX){
+        //     console.log("erm")
+        //     xAdjust=0.1//texelX
+        //     // uvScale.x -= texelX;
+        // }
         // uvOffset.y+=xAdjust
-        return [uvOffset, uvScale,xAdjust];
+        return [uvOffset, uvScale];
     }
 
     getXYZ(chunkX,chunkY,pixelCoords){

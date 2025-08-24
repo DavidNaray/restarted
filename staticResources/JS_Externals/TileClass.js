@@ -83,30 +83,7 @@ export class Tile{
             texture.needsUpdate = true;
             return [texture,canvas,imageBitmap];
         }
-        async function loadWalkMapWithAuth(url, token) {
-            const response = await fetch(url, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
 
-            if (!response.ok) {
-                throw new Error(`Failed to load texture: ${response.statusText}`);
-            }
-
-            const blob = await response.blob();
-            const imageBitmap = await createImageBitmap(blob);
-
-            const canvas = document.createElement('canvas');
-            canvas.width = imageBitmap.width;
-            canvas.height = imageBitmap.height;
-            
-
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(imageBitmap, 0, 0);
-            // ctx.rotate((-90 * Math.PI) / 180);
-            // ctx.setTransform(1, 0, 0, 1, 0, 0);
-
-            return canvas;
-        }
 
         // Usage:
         try{
@@ -200,7 +177,7 @@ export class Tile{
 
             // console.log(uvOffset,this.x,this.y,uvScale)
             const subgridOffset=new THREE.Vector2(
-                Rect[2]+uvOffset.x + x*(uvScale.x/4),
+                (uvOffset.x + x*(uvScale.x/4)),
                 uvOffset.y  - (y+1)*(uvScale.y/4)
             )
             const subgridScale=new THREE.Vector2(
