@@ -741,9 +741,14 @@ io.on('connection', (socket) => {
             const Rotation=RequestMetaData.rotation
             const pixelPoint=values.pixelCoords
             const ChunkPlaced=values.chunkCoords
-            
-            const placementResponse=await BuildingPlacement(buildingToPlace,{pixel:pixelPoint,chunk:ChunkPlaced,rotation:Rotation})
 
+            const uniqueOpts=["Farm","Pavement"]
+            var placementResponse;
+            if(!uniqueOpts.includes(buildingToPlace)){
+                placementResponse=await BuildingPlacement(buildingToPlace,{pixel:pixelPoint,chunk:ChunkPlaced,rotation:Rotation})
+            }else{
+
+            }
             if(placementResponse.success){
                 var chosenServerIndice;
                 const tile = await ChunkManager.getTile(ChunkPlaced[0],ChunkPlaced[1]);

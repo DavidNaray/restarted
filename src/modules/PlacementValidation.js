@@ -113,25 +113,45 @@ async function SharpImgBuildingPlacementVerification(MaskImglocation,Imglocation
 
 async function BuildingPlacement(BuildingName,PlacementOrigin){
     //Farm and Pavement are buildings but it will be a unique cases
-    //wood and stone walls too...
+
     const CHUNK_SIZE=1536
 
     const pathIntro=path.join(__dirname,'../../Assets/Asset_Masks/')
     const MaskLocation=`${pathIntro}${BuildingName}.png`
     // console.log("MaskLocation",MaskLocation)
 
-    const { data:MaskData, info:maskInfo } = await sharp(MaskLocation)
+    const { data:MaskData, info:maskInfo } = await sharp(MaskLocation, { interpolate: 'nearest' })
     .rotate(45,{ background: { r: 0, g: 0, b: 0, alpha: 0 } })//PlacementOrigin.rotation)
     .ensureAlpha()
     .raw()
     .toBuffer({ resolveWithObject: true });
 
+    const palette = [//163 && mg === 73 && mb === 164
+        { r: 163, g: 73,   b: 164 }, // purple
+        { r: 255, g: 174, b: 201 }  // rose
+    ];
+
+    for (let i = 0; i < MaskData.length; i += 4) {
+        if (MaskData[i+3] < 128) continue; // transparent, skip
+
+        // Find closest palette color
+        let best = palette[0], bestDist = Infinity;
+        for (const c of palette) {
+            const dr = MaskData[i]   - c.r;
+            const dg = MaskData[i+1] - c.g;
+            const db = MaskData[i+2] - c.b;
+            const dist = dr*dr + dg*dg + db*db;
+            if (dist < bestDist) { bestDist = dist; best = c; }
+        }
+
+        MaskData[i]   = best.r;
+        MaskData[i+1] = best.g;
+        MaskData[i+2] = best.b;
+    }
 
     const originChunkX=PlacementOrigin.chunk[0];const originChunkY=PlacementOrigin.chunk[1]
     const originPixel={x:PlacementOrigin.pixel[0],y:PlacementOrigin.pixel[1]}
 
-    // const OriginChunkIntro=path.join(__dirname,'../../Tiles/WalkMaps/')
-    // const OriginChunkLocation=`${OriginChunkIntro}${originChunkX}${originChunkY}.png`
 
     // Collect chunks to update
     const touchedChunks = new Map();
@@ -209,10 +229,16 @@ async function BuildingPlacement(BuildingName,PlacementOrigin){
 
             const { buf, info } = touchedChunks.get(chunkKey);
             const wi = (localY * info.width + localX) * 4;
-
+            
             // collision check: must be white
             const r = buf[wi], g = buf[wi+1], b = buf[wi+2];
-            if (!(r === 255 && g === 255 && b === 255)) {
+            // const mr = MaskData[mi], mg = MaskData[mi+1], mb = MaskData[mi+2];
+
+            //placement only on white or rose (rose is building buffer which is to create gap between building and terrain)
+            
+            const iswhite=(r === 255 && g === 255 && b === 255)
+            const isRose=(r === 255 && g === 174 && b === 201)
+            if (!(iswhite || isRose)) {
                 return { 
                     success: false, 
                     reason: "collision", 
@@ -248,10 +274,25 @@ async function BuildingPlacement(BuildingName,PlacementOrigin){
 
                 const wi = (localY * info.width + localX) * 4;
 
-                // overwrite pixel → black (impassable)
-                buf[wi] = MaskData[mi]//0;
-                buf[wi + 1] = MaskData[mi+1]//0;
-                buf[wi + 2] = MaskData[mi+2]//0;
+                // Extract mask + target pixel colors
+                const mr = MaskData[mi], mg = MaskData[mi + 1], mb = MaskData[mi + 2];
+                const tr = buf[wi], tg = buf[wi + 1], tb = buf[wi + 2];
+
+                const isMaskPurple = (mr === 163 && mg === 73 && mb === 164);   // purple #A349A4
+                const isTargetPurple = (tr === 163 && tg === 73 && tb === 164);
+
+                if(isMaskPurple){//purple overwrites rose
+                    buf[wi] = MaskData[mi]
+                    buf[wi + 1] = MaskData[mi+1]
+                    buf[wi + 2] = MaskData[mi+2]
+                }else{
+                    if(!isTargetPurple){//if the target is not purple, draw rose buffer
+                        buf[wi] = MaskData[mi]
+                        buf[wi + 1] = MaskData[mi+1]
+                        buf[wi + 2] = MaskData[mi+2]
+                    }
+                }
+
                 buf[wi + 3] = 255;
             }
         }
