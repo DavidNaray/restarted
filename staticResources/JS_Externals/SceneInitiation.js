@@ -91,7 +91,7 @@ function HandleSocketResponses(socket){
         }catch(g){}
     });
 
-    socket.on('CanYouPlaceBuilding', (response) => {
+    socket.on('CanYouPlaceBuilding', async (response) => {
         InputState.value="neutral"
         // console.log("YIPEEEEEEE",response.position)
         renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
@@ -109,7 +109,11 @@ function HandleSocketResponses(socket){
                 "ServerId":response.ServerId,
                 "health":response.health,
             }
-            whichTile.objectLoad(response.UnitType,metaData,response.AssetClass)
+            const objLoad=await whichTile.objectLoad(response.UnitType,metaData,response.AssetClass)
+            if(objLoad){
+                whichTile.addToScene(response.UnitType, metaData)
+            }
+            
         }else{
             console.log("permission to place building: denied",response)
         }
@@ -146,7 +150,7 @@ function HandleSocketResponses(socket){
         console.log("if this runs then the abstract map was made")
     })
 
-    socket.on('DeployAllUnitsHere', (response) => {
+    socket.on('DeployAllUnitsHere', async (response) => {
         console.log("deploying units",response.position)
 
         const whichTileUnits=globalmanager.getTile(response.tile[0],response.tile[1])
@@ -162,7 +166,11 @@ function HandleSocketResponses(socket){
                 // "health":response.health
             }
             console.log(response.ServerIds[i], "placing units, this is the serverId of one")
-            whichTileUnits.objectLoad(response.UnitType,metaDataUnits,response.AssetClass)
+            const objLoad=await whichTileUnits.objectLoad(response.UnitType,metaDataUnits,response.AssetClass)
+            // console.log("objLoad",objLoad)
+            if(objLoad){
+                whichTileUnits.addToScene(response.UnitType, metaDataUnits)
+            }
         }
         
     });
@@ -171,7 +179,7 @@ function HandleSocketResponses(socket){
         console.log(response,"hm.....")
     });
 
-    socket.on("TickUpdate",(response)=>{
+    socket.on("TickUpdate",async (response)=>{
         // console.log("ummmm",response)
         //loop over positions
         const replacements=response.replacements
@@ -198,8 +206,10 @@ function HandleSocketResponses(socket){
                     // "health":response.health
                 }
                 // console.log(response.ServerIds[i], "placing units, this is the serverId of one")
-                whichTileUnits.objectLoad(unitReplace.unitType,metaDataUnits,unitReplace.AssetClass)
-
+                const objLoad=await whichTileUnits.objectLoad(unitReplace.unitType,metaDataUnits,unitReplace.AssetClass)
+                if(objLoad){
+                    whichTileUnits.addToScene(unitReplace.UnitType, metaDataUnits)
+                }
             }
         }
 

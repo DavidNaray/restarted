@@ -270,39 +270,29 @@ export class Tile{
         this.instancePooling.removeInstance(serverId)//.moveUnit(theserverId,transform)
     }
 
-    async objectLoad(assetId,MetaData,AssetClass){
+    async objectLoad(assetId,MetaData,AssetClass,){
         // console.log("TRYNA LOAD IN:",assetId,MetaData,AssetClass)
         //AssetClass is if the asset being loaded should be considered a building or unit etc
 
         const has=OBJECTS.has(assetId)
+        if(has){return true}
 
-        if(!has){
-            // const loader = new GLTFLoader();
+        return new Promise((resolve, reject) => {
             fileLoader.load(
-                // resource URL
-                'Assets/GLB_Exports/'+assetId+'.glb',
-                // called when the resource is loaded
+                `Assets/GLB_Exports/${assetId}.glb`,
                 (data) => {
+                    const loader = new GLTFLoader();
                     loader.parse(
                         data,
-                        '', // path to resolve external resources, '' is okay for embedded
+                        '',
                         (gltf) => {
                             const geometries = [];
-                            // let material = null;
                             const materials = [];
-                            // gltf.scene.scale.set(0.00002, 0.00002, 0.00002);
+
                             gltf.scene.traverse((child) => {
                                 if (child.isMesh) {
-                                    // Make sure the geometry is updated to world transform if needed:
-                                    // const geom = child.geometry.clone();
-                                    // geom.applyMatrix4(child.matrixWorld);
-                                    // geometries.push(geom);
                                     geometries.push(child.geometry);
 
-                                    // if (!material) {
-                                    //     material = child.material;
-                                    // }
-                                    // Collect material(s)
                                     if (Array.isArray(child.material)) {
                                         child.material.forEach(mat => {
                                             if (!materials.includes(mat)) materials.push(mat);
@@ -315,40 +305,35 @@ export class Tile{
 
                             if (geometries.length === 0) {
                                 console.error("No meshes found in gltf scene");
+                                resolve(false);
                                 return;
                             }
 
-                            // Merge all geometries into one
                             const mergedGeometry = mergeGeometries(geometries, true);
-
-                            // Create a single mesh with merged geometry and one material
                             const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
-                            mergedMesh.scale.set(2,2, 2);
+                            mergedMesh.scale.set(2, 2, 2);
                             mergedMesh.updateMatrix();
-                            OBJECTS.set(assetId, {"AssetClass":AssetClass, "Mesh":mergedMesh});
 
-                            // OBJ_ENTRY.instances.forEach(inst => {
-                            //     this.addToScene(OBJ_Name, inst);
-                            // });
-                            this.addToScene(assetId, MetaData)
+                            OBJECTS.set(assetId, {
+                                AssetClass,
+                                Mesh: mergedMesh
+                            });
 
-
+                            resolve(true);
                         },
+                        (error) => {
+                            console.error("GLTF parse failed", error);
+                            resolve(false);
+                        }
                     );
                 },
-                // called while loading is progressing
-                ( xhr ) =>{// console.log( ( xhr.loaded / xhr.total * 100 ) + '% loaded' );
-                },
-                // called when loading has errors
-                ( error ) =>{console.log( 'An error happened',error );}
+                undefined, // onProgress
+                (error) => {
+                    console.error("GLTF load failed", error);
+                    resolve(false);
+                }
             );
-        }else{
-            this.addToScene(assetId, MetaData)
-            // OBJ_ENTRY.instances.forEach(inst => {
-            //     // this.addToScene(OBJ_Name, inst);
-            //     this.addToScene(assetId, MetaData)
-            // });
-        }
+        });
 
         
     }
