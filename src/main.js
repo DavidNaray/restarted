@@ -742,27 +742,33 @@ io.on('connection', (socket) => {
             const pixelPoint=values.pixelCoords
             const ChunkPlaced=values.chunkCoords
             
-
-            var chosenServerIndice;
-            const tile = await ChunkManager.getTile(ChunkPlaced[0],ChunkPlaced[1]);
-
-            if(tile.freeIndices.length>0){
-                const freeIndice=tile.freeIndices.pop().toString();
-                chosenServerIndice.push(freeIndice)
-            }else{
-                chosenServerIndice=tile.topIndice
-                tile.topIndice+=1
-            }
-            console.log("trying to place mask now")
             const placementResponse=await BuildingPlacement(buildingToPlace,{pixel:pixelPoint,chunk:ChunkPlaced,rotation:Rotation})
-            console.log(placementResponse)
-            const responseObject={
-                "position":{chunk:ChunkPlaced,pixel:pixelPoint},//RequestMetaData.position,
-                "rotation":Rotation,
-                "BuildingType":buildingToPlace,
-                "ServerId":chosenServerIndice
+
+            if(placementResponse.success){
+                var chosenServerIndice;
+                const tile = await ChunkManager.getTile(ChunkPlaced[0],ChunkPlaced[1]);
+
+                if(tile.freeIndices.length>0){
+                    const freeIndice=tile.freeIndices.pop().toString();
+                    chosenServerIndice.push(freeIndice)
+                }else{
+                    chosenServerIndice=tile.topIndice
+                    tile.topIndice+=1
+                }
+
+                const responseObject={
+                    "position":{chunk:ChunkPlaced,pixel:pixelPoint},//RequestMetaData.position,
+                    "rotation":Rotation,
+                    "BuildingType":buildingToPlace,
+                    "ServerId":chosenServerIndice
+                }
+
+                socket.emit('CanYouPlaceBuilding', responseObject)
+
+            }else{
+                socket.emit('CanYouPlaceBuilding', {reason:placementResponse.reason,at:placementResponse.at})
             }
-            socket.emit('CanYouPlaceBuilding', responseObject)
+
         }catch(p){}
         socket.emit('CanYouPlaceBuilding', false)//responseObject);
     })
