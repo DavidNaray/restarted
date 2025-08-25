@@ -15,7 +15,7 @@ const TileScheme=require("./Schemas/Tile")
 const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
-const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight}=require("./modules/PlacementValidation.js")
+const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight,BuildingPlacement}=require("./modules/PlacementValidation.js")
 const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
 const {calculateReward}=require("./modules/RewardCalculating.js")
@@ -122,7 +122,7 @@ app.post('/Register-user', async (req, res) => {
         const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+chunkX.toString()+chunkY.toString()+".png"
 
         var abstractMapForTile;
-        try{abstractMapForTile=await PortalConnectivity(WalkMapLocation,true)
+        try{abstractMapForTile=await PortalConnectivity(WalkMapLocation)//,true)
         }catch(eb){console.log("Error in abstract map generation:", eb);}
         
         
@@ -724,84 +724,47 @@ io.on('connection', (socket) => {
 
             user.lastClaimDate = today;
         }
-        // User.findOne({ _id: socket.userId }).then(user => {
-        //     if (!user) {
-        //         console.log(`No user found for playerId: ${socket.userId}`);
-        //         return;
-        //     }
-        //     const today = getTodayDateString();
-        //     if (user.lastClaimDate !== today) {  
-        //         const rewardToSend= calculateReward(user)
-        //         socket.emit('rewardUpdate', rewardToSend);
 
-        //         user.lastClaimDate = today;
-        //         user.save().then(() => {
-        //             // console.log("User's last claim date updated successfully.");
-        //         }).catch(err => {
-        //             console.error("Error updating user's last claim date:", err);
-        //         });
-        //     }else{
-        //         socket.emit('rewardUpdate', false);
-        //     }
-        // }).catch(err => {
-        //     console.error("Error fetching user:", err);
-        // });
     })
 
     socket.on('BuildingPlacementRequest',async ({RequestMetaData}) =>{//BuildingAssetName,
-        //response should be which asset, 
-        // a valid coordinate for the position since height is actually gpu rendered its not real
-        //rotation
-        //which tile
-        //any other stats like health etc
-        
-        //takes in imagelocation for mask (for the building) and walkMaplocation for the tile
-        const BuildingAssetName=RequestMetaData.UnitType
-        const tileX=RequestMetaData.tile[0].toString();
-        const tileY=RequestMetaData.tile[1].toString();
-        
-        const MaskLocation=path.join(__dirname,'../Assets/Asset_Masks/')+BuildingAssetName+"_Mask.png"
-        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
+        // console.log("BuildingPlacementRequest",RequestMetaData)
+        try{
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const values=await IdentifySpecificChunkPoint(user.OriginTile,RequestMetaData.position)
+            
+            const buildingToPlace=RequestMetaData.BuildingType
+            const Rotation=RequestMetaData.rotation
+            const pixelPoint=values.pixelCoords
+            const ChunkPlaced=values.chunkCoords
+            
 
-        const passIn={
-            "position":RequestMetaData.position,
-            "rotation":RequestMetaData.rotation,
-        }
-        const permission=await SharpImgBuildingPlacementVerification(MaskLocation,WalkMapLocation,passIn)
-        var position;
-        var ServerIdProvided;
-        if(permission){
-            const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
-            position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
+            var chosenServerIndice;
+            const tile = await ChunkManager.getTile(ChunkPlaced[0],ChunkPlaced[1]);
 
-            //lookup the tile 
-            // const tile = await TileScheme.findOne({x: RequestMetaData.tile[0],y: RequestMetaData.tile[1]});//owner: user._id });
-            const tile = await ChunkManager.getTile(RequestMetaData.tile[0],RequestMetaData.tile[1]);
-            console.log("TILE TARGET", tile.x,tile.y,"topindice",tile.topIndice)
             if(tile.freeIndices.length>0){
-                ServerIdProvided=tile.freeIndices.shift();//pops first element in array
+                const freeIndice=tile.freeIndices.pop().toString();
+                chosenServerIndice.push(freeIndice)
             }else{
-                ServerIdProvided=tile.topIndice
+                chosenServerIndice=tile.topIndice
                 tile.topIndice+=1
             }
-            // tile.save()
-        
-        }
-        console.log("what the hell come on:", ServerIdProvided)
-        const responseObject={
-            "permission":permission,
-            "position":position,//RequestMetaData.position,
-            "rotation":RequestMetaData.rotation,
-            "UnitType":RequestMetaData.UnitType,
-            "health":100,
-            "owner":RequestMetaData.userOwner,
-            "tile":[tileX,tileY],
-            // "AssetName":BuildingAssetName,
-            "AssetClass":"Building",
-            "ServerId":ServerIdProvided
-        }
-
-        socket.emit('CanYouPlaceBuilding', responseObject);
+            console.log("trying to place mask now")
+            const placementResponse=await BuildingPlacement(buildingToPlace,{pixel:pixelPoint,chunk:ChunkPlaced,rotation:Rotation})
+            console.log(placementResponse)
+            const responseObject={
+                "position":{chunk:ChunkPlaced,pixel:pixelPoint},//RequestMetaData.position,
+                "rotation":Rotation,
+                "BuildingType":buildingToPlace,
+                "ServerId":chosenServerIndice
+            }
+            socket.emit('CanYouPlaceBuilding', responseObject)
+        }catch(p){}
+        socket.emit('CanYouPlaceBuilding', false)//responseObject);
     })
 
     socket.on('UnitDeploymentPositionRequest',async ({RequestMetaData}) => {

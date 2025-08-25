@@ -97,7 +97,7 @@ class SuperTextureManager{
 
             // left neighbor missing
             if (!this.tiles.has(`${xx+1},${yy}`) ){//&& xx !=this.minimumChunkX ) {//&&  xx < this.maximumChunkX
-                console.log("bruh",xx,yy)
+                // console.log("bruh",xx,yy)
                 this.ctx.drawImage(img, 0, 0, 1, this.tileSize, px - 1, py, 1, this.tileSize);
             }
             

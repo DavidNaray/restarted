@@ -7,7 +7,6 @@ import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDepl
 
 export var moveableSelected={value:{}};
 
-var BuildingAssetName;//variable to hold which building is trying to be placed right now
 var divToChangevalue;//this holds the div that displays the deploy position
 
 //------------------------------------------------------------------------
@@ -577,58 +576,7 @@ function MilTrainingElements(){
 }
 //-------------------------------------------------------------------------
 //construction functions
-export function onclickBuilding(event){
-    // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
 
-    const intersects = intersectsTileMeshes()
-
-    if (intersects.length > 0) {
-        const intersectedMesh = intersects[0].object;
-        const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
-
-        if (foundTile) {
-            // console.log("Clicked tile:", foundTile.x, foundTile.y);
-
-            //find the tile, add the building
-
-            const IntersectPoint=intersects[0].point
-            const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
-
-            const RequestMetaData={
-                "tile":[foundTile.x, foundTile.y],
-                "position":processedPoint,
-                "rotation":0,
-                "userOwner":UserId,
-                "UnitType":BuildingAssetName
-            }
-            //permission is false, or it will be an adjusted position
-            EmitBuildingPlacementRequest(RequestMetaData);//BuildingAssetName,
-
-            // console.log("aight, we got the press",processedPoint)
-        }
-    }
-
-    //this code needs to be moved the response of EmitBuildingPlacementRequest
-    //the user clicked, the building has been placed, remove eventListeners
-    // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-    // renderer.domElement.removeEventListener( 'click', onclickBuilding );
-}
-
-function onHoverBuilding(event){
-    onPointerMove(event)
-
-    //would be moving the asset of BuildingAssetName
-}
-
-function PlaceBuilding(event){
-    InputState.value="Builder"
-    //on renderer.domElement so that placement doesnt follow when users mouse is over the overlay
-    renderer.domElement.addEventListener( 'pointermove', onHoverBuilding );
-    renderer.domElement.addEventListener( 'click', onclickBuilding );
-
-    BuildingAssetName=event.currentTarget.myParam
-
-}
 
 function ConstructionElements(){
     const contentBox=document.getElementById("Dropdown_Content_Box");

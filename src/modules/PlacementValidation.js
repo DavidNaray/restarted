@@ -1,4 +1,6 @@
 const sharp = require('sharp');
+const path = require('path')
+const fs = require("fs");
 
 const walkMapWidth=1536//512*3
 const walkMapHeight=1536//512*3
@@ -109,6 +111,175 @@ async function SharpImgBuildingPlacementVerification(MaskImglocation,Imglocation
 
 }
 
+async function BuildingPlacement(BuildingName,PlacementOrigin){
+    //Farm and Pavement are buildings but it will be a unique cases
+    //wood and stone walls too...
+    const CHUNK_SIZE=1536
+
+    const pathIntro=path.join(__dirname,'../../Assets/Asset_Masks/')
+    const MaskLocation=`${pathIntro}${BuildingName}.png`
+    // console.log("MaskLocation",MaskLocation)
+
+    const { data:MaskData, info:maskInfo } = await sharp(MaskLocation)
+    .rotate(45,{ background: { r: 0, g: 0, b: 0, alpha: 0 } })//PlacementOrigin.rotation)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+
+
+    const originChunkX=PlacementOrigin.chunk[0];const originChunkY=PlacementOrigin.chunk[1]
+    const originPixel={x:PlacementOrigin.pixel[0],y:PlacementOrigin.pixel[1]}
+
+    // const OriginChunkIntro=path.join(__dirname,'../../Tiles/WalkMaps/')
+    // const OriginChunkLocation=`${OriginChunkIntro}${originChunkX}${originChunkY}.png`
+
+    // Collect chunks to update
+    const touchedChunks = new Map();
+
+    const offsetX = Math.floor(maskInfo.width / 2);
+    const offsetY = Math.floor(maskInfo.height / 2);
+    // Step 1: Validation pass (check collisions)
+    for (let my = 0; my < maskInfo.height; my++) {
+        for (let mx = 0; mx < maskInfo.width; mx++) {
+            const mi = (my * maskInfo.width + mx) * 4;
+            const maskAlpha = MaskData[mi + 3];
+            if (maskAlpha < 128) continue; // ignore transparent
+
+            // --- Center mask on placement origin ---
+            let localX = originPixel.x + (mx - offsetX);
+            let localY = originPixel.y + (my - offsetY);
+
+            let targetChunkX = originChunkX;
+            let targetChunkY = originChunkY;
+
+            // Spillover handling
+            if (localX < 0) {
+                targetChunkX -= 1;
+                localX += CHUNK_SIZE;
+            } else if (localX >= CHUNK_SIZE) {
+                targetChunkX += 1;
+                localX -= CHUNK_SIZE;
+            }
+
+            if (localY < 0) {
+                targetChunkY -= 1;
+                localY += CHUNK_SIZE;
+            } else if (localY >= CHUNK_SIZE) {
+                targetChunkY += 1;
+                localY -= CHUNK_SIZE;
+            }
+
+            const chunkKey = `${targetChunkX},${targetChunkY}`;
+
+            // Load walkmap if needed
+            if (!touchedChunks.has(chunkKey)) {
+                const walkmapPath = path.join(
+                    __dirname,
+                    "../../Tiles/WalkMaps/",
+                    `${targetChunkX}${targetChunkY}.png`
+                );
+
+                let walkmapBuf, walkmapInfo;
+                try {
+
+                    if (!fs.existsSync(walkmapPath)) {
+                        return {
+                            success: false,
+                            reason: "missing-chunk",
+                            at: { chunk: chunkKey }
+                        };
+                    }
+
+                    const { data, info } = await sharp(walkmapPath)
+                        .ensureAlpha()
+                        .raw()
+                        .toBuffer({ resolveWithObject: true });
+                    walkmapBuf = data;
+                    walkmapInfo = info;
+                } catch {
+                    return {
+                        success: false,
+                        reason: "missing-chunk",
+                        at: { chunk: chunkKey }
+                    };
+                }
+
+                touchedChunks.set(chunkKey, { buf: walkmapBuf, info: walkmapInfo,filePath:walkmapPath });
+            }
+
+            const { buf, info } = touchedChunks.get(chunkKey);
+            const wi = (localY * info.width + localX) * 4;
+
+            // collision check: must be white
+            const r = buf[wi], g = buf[wi+1], b = buf[wi+2];
+            if (!(r === 255 && g === 255 && b === 255)) {
+                return { 
+                    success: false, 
+                    reason: "collision", 
+                    at: { chunk: chunkKey, pixel: [localX, localY] } 
+                };
+            }
+        }
+    }
+    // console.log("we gone through ")
+    
+    // --- Step 2: Application Pass ---
+    try{
+        for (let my = 0; my < maskInfo.height; my++) {
+            for (let mx = 0; mx < maskInfo.width; mx++) {
+                const mi = (my * maskInfo.width + mx) * 4;
+                const maskAlpha = MaskData[mi + 3];
+                if (maskAlpha < 128) continue;
+
+                let localX = originPixel.x + (mx - offsetX);
+                let localY = originPixel.y + (my - offsetY);
+
+                let targetChunkX = originChunkX;
+                let targetChunkY = originChunkY;
+
+                if (localX < 0) { targetChunkX -= 1; localX += CHUNK_SIZE; }
+                else if (localX >= CHUNK_SIZE) { targetChunkX += 1; localX -= CHUNK_SIZE; }
+
+                if (localY < 0) { targetChunkY -= 1; localY += CHUNK_SIZE; }
+                else if (localY >= CHUNK_SIZE) { targetChunkY += 1; localY -= CHUNK_SIZE; }
+
+                const chunkKey = `${targetChunkX},${targetChunkY}`;
+                const { buf, info } = touchedChunks.get(chunkKey);
+
+                const wi = (localY * info.width + localX) * 4;
+
+                // overwrite pixel → black (impassable)
+                buf[wi] = MaskData[mi]//0;
+                buf[wi + 1] = MaskData[mi+1]//0;
+                buf[wi + 2] = MaskData[mi+2]//0;
+                buf[wi + 3] = 255;
+            }
+        }
+    }catch(f){
+        console.log("failed step 2")
+    }
+
+    // --- Step 3: Save Updated Chunks ---
+    try{
+        for (const [chunkKey, { buf, info, filePath }] of touchedChunks) {
+            await sharp(buf, {
+                raw: {
+                    width: info.width,
+                    height: info.height,
+                    channels: 4
+                }
+            }).toFile(filePath);
+        }
+    }catch(fg){
+        console.log("failed step 3")
+    }
+
+    return { success: true };
+
+
+}
+
+
 //returns the pixel clicked on, along with the clicked on chunk
 async function IdentifySpecificChunkPoint(CenterChunk, clickedPoint, debug = false) {
     const CHUNK_SIZE = 7.5;           // World units per chunk
@@ -190,4 +361,4 @@ async function PointPlacementVerification(pixelCoord,Imglocation){
 }
 
 
-module.exports={PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight}
+module.exports={PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight,BuildingPlacement}

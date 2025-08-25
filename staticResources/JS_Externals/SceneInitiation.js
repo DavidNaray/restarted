@@ -1,7 +1,7 @@
 import {renderer,InputState} from "../siteJS.js"
-import {onPointerMove} from "./RaycasterHandling.js"
+import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {makeToolTipTechnology} from "./ResourceTips.js"
-import {onclickBuilding,adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
+import {adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 
 let socket;
@@ -111,7 +111,7 @@ function HandleSocketResponses(socket){
             }
             whichTile.objectLoad(response.UnitType,metaData,response.AssetClass)
         }else{
-            console.log("permission to place building: denied")
+            console.log("permission to place building: denied",response)
         }
     });
 
@@ -286,7 +286,7 @@ function HandleSocketResponses(socket){
                     
                     
                     
-                    // optionButton.addEventListener("click",PlaceBuilding)
+                    optionButton.addEventListener("click",PlaceBuilding)
                 } 
 
 
@@ -890,6 +890,64 @@ function removeProductionLine(e){
     })
 }
 
+//------------------------------------------construction
+var BuildingAssetName;//variable to hold which building is trying to be placed right now
+
+function onclickBuilding(event){
+    // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
+
+    const intersects = intersectsTileMeshes()
+
+    if (intersects.length > 0) {
+        const intersectedMesh = intersects[0].object;
+        const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
+
+        if (foundTile) {
+            // console.log("Clicked tile:", foundTile.x, foundTile.y);
+
+            //find the tile, add the building
+
+            const IntersectPoint=intersects[0].point
+            const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
+
+            const RequestMetaData={
+                // "tile":[foundTile.x, foundTile.y],
+                "position":processedPoint,
+                "rotation":0,
+                // "userOwner":UserId,
+                "BuildingType":BuildingAssetName
+            }
+            //permission is false, or it will be an adjusted position
+            EmitBuildingPlacementRequest(RequestMetaData);//BuildingAssetName,
+
+            // console.log("aight, we got the press",processedPoint)
+        }
+    }
+
+    //this code needs to be moved the response of EmitBuildingPlacementRequest
+    //the user clicked, the building has been placed, remove eventListeners
+    // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+    // renderer.domElement.removeEventListener( 'click', onclickBuilding );
+}
+
+function onHoverBuilding(event){
+    onPointerMove(event)
+
+    //would be moving the asset of BuildingAssetName
+}
+
+function PlaceBuilding(event){
+    InputState.value="Builder"
+    //on renderer.domElement so that placement doesnt follow when users mouse is over the overlay
+    renderer.domElement.addEventListener( 'pointermove', onHoverBuilding );
+    renderer.domElement.addEventListener( 'click', onclickBuilding );
+
+    BuildingAssetName=event.currentTarget.myParam
+    console.log("BuildingAssetName",BuildingAssetName)
+}
+
+
+//-------------------------------------------------------
 
 let productionInterval = null;
 
