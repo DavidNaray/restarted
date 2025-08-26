@@ -17,17 +17,13 @@ export class TileInstancePool {
     }
 
     GeneralAddInstance(objectType, transform,meta={}){
-        //instance Objects are then given a meta-data tag
-        //form of meta will vary, buildings may have name, type of building, under construction, resistances etc
-        //units may have health, damage, weaknesses etc 
-        //most importantly a reference to a template object if its part of a template
-        // console.log("i am getting the right meta right?: ",meta)
+        console.log("METAAAAAA: ",meta)
+
         let mesh=this.instanceGroups.get(objectType);
         if(!mesh){
             console.log("didnt exist, make it!")
             //if there was no key of objectType then there wont be a value
             mesh=this.createInstanceObjectOfCount(objectType,3);
-            mesh.metadata=new Map();
             mesh.freeIndices=new Set([0,1,2])//every index is free 
             // mesh.scale.set(0.2,0.2,0.2)
             this.instanceGroups.set(objectType,mesh)
@@ -69,6 +65,15 @@ export class TileInstancePool {
         meta.parentTile=[this.tile.x,this.tile.y]
         mesh.metadata.set(index,meta);
         mesh.instanceMatrix.needsUpdate = true;
+
+        if (meta.underConstruction) {
+            console.log("UNDER CONSTRUCTION")
+            // mesh.setOpacityAt(index,0.5)
+            // this.markUnderConstruction(mesh, index, true);
+            // mesh.material.needsUpdate = true;
+            mesh.geometry.getAttribute("instanceOpacity").setX(index, 0.5);
+            mesh.geometry.getAttribute("instanceOpacity").needsUpdate = true;
+        }
         if (index >= mesh.count) {
             mesh.count = index + 1;
         }
@@ -79,30 +84,86 @@ export class TileInstancePool {
 
 
     createInstanceObjectOfCount(objectType,count,oldMesh = null){
-        const objectTypeMesh=OBJECTS.get(objectType).Mesh;
-        const geometry = objectTypeMesh.geometry;//refers to the geometry
-        const material = objectTypeMesh.material;
-        const mesh = new THREE.InstancedMesh( geometry, material, count );
-        const freeIndices=new Set();
-        for(let j = 0; j < count; j++){
-            freeIndices.add(j)
+        const objectTypeMesh = OBJECTS.get(objectType).Mesh;
+        const geometry = objectTypeMesh.geometry.clone();
+        const baseMat  = objectTypeMesh.material;
+
+
+        const opacityAttr = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);
+        for (let i = 0; i < count; i++) opacityAttr.setX(i, 1); // default fully opaque
+        geometry.setAttribute("instanceOpacity", opacityAttr);
+        opacityAttr.needsUpdate = true
+        
+        let material;
+        if (Array.isArray(baseMat)) {
+            // console.log("hmmmmm, mats array")
+            material = baseMat.map(m => m.clone());
+            material.forEach((mat) => {
+                mat.onBeforeCompile = (shader) => {
+                    shader.vertexShader = `
+                        attribute float instanceOpacity;
+                        varying float vOpacity;
+                    ` + shader.vertexShader;
+
+                    shader.vertexShader = shader.vertexShader.replace(
+                        '#include <begin_vertex>',
+                        `#include <begin_vertex>
+                        vOpacity = instanceOpacity;`
+                    );
+
+                    shader.fragmentShader = `
+                        varying float vOpacity;
+                    ` + shader.fragmentShader;
+
+                    shader.fragmentShader = shader.fragmentShader.replace(
+                        '#include <dithering_fragment>',
+                        `
+                        gl_FragColor.a *= vOpacity;
+                        #include <dithering_fragment>
+                        `
+                    );
+                };
+                mat.transparent = true; // enable opacity
+                // mat.depthWrite = false; // crucial for blending
+                mat.needsUpdate = true;
+            });
+
+        } else if (baseMat.clone) {
+            material = baseMat.clone();
+            material.transparent = true; // enable opacity
+            material.opacity = 0.5;           // adjust to desired see-through
+        } else {
+            console.warn("Material has no clone(), using as-is:", baseMat);
+            material = baseMat;
         }
-        mesh.freeIndices=freeIndices;
-        // If upgrading an old mesh, copy transforms
+
+
+        const mesh = new THREE.InstancedMesh(geometry, material, count);
+        mesh.metadata = new Map();
+
+
+
+        const freeIndices = new Set();
+        for (let j = 0; j < count; j++) freeIndices.add(j);
+        mesh.freeIndices = freeIndices;
+
+        // Copy old mesh matrices if resizing
         if (oldMesh) {
-            
-            for (let i = 0; i < oldMesh.count; i++) { 
-                freeIndices.delete(i)
+            for (let i = 0; i < oldMesh.count; i++) {
+                freeIndices.delete(i);
                 oldMesh.getMatrixAt(i, this.dummyMatrix);
                 mesh.setMatrixAt(i, this.dummyMatrix);
             }
             mesh.count = oldMesh.count;
-            
-            
-        } else {//ie when oldMesh is null
-            mesh.count = 0; // Start fresh
+        } else {
+            mesh.count = 0;
         }
 
+        // Helper to set per-instance opacity
+        // mesh.setOpacityAt = function(index, value) {
+        //     this.geometry.getAttribute("instanceOpacity").setX(index, value);
+        //     this.geometry.getAttribute("instanceOpacity").needsUpdate = true;
+        // };
 
         return mesh;
     }
@@ -152,18 +213,6 @@ export class TileInstancePool {
         return true;
     }
 
-    // removeInstance(serverId){
-    //     const relevantInfo=this.ServerId_To_ObjTypeAndInstId_Mapping.get(serverId);
-    //     const theInstanceObjectType=relevantInfo[0]
-    //     const theUnitsInstanceI=relevantInfo[1]
-    //     let mesh=this.instanceGroups.get(theInstanceObjectType)
-
-    //     if (!mesh) return false;
-
-    //     if (theUnitsInstanceI >= mesh.count) {console.log("something wrong here");return false}; // Invalid index
-
-
-    // }
 
     compactInstanceObject(objectType, oldMesh) {
         const usedIndices = new Set();
@@ -179,7 +228,7 @@ export class TileInstancePool {
         //creating newMesh, not updating hence no oldMesh 3rd param into this, have to define freeIndices here, empty cus full
         const newMesh = this.createInstanceObjectOfCount(objectType, usedIndices.size);
         // newMesh.scale.set(0.2,0.2,0.2)
-        newMesh.metadata=new Map();
+        // newMesh.metadata=new Map();
         newMesh.freeIndices = new Set();
         
         let j = 0;
@@ -213,5 +262,6 @@ export class TileInstancePool {
         mesh.computeBoundingSphere();
         requestRenderIfNotRequested();
     }
+
 
 }

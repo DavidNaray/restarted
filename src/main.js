@@ -760,12 +760,16 @@ io.on('connection', (socket) => {
                     chosenServerIndice=tile.topIndice
                     tile.topIndice+=1
                 }
-
+                var buildit=true
+                if(chosenServerIndice>0){
+                    buildit=false
+                }
                 const responseObject={
                     "position":{chunk:ChunkPlaced,pixel:pixelPoint},//RequestMetaData.position,
                     "rotation":Rotation,
                     "BuildingType":buildingToPlace,
-                    "ServerId":chosenServerIndice
+                    "ServerId":chosenServerIndice,
+                    "underConstruction":buildit
                 }
 
                 socket.emit('CanYouPlaceBuilding', responseObject)
@@ -774,8 +778,8 @@ io.on('connection', (socket) => {
                 socket.emit('CanYouPlaceBuilding', {reason:placementResponse.reason,at:placementResponse.at})
             }
 
-        }catch(p){}
-        socket.emit('CanYouPlaceBuilding', false)//responseObject);
+        }catch(p){socket.emit('CanYouPlaceBuilding', false)}
+        // socket.emit('CanYouPlaceBuilding', false)//responseObject);
     })
 
     socket.on('UnitDeploymentPositionRequest',async ({RequestMetaData}) => {

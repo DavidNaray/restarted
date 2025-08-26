@@ -96,27 +96,25 @@ function HandleSocketResponses(socket){
 
     socket.on('CanYouPlaceBuilding', async (response) => {
         InputState.value="neutral"
-        // console.log("YIPEEEEEEE",response.position)
 
         renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
         renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
         renderer.domElement.removeEventListener( 'click', onclickBuilding );
-        if(response.permission){
+        if(response.position){
             console.log("permission to place building: accepted",response)
-            const whichTile=globalmanager.getTile(response.tile[0],response.tile[1])
-            console.log(whichTile)
+            const whichTile=globalmanager.getTile(response.position.chunk[0],response.position.chunk[1])
+            // console.log(whichTile)
             const metaData={
-                "position":response.position,
+                "position":response.position.pixel,
                 "rotation":response.rotation,
-                "UnitType":response.UnitType,
-                "AssetClass":response.AssetClass,
-                "owner":response.owner,
+                "BuildingType":response.BuildingType,
+                "AssetClass":"Building",
                 "ServerId":response.ServerId,
-                "health":response.health,
+                "underConstruction":response.underConstruction
             }
-            const objLoad=await whichTile.objectLoad(response.UnitType,metaData,response.AssetClass)
+            const objLoad=await whichTile.objectLoad(response.BuildingType,metaData,response.AssetClass)
             if(objLoad){
-                whichTile.addToScene(response.UnitType, metaData)
+                whichTile.addToScene(response.BuildingType, metaData)
             }
             
         }else{
@@ -966,10 +964,20 @@ async function onHoverBuilding(event){
                 const chunkY=Math.floor((IntersectPoint.y+3.75)/7.5)
                 if(!hoveringBuildings.has(BuildingAssetName)){
                     //make a special move for the object in wireframe mode
-                    const objectDef = OBJECTS.get(BuildingAssetName).Mesh.clone();
+                    const src = OBJECTS.get(BuildingAssetName);
+                    const objectDef = src.Mesh.clone();
+                    // console.log("src scale",src.Mesh.scale)
+                    objectDef.scale.set(0.2,0.2,0.2);
+
                     objectDef.traverse((child) => {
                         if (child.isMesh) {
                             if (child.isMesh && child.material) {
+                                if (Array.isArray(child.material)) {
+                                    child.material = child.material.map((m) => m.clone());
+                                } else {
+                                    child.material = child.material.clone();
+                                }
+
                                 const materials = Array.isArray(child.material) ? child.material : [child.material];
 
                                 materials.forEach((mat) => {

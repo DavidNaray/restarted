@@ -311,8 +311,15 @@ export class Tile{
 
                             const mergedGeometry = mergeGeometries(geometries, true);
                             const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
-                            mergedMesh.scale.set(2, 2, 2);
-                            mergedMesh.updateMatrix();
+                            // mergedMesh.scale.set(2, 2, 2);
+                            // mergedMesh.updateMatrix();
+                            
+                            // mergedMesh.scale.set(0.25, 0.25, 0.25); // reset scale since it's baked
+                            // mergedMesh.updateMatrix();
+                            // mergedGeometry.applyMatrix4(mergedMesh.matrix); // bake transform
+
+                            // mergedMesh.scale.set(1, 1, 1);
+                            // mergedMesh.updateMatrix();
 
                             OBJECTS.set(assetId, {
                                 AssetClass,

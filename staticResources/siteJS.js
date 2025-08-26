@@ -34,7 +34,8 @@ function sceneSetup(SetupInformation){
     console.log(OriginTile,"OriginTile")
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
-    renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false,powerPreference: "high-performance" });
+    renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true,powerPreference: "high-performance" });
+    renderer.sortObjects = true;
     renderer.shadowMap.enabled = false;
     renderer.setSize( window.innerWidth, window.innerHeight );
     renderer.setPixelRatio(window.devicePixelRatio * 0.75); // Half the normal pixel ratio
