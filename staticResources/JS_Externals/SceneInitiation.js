@@ -1,8 +1,11 @@
-import {renderer,InputState} from "../siteJS.js"
+import * as THREE from "three";
+import {renderer,InputState,scene,requestRenderIfNotRequested} from "../siteJS.js"
 import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {makeToolTipTechnology} from "./ResourceTips.js"
 import {adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
+import {OBJECTS} from "./TileClass.js"
+import {superHeightMapTexture} from "./SuperCanvas.js"
 
 let socket;
 export async function getUserTileData(accessToken){
@@ -94,7 +97,9 @@ function HandleSocketResponses(socket){
     socket.on('CanYouPlaceBuilding', async (response) => {
         InputState.value="neutral"
         // console.log("YIPEEEEEEE",response.position)
+
         renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
         renderer.domElement.removeEventListener( 'click', onclickBuilding );
         if(response.permission){
             console.log("permission to place building: accepted",response)
@@ -902,10 +907,12 @@ function removeProductionLine(e){
 
 //------------------------------------------construction
 var BuildingAssetName;//variable to hold which building is trying to be placed right now
-
+const hoveringBuildings=new Map()
 function onclickBuilding(event){
+    InputState.value="neutral"
     // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
-
+    hoveringBuildings.get(BuildingAssetName).visible=false
+    requestRenderIfNotRequested();
     const intersects = intersectsTileMeshes()
 
     if (intersects.length > 0) {
@@ -921,10 +928,8 @@ function onclickBuilding(event){
             const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
 
             const RequestMetaData={
-                // "tile":[foundTile.x, foundTile.y],
                 "position":processedPoint,
                 "rotation":0,
-                // "userOwner":UserId,
                 "BuildingType":BuildingAssetName
             }
             //permission is false, or it will be an adjusted position
@@ -936,14 +941,80 @@ function onclickBuilding(event){
 
     //this code needs to be moved the response of EmitBuildingPlacementRequest
     //the user clicked, the building has been placed, remove eventListeners
-    // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-    // renderer.domElement.removeEventListener( 'click', onclickBuilding );
+    renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+    renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
+    renderer.domElement.removeEventListener( 'click', onclickBuilding );
 }
 
-function onHoverBuilding(event){
+async function onHoverBuilding(event){
     onPointerMove(event)
 
-    //would be moving the asset of BuildingAssetName
+    const intersects = intersectsTileMeshes()
+
+    if (intersects.length > 0) {
+        const intersectedMesh = intersects[0].object;
+        const whichTile =  globalmanager.meshToTiles.get(intersectedMesh);
+        if(whichTile){
+            const objLoad=await whichTile.objectLoad(BuildingAssetName,"","Building")
+            //would be moving the asset of BuildingAssetName
+            // console.log("hmm.......",objLoad)
+            if(objLoad){
+                const IntersectPoint=intersects[0].point
+                // const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
+                
+                const chunkX=Math.floor((IntersectPoint.x+3.75)/7.5)
+                const chunkY=Math.floor((IntersectPoint.y+3.75)/7.5)
+                if(!hoveringBuildings.has(BuildingAssetName)){
+                    //make a special move for the object in wireframe mode
+                    const objectDef = OBJECTS.get(BuildingAssetName).Mesh.clone();
+                    objectDef.traverse((child) => {
+                        if (child.isMesh) {
+                            if (child.isMesh && child.material) {
+                                const materials = Array.isArray(child.material) ? child.material : [child.material];
+
+                                materials.forEach((mat) => {
+                                    mat.transparent = true; // enable opacity
+                                    mat.opacity = 0.5;           // adjust to desired see-through
+                                    mat.onBeforeCompile = (shader) => {
+                                        shader.fragmentShader = shader.fragmentShader.replace(
+                                            '#include <map_fragment>',
+                                            `
+                                            #include <map_fragment>
+                                            // overlay light blue
+                                            vec3 overlayColor = vec3(0.2, 0.5, 1.0); // light blue
+                                            float overlayOpacity = 0.3; // adjust transparency
+                                            diffuseColor.rgb = mix(diffuseColor.rgb, overlayColor, overlayOpacity);
+                                            `
+                                        );
+                                    };
+
+                                    mat.needsUpdate = true;
+                                });
+                            }
+                        }
+                    });
+
+
+
+                    // const previewMesh = objectDef//new THREE.Mesh(geometry, material);
+
+                    // console.log("IntersectPoint",IntersectPoint,"chunkclick",chunkX,chunkY)
+                    const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
+                    // console.log("placing hover thing at xyz: ",xyz)
+                    objectDef.position.set(xyz[0],xyz[1],xyz[2])
+                    scene.add(objectDef);
+                    hoveringBuildings.set(BuildingAssetName,objectDef)
+                }else{
+                    const moveit=hoveringBuildings.get(BuildingAssetName)
+                    moveit.visible=true
+                    const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
+                    moveit.position.set(xyz[0],xyz[1],xyz[2])
+                }
+                requestRenderIfNotRequested();
+            }
+        }
+
+    }
 }
 
 function PlaceBuilding(event){

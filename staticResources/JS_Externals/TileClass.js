@@ -304,7 +304,7 @@ export class Tile{
                             });
 
                             if (geometries.length === 0) {
-                                console.error("No meshes found in gltf scene");
+                                // console.error("No meshes found in gltf scene");
                                 resolve(false);
                                 return;
                             }
@@ -322,14 +322,14 @@ export class Tile{
                             resolve(true);
                         },
                         (error) => {
-                            console.error("GLTF parse failed", error);
+                            // console.error("GLTF parse failed", error);
                             resolve(false);
                         }
                     );
                 },
                 undefined, // onProgress
                 (error) => {
-                    console.error("GLTF load failed", error);
+                    // console.error("GLTF load failed", error);
                     resolve(false);
                 }
             );

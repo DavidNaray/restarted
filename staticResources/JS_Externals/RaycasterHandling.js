@@ -27,7 +27,7 @@ export function intersectsTileMeshes(){
 export function MouseDownHandling(e) {
     if (e.button === 0) {//left click
         moveableSelected.value={};
-        if (InputState.value == 'neutral') {
+        if (InputState.value == 'neutral' && DragSelectionKey) {
             dragStart = { x: e.clientX, y: e.clientY };
             isDragging = false;
             InputState.value = 'BoxClickSelection';
