@@ -115,6 +115,11 @@ function HandleSocketResponses(socket){
             const objLoad=await whichTile.objectLoad(response.BuildingType,metaData,response.AssetClass)
             if(objLoad){
                 whichTile.addToScene(response.BuildingType, metaData)
+                scene.traverse(o => {
+                    if (o.isMesh && !o.isInstancedMesh) {
+                        console.log("Stray mesh:", o, "Material:", o.material, "Name:", o.name);
+                    }
+                });
             }
             
         }else{
@@ -909,7 +914,7 @@ const hoveringBuildings=new Map()
 function onclickBuilding(event){
     InputState.value="neutral"
     // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
-    hoveringBuildings.get(BuildingAssetName).visible=false
+    scene.remove(hoveringBuildings.get(BuildingAssetName))
     requestRenderIfNotRequested();
     const intersects = intersectsTileMeshes()
 
@@ -965,7 +970,7 @@ async function onHoverBuilding(event){
                 if(!hoveringBuildings.has(BuildingAssetName)){
                     //make a special move for the object in wireframe mode
                     const src = OBJECTS.get(BuildingAssetName);
-                    const objectDef = src.Mesh.clone();
+                    const objectDef = new THREE.Mesh(src.Geometry, src.material);//src.Mesh.clone();
                     // console.log("src scale",src.Mesh.scale)
                     objectDef.scale.set(0.2,0.2,0.2);
 
@@ -1014,7 +1019,10 @@ async function onHoverBuilding(event){
                     hoveringBuildings.set(BuildingAssetName,objectDef)
                 }else{
                     const moveit=hoveringBuildings.get(BuildingAssetName)
-                    moveit.visible=true
+                    if(!moveit.parent){
+                        scene.add(moveit)
+                    }
+                    // moveit.visible=true
                     const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
                     moveit.position.set(xyz[0],xyz[1],xyz[2])
                 }

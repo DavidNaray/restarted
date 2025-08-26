@@ -291,6 +291,8 @@ export class Tile{
 
                             gltf.scene.traverse((child) => {
                                 if (child.isMesh) {
+                                    child.updateWorldMatrix(true, false);
+                                    child.geometry.applyMatrix4(child.matrixWorld);
                                     geometries.push(child.geometry);
 
                                     if (Array.isArray(child.material)) {
@@ -310,20 +312,22 @@ export class Tile{
                             }
 
                             const mergedGeometry = mergeGeometries(geometries, true);
-                            const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
-                            // mergedMesh.scale.set(2, 2, 2);
-                            // mergedMesh.updateMatrix();
+                            // const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
                             
-                            // mergedMesh.scale.set(0.25, 0.25, 0.25); // reset scale since it's baked
-                            // mergedMesh.updateMatrix();
-                            // mergedGeometry.applyMatrix4(mergedMesh.matrix); // bake transform
-
-                            // mergedMesh.scale.set(1, 1, 1);
-                            // mergedMesh.updateMatrix();
+                            // let finalMaterial;
+                            // if (materials.length === 1) {
+                            //     finalMaterial = materials[0];
+                            // } else {
+                            //     // TODO: support multi-material groups if needed
+                            //     console.warn("Multiple materials found, using first only");
+                            //     finalMaterial = materials[0];
+                            // }
 
                             OBJECTS.set(assetId, {
                                 AssetClass,
-                                Mesh: mergedMesh
+                                // Mesh: mergedMesh
+                                Geometry:mergedGeometry,
+                                material:materials
                             });
 
                             resolve(true);

@@ -27,7 +27,7 @@ export function intersectsTileMeshes(){
 export function MouseDownHandling(e) {
     if (e.button === 0) {//left click
         moveableSelected.value={};
-        if (InputState.value == 'neutral' && DragSelectionKey) {
+        if (InputState.value == 'neutral') {
             dragStart = { x: e.clientX, y: e.clientY };
             isDragging = false;
             InputState.value = 'BoxClickSelection';
@@ -78,7 +78,7 @@ export function MouseUpHandling(e) {
 
                     if (hit.instanceId !== undefined) {
                         // console.log('Instanced object hit, instanceId:', hit.instanceId);
-                        // console.log('Base mesh:', hit.object);
+                        console.log('Base mesh:', hit.object);
                         
                         // You can now use hit.instanceId to reference that specific instance
                         const sendOver=[hit]

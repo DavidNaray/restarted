@@ -84,8 +84,8 @@ export class TileInstancePool {
 
 
     createInstanceObjectOfCount(objectType,count,oldMesh = null){
-        const objectTypeMesh = OBJECTS.get(objectType).Mesh;
-        const geometry = objectTypeMesh.geometry.clone();
+        const objectTypeMesh = OBJECTS.get(objectType);
+        const geometry = objectTypeMesh.Geometry;
         const baseMat  = objectTypeMesh.material;
 
 
@@ -158,12 +158,6 @@ export class TileInstancePool {
         } else {
             mesh.count = 0;
         }
-
-        // Helper to set per-instance opacity
-        // mesh.setOpacityAt = function(index, value) {
-        //     this.geometry.getAttribute("instanceOpacity").setX(index, value);
-        //     this.geometry.getAttribute("instanceOpacity").needsUpdate = true;
-        // };
 
         return mesh;
     }
