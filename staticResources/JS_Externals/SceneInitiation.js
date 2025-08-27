@@ -121,6 +121,68 @@ function HandleSocketResponses(socket){
                     }
                 });
             }
+            if(response.underConstruction){
+                const ConstBlocksDiv=document.getElementById("ConstBlocks")
+
+                const AddDiv=document.createElement("div")
+                {
+                    AddDiv.style.width="calc(100% - 0.5vh)"
+                    AddDiv.style.aspectRatio="10/1"
+                    AddDiv.style.backgroundColor="gray"
+                    AddDiv.style.display="grid"
+                    AddDiv.style.gridTemplateColumns="1.5fr 1fr ";
+                    AddDiv.style.columnGap="0.5vw"
+                    AddDiv.style.marginBottom="0.5vw"
+                    AddDiv.style.padding="0.25vh"
+                }
+                ConstBlocksDiv.appendChild(AddDiv)
+
+                const r = response.BuildingType.split(/(?=[A-Z])/);
+                const BuildingTypeDiv=document.createElement("div")
+                {
+                    BuildingTypeDiv.style.width="100%"
+                    BuildingTypeDiv.style.height="100%"
+                    BuildingTypeDiv.style.display="flex"
+                    BuildingTypeDiv.style.alignItems="center"
+                    BuildingTypeDiv.style.paddingLeft="0.25vw"
+                    BuildingTypeDiv.innerHTML=`${r.join(" ")}`
+                    BuildingTypeDiv.style.fontSize="max(1vw,1vh)"
+                    BuildingTypeDiv.style.color="white"
+
+                }
+                AddDiv.appendChild(BuildingTypeDiv)
+
+                const RestDiv=document.createElement("div")
+                {
+                    RestDiv.style.width="100%"
+                    RestDiv.style.height="100%"
+                    RestDiv.style.display="grid"
+                    RestDiv.style.gridTemplateColumns="2.8fr 1fr ";
+                    RestDiv.style.columnGap="0.5vw"
+
+                }
+                AddDiv.appendChild(RestDiv)
+
+                const ManPowerSlideDiv=document.createElement("div")
+                {
+                    ManPowerSlideDiv.style.width="100%"
+                    ManPowerSlideDiv.style.height="100%"
+                    ManPowerSlideDiv.style.backgroundColor="red"
+
+                }
+                RestDiv.appendChild(ManPowerSlideDiv)
+
+                const closeDiv=document.createElement("div")
+                {
+                    closeDiv.style.width="100%"
+                    closeDiv.style.height="100%"
+                    closeDiv.style.backgroundColor="black"
+
+                }
+                RestDiv.appendChild(closeDiv)
+
+
+            }
             
         }else{
             console.log("permission to place building: denied",response)
@@ -279,8 +341,15 @@ function HandleSocketResponses(socket){
         // console.log("Construction Setup Response",response)
 
         if(response){
+
+            const CivBlock=document.getElementById("CivAwareness");
+            CivBlock.innerHTML=`Civilian Factories: ${response.CivCount}`
+
+            const MilBlock=document.getElementById("MilAwareness");
+            MilBlock.innerHTML=`Military Factories: ${response.MilCount}`
+
             const BuildOptionsBox=document.getElementById("BuildOptionsBox");
-            for (let key of response) {
+            for (let key of response.Buildings) {
                 const strURL=stringintoURL(key);
 
                 const option=document.createElement("div");

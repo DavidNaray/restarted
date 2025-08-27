@@ -608,30 +608,67 @@ function ConstructionElements(){
 
         const BuildOptionsBox=document.createElement("div");
         {
-            BuildOptionsBox.style.width="100%";
+            // BuildOptionsBox.style.width="100%";
+            BuildOptionsBox.style.width="calc(100% - 1vw)";
+            BuildOptionsBox.style.margin="0 0.5vw 0 0.5vw";
             BuildOptionsBox.style.display="grid";
             BuildOptionsBox.id="BuildOptionsBox"
             BuildOptionsBox.style.gridTemplateColumns="1fr 1fr 1fr 1fr 1fr 1fr 1fr";
+            BuildOptionsBox.style.borderBottom="solid gray 0.25vw"
         }
         creatingCCB.appendChild(BuildOptionsBox)
+
+        const FactoryAwareness=document.createElement("div");
+        {
+            FactoryAwareness.style.width="calc(100% - 1.5vw)";
+            FactoryAwareness.style.margin="0.5vh 0.5vw 0.5vh 1vw";
+            FactoryAwareness.style.display="grid";
+            // FactoryAwareness.style.minHeight="20px"
+            FactoryAwareness.style.gridTemplateRows="1fr 1fr ";
+        }
+        creatingCCB.appendChild(FactoryAwareness)
+
+        const CivAwareness=document.createElement("div");
+        {
+            CivAwareness.style.width="100%"
+            CivAwareness.style.display="flex"
+            CivAwareness.id="CivAwareness"
+            CivAwareness.innerHTML=`Civilian Factories: N.A`
+            CivAwareness.style.fontSize="max(1vw,1vh)"
+            CivAwareness.style.color="white" 
+            CivAwareness.style.alignContent="center";
+        }
+        FactoryAwareness.appendChild(CivAwareness)
+        const MilAwareness=document.createElement("div");
+        {
+            MilAwareness.style.width="100%"
+            MilAwareness.style.display="flex"
+            MilAwareness.id="MilAwareness"
+            MilAwareness.innerHTML="Military Factories: N.A"
+            MilAwareness.style.fontSize="max(1vw,1vh)"
+            MilAwareness.style.color="white" 
+            MilAwareness.style.alignContent="center";
+        }
+        FactoryAwareness.appendChild(MilAwareness)
 
         const BuildQueueTitleBox=document.createElement("div");
         {
             BuildQueueTitleBox.style.width="calc(100% - 1vw)";
             // BuildQueueTitleBox.style.aspectRatio="13/1";
             BuildQueueTitleBox.style.display="grid";
+            BuildQueueTitleBox.style.columnGap="0.5vw"
             BuildQueueTitleBox.style.gridTemplateColumns="1.5fr 1fr ";
             BuildQueueTitleBox.style.margin="0 0.5vw 0 0.5vw";
             BuildQueueTitleBox.style.borderBottom="solid gray 0.25vw"
-            BuildQueueTitleBox.style.marginBottom="1vw"
+            BuildQueueTitleBox.style.marginBottom="0.5vw"
             
         }
         creatingCCB.appendChild(BuildQueueTitleBox)
 
         const BuildingTypeName=document.createElement("div");
         {
-            BuildingTypeName.style.width="calc(100% - 1vw)";
-            BuildingTypeName.style.padding="0 0.5vw 0 0.5vw";
+            BuildingTypeName.style.width="calc(100% - 0.5vw)";
+            BuildingTypeName.style.padding="0 0 0 0.5vw";
             BuildingTypeName.style.alignContent="center";
             BuildingTypeName.innerText="Building Type";
             BuildingTypeName.style.fontSize="max(1vw,1vh)";
@@ -641,8 +678,8 @@ function ConstructionElements(){
 
         const ManpowerAllocation=document.createElement("div");
         {
-            ManpowerAllocation.style.width="calc(100% - 1vw)";
-            ManpowerAllocation.style.padding="0 0.5vw 0 0.5vw";
+            ManpowerAllocation.style.width="calc(100% - 0.5vw)";
+            ManpowerAllocation.style.padding="0 0 0 0.5vw";
             ManpowerAllocation.style.alignContent="center";
             ManpowerAllocation.innerText="Allocate Manpower";
             ManpowerAllocation.style.fontSize="max(1vw,1vh)";
@@ -651,6 +688,20 @@ function ConstructionElements(){
             
         }
         BuildQueueTitleBox.appendChild(ManpowerAllocation)
+
+        const ConstBlocks=document.createElement("div");
+        {
+            ConstBlocks.style.width="calc(100% - 1vw)";
+            ConstBlocks.style.margin="0 0.5vw 0 0.5vw";
+            // ConstBlocks.style.minHeight="20px"
+            // ConstBlocks.style.backgroundColor="red"
+            ConstBlocks.id="ConstBlocks"
+            // ConstBlocks.style.fontSize="max(1vw,1vh)";  
+        }
+        creatingCCB.appendChild(ConstBlocks)
+
+
+
         ConstructionSetupEmit()
     }else{
         ConstructioncontentBox.style.display="block"

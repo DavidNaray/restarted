@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
   passwordHash: String,  // store hashed password here
   OriginTile:[Number],//which tile is centered on 0,0, the rest of the tiles built around
   refreshTokens: [String],  // Store issued refresh tokens (optional)
-  ProductionLines:{Total:{type: Number, default: 2},Free:{type: Number, default: 2}},
+  ProductionLines:{Total:{type: Number, default: 2},Free:{type: Number, default: 2},TotalCiv:{type: Number, default: 2}},
   ProductBlocks: {
     TopBlock:{ type: Number, default: 0 },
     FreeBlocks:[Number],

@@ -483,8 +483,8 @@ io.on('connection', (socket) => {
                     toSend.push(key);
                 } else {}
             }
-            // await updateResourceForUser(user);
-            socket.emit("ConstructionSetupResponse", toSend);
+            
+            socket.emit("ConstructionSetupResponse", {Buildings:toSend,MilCount:user.ProductionLines.Total,CivCount:user.ProductionLines.TotalCiv});
         }catch(err){
         }
 
