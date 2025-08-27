@@ -24,7 +24,7 @@ export class TileInstancePool {
             console.log("didnt exist, make it!")
             //if there was no key of objectType then there wont be a value
             mesh=this.createInstanceObjectOfCount(objectType,3);
-            mesh.freeIndices=new Set([0,1,2])//every index is free 
+            // mesh.freeIndices=new Set([0,1,2])//every index is free 
             // mesh.scale.set(0.2,0.2,0.2)
             this.instanceGroups.set(objectType,mesh)
             scene.add(mesh);
@@ -49,15 +49,16 @@ export class TileInstancePool {
 
         let index;
 
-        if (mesh.freeIndices.size > 0) {
+        // if (mesh.freeIndices.size > 0) {
             
-            index = mesh.freeIndices.values().next().value; // Reuse a free index
-            console.log("woah, free indice!", index)
-            mesh.freeIndices.delete(index);
-        } else {
-            index = mesh.count++;
+        //     index = mesh.freeIndices.values().next().value; // Reuse a free index
+        //     console.log("woah, free indice!", index)
+        //     mesh.freeIndices.delete(index);
+        // } else {
+            
 
-        }
+        // }
+        index = mesh.count++;
 
         this.ServerId_To_ObjTypeAndInstId_Mapping.set(meta.ServerId,[objectType,index]);
         // console.log("lets see the tile total instance tracking state:",this.ServerId_To_ObjTypeAndInstId_Mapping)
@@ -66,7 +67,7 @@ export class TileInstancePool {
         mesh.metadata.set(index,meta);
         mesh.instanceMatrix.needsUpdate = true;
 
-        if (meta.underConstruction) {
+        if (!meta.underConstruction) {
             console.log("UNDER CONSTRUCTION")
             // mesh.setOpacityAt(index,0.5)
             // this.markUnderConstruction(mesh, index, true);
@@ -149,12 +150,35 @@ export class TileInstancePool {
 
         // Copy old mesh matrices if resizing
         if (oldMesh) {
+            const oldOpacityAttr = oldMesh.geometry.getAttribute("instanceOpacity");
+
             for (let i = 0; i < oldMesh.count; i++) {
                 freeIndices.delete(i);
                 oldMesh.getMatrixAt(i, this.dummyMatrix);
                 mesh.setMatrixAt(i, this.dummyMatrix);
+
+                // Copy opacity
+                // const oldOpacity = oldOpacityAttr.getX(i);
+                // opacityAttr.setX(i, oldOpacity);
+                // console.log("oldOpacity",oldOpacity)
+                // if(oldOpacity<1){mesh.geometry.getAttribute("instanceOpacity").setX(index, 0.5);}
+                
+                
+
+                // Copy metadata
+                const meta = oldMesh.metadata.get(i);
+                console.log("meta",meta.underConstruction)
+                if (meta) mesh.metadata.set(i, meta);
+
+                if(meta.underConstruction==false){
+                    mesh.geometry.getAttribute("instanceOpacity").setX(i, 0.5);
+                }
+
             }
+            
             mesh.count = oldMesh.count;
+            mesh.geometry.getAttribute("instanceOpacity").needsUpdate = true;
+            // opacityAttr.needsUpdate = true;
         } else {
             mesh.count = 0;
         }
@@ -186,6 +210,8 @@ export class TileInstancePool {
             const lastMeta = mesh.metadata.get(lastIndex);
             mesh.metadata.set(index, lastMeta);
             mesh.metadata.delete(lastIndex);
+            console.log("lastMeta.serverId",lastMeta.ServerId)
+            this.ServerId_To_ObjTypeAndInstId_Mapping.set(lastMeta.ServerId,[objectType,index])
             
         } else {
             // If you're removing the last one directly since index ==last
@@ -193,7 +219,7 @@ export class TileInstancePool {
             
         }
         //you do not add the last index to free-indices because count is decremented
-
+        this.ServerId_To_ObjTypeAndInstId_Mapping.delete(serverId);
         mesh.count--;
         mesh.instanceMatrix.needsUpdate = true;
 
@@ -210,7 +236,7 @@ export class TileInstancePool {
 
     compactInstanceObject(objectType, oldMesh) {
         const usedIndices = new Set();
-        for (let i = 0; i <= oldMesh.count; i++) {
+        for (let i = 0; i < oldMesh.count; i++) {
             if (!oldMesh.freeIndices.has(i)) {
                 usedIndices.add(i);
             }
@@ -220,24 +246,7 @@ export class TileInstancePool {
         if (usedIndices.size === oldMesh.instanceMatrix.count) return;
     
         //creating newMesh, not updating hence no oldMesh 3rd param into this, have to define freeIndices here, empty cus full
-        const newMesh = this.createInstanceObjectOfCount(objectType, usedIndices.size);
-        // newMesh.scale.set(0.2,0.2,0.2)
-        // newMesh.metadata=new Map();
-        newMesh.freeIndices = new Set();
-        
-        let j = 0;
-        for (const i of usedIndices) {
-            oldMesh.getMatrixAt(i, this.dummyMatrix);
-            newMesh.setMatrixAt(j, this.dummyMatrix);
-            
-            const meta=oldMesh.metadata.get(i);
-            if(meta){
-                newMesh.metadata.set(j, meta);
-            }
-            j++;
-        }
-        newMesh.count = usedIndices.size;
-        newMesh.instanceMatrix.needsUpdate = true;
+        const newMesh = this.createInstanceObjectOfCount(objectType, usedIndices.size,oldMesh);
     
         scene.remove(oldMesh);
         scene.add(newMesh);

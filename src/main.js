@@ -727,6 +727,22 @@ io.on('connection', (socket) => {
 
     })
 
+    socket.on('StopConstruction',async ({RequestMetaData}) =>{
+        try{
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const key=`${RequestMetaData.chunk[0]},${RequestMetaData.chunk[1]},${RequestMetaData.ServerId}`
+
+            delete user.Construction.Values[key]
+
+            socket.emit("removeConstResponse", RequestMetaData)
+
+        }catch(p){}
+    });
+
     socket.on('BuildingPlacementRequest',async ({RequestMetaData}) =>{//BuildingAssetName,
         // console.log("BuildingPlacementRequest",RequestMetaData)
         try{
@@ -760,9 +776,32 @@ io.on('connection', (socket) => {
                     chosenServerIndice=tile.topIndice
                     tile.topIndice+=1
                 }
-                var buildit=true
+                var buildit=false
                 if(chosenServerIndice>0){
                     buildit=false
+                }
+
+                if(buildit){
+                    switch(buildingToPlace){
+                        case "MilitaryFactory":
+                            user.ProductionLines.Total+=1
+                            socket.emit("FactoryCountsUpdate", {Mil:user.ProductionLines.Total})
+                            break;
+                        case "CivilianFactory":
+                            user.ProductionLines.TotalCiv+=1
+                            socket.emit("FactoryCountsUpdate", {Civ:user.ProductionLines.TotalCiv})
+                            break;
+                        default:
+                            break;
+                    }
+                }else{
+                    const identifier=`${ChunkPlaced[0]},${ChunkPlaced[1]},${chosenServerIndice}`
+                    const setter={
+                        start:Date.now(),
+                        finish:Date.now(),
+                    }
+
+                    user.Construction.Values[identifier]=setter
                 }
                 const responseObject={
                     "position":{chunk:ChunkPlaced,pixel:pixelPoint},//RequestMetaData.position,

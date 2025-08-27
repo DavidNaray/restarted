@@ -115,13 +115,9 @@ function HandleSocketResponses(socket){
             const objLoad=await whichTile.objectLoad(response.BuildingType,metaData,response.AssetClass)
             if(objLoad){
                 whichTile.addToScene(response.BuildingType, metaData)
-                scene.traverse(o => {
-                    if (o.isMesh && !o.isInstancedMesh) {
-                        console.log("Stray mesh:", o, "Material:", o.material, "Name:", o.name);
-                    }
-                });
+
             }
-            if(response.underConstruction){
+            if(!response.underConstruction){//bad variable name, underConstruction is true if its already built....
                 const ConstBlocksDiv=document.getElementById("ConstBlocks")
 
                 const AddDiv=document.createElement("div")
@@ -129,6 +125,7 @@ function HandleSocketResponses(socket){
                     AddDiv.style.width="calc(100% - 0.5vh)"
                     AddDiv.style.aspectRatio="10/1"
                     AddDiv.style.backgroundColor="gray"
+                    AddDiv.id=`ConstQueue,${response.position.chunk[0]}.${response.position.chunk[1]},${response.ServerId}`
                     AddDiv.style.display="grid"
                     AddDiv.style.gridTemplateColumns="1.5fr 1fr ";
                     AddDiv.style.columnGap="0.5vw"
@@ -174,12 +171,28 @@ function HandleSocketResponses(socket){
 
                 const closeDiv=document.createElement("div")
                 {
-                    closeDiv.style.width="100%"
-                    closeDiv.style.height="100%"
-                    closeDiv.style.backgroundColor="black"
+                    closeDiv.style.width="calc(100% - 0.6vw)"
+                    closeDiv.style.height="calc(100% - 0.6vw)"
+                    closeDiv.style.padding="0.3vw"
+                    // closeDiv.style.backgroundColor="black"
 
                 }
                 RestDiv.appendChild(closeDiv)
+
+                const closeButton=document.createElement("div")
+                {
+                    closeButton.style.width="100%"
+                    closeButton.style.height="100%"
+                    closeButton.style.backgroundColor="black"
+
+                }
+                closeButton.addEventListener("click",(e)=>{
+                    // console.log("close it!")
+                    socket.emit('StopConstruction',{
+                        "RequestMetaData":{ServerId:response.ServerId,chunk:response.position.chunk}
+                    })
+                })
+                closeDiv.appendChild(closeButton)
 
 
             }
@@ -188,6 +201,30 @@ function HandleSocketResponses(socket){
             console.log("permission to place building: denied",response)
         }
     });
+
+    socket.on('removeConstResponse', async (response) => {
+        
+        try{
+            const id=`ConstQueue,${response.chunk[0]}.${response.chunk[1]},${response.ServerId}`
+            const removeDiv=document.getElementById(id)
+            removeDiv.remove()
+            const whichTile=globalmanager.getTile(response.chunk[0],response.chunk[1])
+            whichTile.removeUnit(response.ServerId)
+        }catch(p){}
+
+    });
+
+    socket.on('FactoryCountsUpdate', async (response) => {
+        const CivAwareness=document.getElementById("CivAwareness")
+        const MilAwareness=document.getElementById("MilAwareness")
+        const ProdCount=document.getElementById("ProdCount")
+
+        try{if(response.Civ){ CivAwareness.innerHTML=`Civilian Factories: ${response.Civ}`} }catch(p){}
+        try{if(response.Mil){ MilAwareness.innerHTML=`Military Factories: ${response.Mil}`} }catch(pp){}
+        try{if(response.Mil){ ProdCount.innerHTML=`Total Production Lines: ${response.Mil}`} }catch(pp){}
+
+
+    })
 
     socket.on('CanYouDeployHere', (response) => {
         InputState.value="neutral"

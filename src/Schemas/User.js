@@ -18,6 +18,14 @@ const userSchema = new mongoose.Schema({
       ItemProduced: { type: String, default: "" }
     }
   }},
+  Construction:{Values:{
+    type: Map,
+    of: {
+      start: { type: String, default: null },
+      finish:{ type: String, default: null },
+      PopAssigned:{ type: Number, default: 0 }
+    }
+  }},
   WareHouses:{ type: Number, default: 0 },
   Resources:{
     Gold:{
