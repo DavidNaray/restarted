@@ -134,10 +134,22 @@ function HandleSocketResponses(socket){
                 }
                 ConstBlocksDiv.appendChild(AddDiv)
 
+                
+                const BuildingTypeDivAndProgress=document.createElement("div")
+                {
+                    BuildingTypeDivAndProgress.style.width="100%"
+                    BuildingTypeDivAndProgress.style.height="100%"
+                    BuildingTypeDivAndProgress.style.display="grid"
+                    BuildingTypeDivAndProgress.style.gridTemplateColumns="1fr 1fr"
+                    BuildingTypeDivAndProgress.style.columnGap="0.5vw"
+                }
+
+                AddDiv.appendChild(BuildingTypeDivAndProgress)
+
                 const r = response.BuildingType.split(/(?=[A-Z])/);
                 const BuildingTypeDiv=document.createElement("div")
                 {
-                    BuildingTypeDiv.style.width="100%"
+                    BuildingTypeDiv.style.width="calc(100% - 0.25vw)"
                     BuildingTypeDiv.style.height="100%"
                     BuildingTypeDiv.style.display="flex"
                     BuildingTypeDiv.style.alignItems="center"
@@ -147,7 +159,55 @@ function HandleSocketResponses(socket){
                     BuildingTypeDiv.style.color="white"
 
                 }
-                AddDiv.appendChild(BuildingTypeDiv)
+                BuildingTypeDivAndProgress.appendChild(BuildingTypeDiv)
+
+                const ProgressHolder=document.createElement("div")
+                {
+                    ProgressHolder.style.width="100%"
+                    ProgressHolder.style.height="100%"
+                    ProgressHolder.style.display="grid"
+                    ProgressHolder.style.gridTemplateRows="1fr 1.5fr ";
+
+                }
+                BuildingTypeDivAndProgress.appendChild(ProgressHolder)
+
+                const progressTotal=document.createElement("div")
+                {
+                    progressTotal.style.width="100%"
+                    progressTotal.style.height="100%"
+                    progressTotal.style.display="flex"
+                    progressTotal.style.alignItems="center"
+                    progressTotal.innerHTML=`Progress: 0`
+                    progressTotal.style.fontSize="max(1vw,1vh)"
+                    progressTotal.style.color="white"
+
+                }
+                ProgressHolder.appendChild(progressTotal)
+
+                const progressBarHolder=document.createElement("div")
+                {
+                    progressBarHolder.style.width="100%"
+                    progressBarHolder.style.height="100%"
+                    progressBarHolder.style.display="flex"
+                    progressBarHolder.style.alignItems="center"
+
+                }
+                ProgressHolder.appendChild(progressBarHolder)
+
+                const progressBar=document.createElement("div")
+                {
+                    progressBar.style.width="100%"
+                    progressBar.style.height="50%"
+                    // progressBar.style.background =`linear-gradient(to right,green ${30}%,gray ${70}%)`;
+                    // progressBarHolder.style.display="table-cell"
+                    // progressBarHolder
+                    progressBar.style.backgroundImage=`linear-gradient(green,green),linear-gradient(rgb(98, 98, 98),rgb(98, 98, 98))`
+                    progressBar.style.backgroundRepeat="no-repeat"
+                    progressBar.style.backgroundSize=`${0}% 100%,${100}% 100%`
+
+                }
+                progressBarHolder.appendChild(progressBar)
+
 
                 const RestDiv=document.createElement("div")
                 {
@@ -164,10 +224,38 @@ function HandleSocketResponses(socket){
                 {
                     ManPowerSlideDiv.style.width="100%"
                     ManPowerSlideDiv.style.height="100%"
-                    ManPowerSlideDiv.style.backgroundColor="red"
+                    ManPowerSlideDiv.style.display="grid"
+                    ManPowerSlideDiv.style.gridTemplateRows="1fr 1.5fr ";
 
                 }
                 RestDiv.appendChild(ManPowerSlideDiv)
+
+
+                const ManPowerSlideTotal=document.createElement("div")
+                {
+                    ManPowerSlideTotal.style.width="100%"
+                    ManPowerSlideTotal.style.height="100%"
+                    ManPowerSlideTotal.style.display="flex"
+                    ManPowerSlideTotal.style.alignItems="center"
+                    ManPowerSlideTotal.innerHTML=`0`
+                    ManPowerSlideTotal.style.fontSize="max(1vw,1vh)"
+                    ManPowerSlideTotal.style.color="white"
+
+                }
+                ManPowerSlideDiv.appendChild(ManPowerSlideTotal)
+
+                const ManPowerSlideInput=document.createElement("input")
+                {
+                    ManPowerSlideInput.style.width="100%"
+                    ManPowerSlideInput.style.height="100%"
+                    ManPowerSlideInput.style.margin="0"
+                    ManPowerSlideInput.type="range"
+                    ManPowerSlideInput.min="0"
+                    ManPowerSlideInput.max=`${100}`
+                    ManPowerSlideInput.value="0"
+                    ManPowerSlideInput.step="1"
+                }
+                ManPowerSlideDiv.appendChild(ManPowerSlideInput)
 
                 const closeDiv=document.createElement("div")
                 {
@@ -406,11 +494,27 @@ function HandleSocketResponses(socket){
                     optionButton.style.backgroundImage=strURL;//ColouroptionTags[i];
                     optionButton.style.backgroundColor="rgba(216,216,216,0.2)";//ColouroptionTags[i];
                     
-                    optionButton.myParam=key//optionObjNames[i];//"Mill";
+                    optionButton.myParam=key
                     
                     
+                    switch(key){
+                        case "WoodWall":
+                            
+                            optionButton.addEventListener("click",(e)=>{WallCase("WoodWall")})
+                            break;
+                        case "StoneWall":
+                            
+                            optionButton.addEventListener("click",(e)=>{WallCase("StoneWall")})
+                            break;
+                        case "Farm":
+                            
+                            optionButton.addEventListener("click",(e)=>{console.log("Farm case")})
+                            break;
+                        default:
+                            optionButton.addEventListener("click",PlaceBuilding)
+                            break
+                    }
                     
-                    optionButton.addEventListener("click",PlaceBuilding)
                 } 
 
 
@@ -1149,7 +1253,9 @@ function PlaceBuilding(event){
     console.log("BuildingAssetName",BuildingAssetName)
 }
 
-
+function WallCase(wallType){
+    console.log("wallType",wallType)
+}
 //-------------------------------------------------------
 
 let productionInterval = null;

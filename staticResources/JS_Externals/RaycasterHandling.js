@@ -25,6 +25,7 @@ export function intersectsTileMeshes(){
 
 
 export function MouseDownHandling(e) {
+    if(DragSelectionKey){controls.enabled=false}
     if (e.button === 0) {//left click
         moveableSelected.value={};
         if (InputState.value == 'neutral') {
@@ -40,7 +41,7 @@ export function MouseDownHandling(e) {
 export function MouseMovingHandling(e) {
     if (e.button === 0) {//left click
         if (InputState.value == 'BoxClickSelection' && DragSelectionKey) {
-            controls.enabled=false
+            
             
             const dx = e.clientX - dragStart.x;
             const dy = e.clientY - dragStart.y;
@@ -145,30 +146,8 @@ export function MouseUpHandling(e) {
     }
 }
 
-// export function onClickObjectSelection(event) {
-//     if (isDragging) {
-//         event.stopImmediatePropagation(); // optional: block click if drag happened
-//         return;
-//     }
 
 
-//     //select everything and then filter out the terrainMeshes
-//     if(InputState.value=="neutral"){
-//         onPointerMove(event)
-        
-//         const intersectsAll = raycaster.intersectObjects(scene.children, true);
-//         const intersects = intersectsAll.filter(i => !globalmanager.allTileMeshes.includes(i.object));
-
-//         if (intersects.length > 0) {
-//             const selectedObject = intersects[0].object;
-//             console.log('Selected object:', selectedObject);
-//             // Do your selection logic here, e.g., highlight, add to selection array, etc.
-//         } else {
-//             console.log('Nothing selected');
-//         } 
-//     }
-
-// }
 
 //when raycast hitting something as a selection or box selecting, everything is included bar the terrain meshes
 //on the server differentiation occurs and a response is made as to the user akin to {buildings:{..},units:{..}}
