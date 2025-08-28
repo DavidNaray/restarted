@@ -1324,7 +1324,7 @@ function wallCaseEscape(e){
         console.log("poopee")
         userPoints=[]
         document.removeEventListener('keyup', wallCaseEscape)
-        document.removeEventListener("click", wallCaseClick)
+        renderer.domElement.removeEventListener("click", wallCaseClick)
     }
 }
 
