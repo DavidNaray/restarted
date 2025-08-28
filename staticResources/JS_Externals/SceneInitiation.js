@@ -1,10 +1,11 @@
 import * as THREE from "three";
 import {renderer,InputState,scene,requestRenderIfNotRequested} from "../siteJS.js"
-import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
+import {onPointerMove,intersectsTileMeshes,suppressPlacement} from "./RaycasterHandling.js"
 import {makeToolTipTechnology} from "./ResourceTips.js"
 import {adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {OBJECTS} from "./TileClass.js"
+import {buildWallSegments} from "./WallPlacementFuncs.js"
 import {superHeightMapTexture} from "./SuperCanvas.js"
 
 let socket;
@@ -315,6 +316,7 @@ function HandleSocketResponses(socket){
     })
 
     socket.on('CanYouDeployHere', (response) => {
+        console.log("deplo here?")
         InputState.value="neutral"
         // console.log("deploy here?",response)
         if(response.permission){
@@ -1122,6 +1124,7 @@ function removeProductionLine(e){
 var BuildingAssetName;//variable to hold which building is trying to be placed right now
 const hoveringBuildings=new Map()
 function onclickBuilding(event){
+    // console.log("triggin neutral early?")
     InputState.value="neutral"
     // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
     scene.remove(hoveringBuildings.get(BuildingAssetName))
@@ -1254,7 +1257,42 @@ function PlaceBuilding(event){
 }
 
 function WallCase(wallType){
-    console.log("wallType",wallType)
+    InputState.value="Builder"
+    // console.log("wallType",wallType)    
+    const userPoints = [
+    ];
+
+    renderer.domElement.addEventListener("click",(e)=>{
+        // onPointerMove(e)
+        // console.log("hmmm")
+        if(!suppressPlacement.value){
+            
+
+            const intersects = intersectsTileMeshes()
+            const IntersectPoint=intersects[0].point
+            // (chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
+            const chunkX=Math.floor((IntersectPoint.x+3.75)/7.5)
+            const chunkY=Math.floor((IntersectPoint.y+3.75)/7.5)
+            const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
+            console.log("IntersectPoint",IntersectPoint,xyz)
+            userPoints.push(new THREE.Vector3(xyz[0],xyz[1],xyz[2]))
+        }else{suppressPlacement.value=false;}
+    });
+
+
+
+    // const segments = buildWallSegments(userPoints, 10, 4);
+
+    // segments.forEach(seg => {
+    //     const color = new THREE.Color(Math.random(), Math.random(), Math.random());
+    //     const mat = new THREE.LineBasicMaterial({ color });
+    //     const geo = new THREE.BufferGeometry().setFromPoints(seg);
+    //     const line = new THREE.Line(geo, mat);
+    //     scene.add(line);
+    // });
+
+
+
 }
 //-------------------------------------------------------
 

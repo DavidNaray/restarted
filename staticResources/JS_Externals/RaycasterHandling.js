@@ -11,6 +11,7 @@ let DragSelectionKey=false;
 
 export const raycaster = new THREE.Raycaster();
 export const pointer  = new THREE.Vector2();
+export const suppressPlacement={value:false}
 
 export function onPointerMove(event) {
     pointer .x = (event.clientX / window.innerWidth) * 2 - 1;
@@ -25,40 +26,63 @@ export function intersectsTileMeshes(){
 
 
 export function MouseDownHandling(e) {
-    if(DragSelectionKey){controls.enabled=false}
+    // if(DragSelectionKey){controls.enabled=false}
     if (e.button === 0) {//left click
-        moveableSelected.value={};
+        
         if (InputState.value == 'neutral') {
-            dragStart = { x: e.clientX, y: e.clientY };
-            isDragging = false;
-            InputState.value = 'BoxClickSelection';
+            // console.log("neutral start man");
+            moveableSelected.value={};
+            InputState.value = 'BoxClickSelection'        
+
         }
+        else if(InputState.value == 'Builder'){
+            controls.enabled=true;
+            DragSelectionKey=false
+            // dragStart = { x: e.clientX, y: e.clientY };
+            // isDragging = false;
+        }//DragSelectionKey=false}            
+        dragStart = { x: e.clientX, y: e.clientY };
+        isDragging = false;
+
     }else if(e.button === 2){//right click
         // console.log("right click")
     }   
 }
 
 export function MouseMovingHandling(e) {
-    if (e.button === 0) {//left click
-        if (InputState.value == 'BoxClickSelection' && DragSelectionKey) {
-            
-            
-            const dx = e.clientX - dragStart.x;
-            const dy = e.clientY - dragStart.y;
+    // console.log("InputState.value",InputState.value,DragSelectionKey)
+    if (InputState.value == 'BoxClickSelection' && DragSelectionKey) {
+        // console.log("mouse move drag")
+        
+        const dx = e.clientX - dragStart.x;
+        const dy = e.clientY - dragStart.y;
 
-            if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) {
-                isDragging = true;
-                // draw selection box here
-                console.log("dragging")
-                
-            }else{//hide selection box since it would be small
-                isDragging = false; 
-                console.log("area small, removing drag box")
-            }
+        if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) {
+            isDragging = true;
+            // draw selection box here
+            console.log("dragging")
+            
+        }else{//hide selection box since it would be small
+            isDragging = false; 
+            console.log("area small, removing drag box")
         }
-    }else if(e.button === 2){//right click
-        // console.log("right drag")
     }
+    else if(InputState.value == 'Builder'){
+        // console.log("suppress building placement")
+        const dx = e.clientX - dragStart.x;
+        const dy = e.clientY - dragStart.y;
+
+        if (Math.abs(dx) > 0.3 || Math.abs(dy) > 0.3) {
+            isDragging = true;
+            // draw selection box here
+            // console.log("dragging")
+            
+        }else{//hide selection box since it would be small
+            isDragging = false; 
+            // console.log("area small, removing drag box")
+        }
+    }
+
 }
 
 export function MouseUpHandling(e) {
@@ -96,11 +120,15 @@ export function MouseUpHandling(e) {
                     }
                 }
             }
-            
+            // controls.enabled=true;//back to enabling controls, the default state
+            isDragging = false; //return to false, the neutral state for drag
+            InputState.value = 'neutral';//overall input state
         }
-        controls.enabled=true;//back to enabling controls, the default state
-        isDragging = false; //return to false, the neutral state for drag
-        InputState.value = 'neutral';//overall input state
+        else if(InputState.value == 'Builder' && isDragging){
+            console.log("suppress placement")
+            suppressPlacement.value=true
+        }
+
 
         //note i could probably combine these two variable but cba.. it works rn
     }else if(e.button === 2){//right click
@@ -155,8 +183,12 @@ export function MouseUpHandling(e) {
 //the server then calculates how they should move
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Shift') DragSelectionKey = true;
+  if (e.key === 'Shift') {DragSelectionKey = true;
+    controls.enabled=false
+  }
 });
 document.addEventListener('keyup', (e) => {
-  if (e.key === 'Shift') DragSelectionKey = false;
+  if (e.key === 'Shift'){DragSelectionKey = false;
+    controls.enabled=true
+  }
 });
