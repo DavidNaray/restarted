@@ -9,6 +9,7 @@ import {buildWallSegments} from "./WallPlacementFuncs.js"
 import {superHeightMapTexture} from "./SuperCanvas.js"
 
 let socket;
+var userPoints = [];
 export async function getUserTileData(accessToken){
     try {
         const res = await fetch('/tiles', {
@@ -98,9 +99,9 @@ function HandleSocketResponses(socket){
     socket.on('CanYouPlaceBuilding', async (response) => {
         InputState.value="neutral"
 
-        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-        renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
-        renderer.domElement.removeEventListener( 'click', onclickBuilding );
+        // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        // renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
+        // renderer.domElement.removeEventListener( 'click', onclickBuilding );
         if(response.position){
             console.log("permission to place building: accepted",response)
             const whichTile=globalmanager.getTile(response.position.chunk[0],response.position.chunk[1])
@@ -316,7 +317,7 @@ function HandleSocketResponses(socket){
     })
 
     socket.on('CanYouDeployHere', (response) => {
-        console.log("deplo here?")
+        // console.log("deplo here?")
         InputState.value="neutral"
         // console.log("deploy here?",response)
         if(response.permission){
@@ -1250,6 +1251,14 @@ async function onHoverBuilding(event){
 }
 
 function PlaceBuilding(event){
+    try{
+        userPoints=[]
+        document.removeEventListener('keyup', wallCaseEscape)
+        renderer.domElement.removeEventListener("click", wallCaseClick)
+        requestRenderIfNotRequested();
+        console.log("cleared wallcase")
+    }catch(p){}
+
     InputState.value="Builder"
     //on renderer.domElement so that placement doesnt follow when users mouse is over the overlay
     renderer.domElement.addEventListener( 'pointermove', onHoverBuilding );
@@ -1259,30 +1268,25 @@ function PlaceBuilding(event){
     console.log("BuildingAssetName",BuildingAssetName)
 }
 
+
 function WallCase(wallType){
+    try{
+        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
+        renderer.domElement.removeEventListener( 'click', onclickBuilding );
+        scene.remove(hoveringBuildings.get(BuildingAssetName))
+        requestRenderIfNotRequested();
+        console.log("cleared buildingcases")
+    }catch(p){}
+    BuildingAssetName=wallType
+
     InputState.value="Builder"
     // console.log("wallType",wallType)    
-    const userPoints = [
-    ];
-
-    renderer.domElement.addEventListener("click",(e)=>{
-        // onPointerMove(e)
-        // console.log("hmmm")
-        if(!suppressPlacement.value){
-            
-
-            const intersects = intersectsTileMeshes()
-            const IntersectPoint=intersects[0].point
-            // (chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
-            const chunkX=Math.floor((IntersectPoint.x+3.75)/7.5)
-            const chunkY=Math.floor((IntersectPoint.y+3.75)/7.5)
-            const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
-            console.log("IntersectPoint",IntersectPoint,xyz)
-            userPoints.push(new THREE.Vector3(xyz[0],xyz[1],xyz[2]))
-        }else{suppressPlacement.value=false;}
-    });
 
 
+    renderer.domElement.addEventListener("click", wallCaseClick);
+
+    document.addEventListener('keyup', wallCaseEscape);
 
     // const segments = buildWallSegments(userPoints, 10, 4);
 
@@ -1297,6 +1301,33 @@ function WallCase(wallType){
 
 
 }
+
+function wallCaseClick(){
+    if(!suppressPlacement.value){
+        
+
+        const intersects = intersectsTileMeshes()
+        const IntersectPoint=intersects[0].point
+        // (chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
+        const chunkX=Math.floor((IntersectPoint.x+3.75)/7.5)
+        const chunkY=Math.floor((IntersectPoint.y+3.75)/7.5)
+        const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
+        console.log("IntersectPoint",IntersectPoint,xyz)
+        userPoints.push(new THREE.Vector3(xyz[0],xyz[1],xyz[2]))
+    }else{suppressPlacement.value=false;}
+}
+
+function wallCaseEscape(e){
+    if (e.key === 'Escape'){
+        // DragSelectionKey = false;
+        // controls.enabled=true
+        console.log("poopee")
+        userPoints=[]
+        document.removeEventListener('keyup', wallCaseEscape)
+        document.removeEventListener("click", wallCaseClick)
+    }
+}
+
 //-------------------------------------------------------
 
 let productionInterval = null;
