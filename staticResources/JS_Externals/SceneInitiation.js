@@ -1125,41 +1125,44 @@ var BuildingAssetName;//variable to hold which building is trying to be placed r
 const hoveringBuildings=new Map()
 function onclickBuilding(event){
     // console.log("triggin neutral early?")
-    InputState.value="neutral"
-    // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
-    scene.remove(hoveringBuildings.get(BuildingAssetName))
-    requestRenderIfNotRequested();
-    const intersects = intersectsTileMeshes()
+    if(!suppressPlacement.value){
+        InputState.value="neutral"
+        // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
+        scene.remove(hoveringBuildings.get(BuildingAssetName))
+        requestRenderIfNotRequested();
+        const intersects = intersectsTileMeshes()
 
-    if (intersects.length > 0) {
-        const intersectedMesh = intersects[0].object;
-        const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
+        if (intersects.length > 0) {
+            const intersectedMesh = intersects[0].object;
+            const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
 
-        if (foundTile) {
-            // console.log("Clicked tile:", foundTile.x, foundTile.y);
+            if (foundTile) {
+                // console.log("Clicked tile:", foundTile.x, foundTile.y);
 
-            //find the tile, add the building
+                //find the tile, add the building
 
-            const IntersectPoint=intersects[0].point
-            const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
+                const IntersectPoint=intersects[0].point
+                const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
 
-            const RequestMetaData={
-                "position":processedPoint,
-                "rotation":0,
-                "BuildingType":BuildingAssetName
+                const RequestMetaData={
+                    "position":processedPoint,
+                    "rotation":0,
+                    "BuildingType":BuildingAssetName
+                }
+                //permission is false, or it will be an adjusted position
+                EmitBuildingPlacementRequest(RequestMetaData);//BuildingAssetName,
+
+                // console.log("aight, we got the press",processedPoint)
             }
-            //permission is false, or it will be an adjusted position
-            EmitBuildingPlacementRequest(RequestMetaData);//BuildingAssetName,
-
-            // console.log("aight, we got the press",processedPoint)
         }
-    }
 
-    //this code needs to be moved the response of EmitBuildingPlacementRequest
-    //the user clicked, the building has been placed, remove eventListeners
-    renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-    renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
-    renderer.domElement.removeEventListener( 'click', onclickBuilding );
+        //this code needs to be moved the response of EmitBuildingPlacementRequest
+        //the user clicked, the building has been placed, remove eventListeners
+        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
+        renderer.domElement.removeEventListener( 'click', onclickBuilding );
+    }else{suppressPlacement.value=false;}
+
 }
 
 async function onHoverBuilding(event){
