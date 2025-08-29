@@ -5,11 +5,12 @@ import {makeToolTipTechnology} from "./ResourceTips.js"
 import {adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {OBJECTS} from "./TileClass.js"
-import {buildWallSegments} from "./WallPlacementFuncs.js"
+import {buildWallSegments,trySnapPoint} from "./WallPlacementFuncs.js"
 import {superHeightMapTexture} from "./SuperCanvas.js"
 
 let socket;
 var userPoints = [];
+const previewGroup = new THREE.Group();
 export async function getUserTileData(accessToken){
     try {
         const res = await fetch('/tiles', {
@@ -1255,6 +1256,7 @@ function PlaceBuilding(event){
         userPoints=[]
         document.removeEventListener('keyup', wallCaseEscape)
         renderer.domElement.removeEventListener("click", wallCaseClick)
+        renderer.domElement.removeEventListener("mousemove", wallCaseHover)
         requestRenderIfNotRequested();
         console.log("cleared wallcase")
     }catch(p){}
@@ -1270,6 +1272,11 @@ function PlaceBuilding(event){
 
 
 function WallCase(wallType){
+    previewGroup.clear()
+    if(!previewGroup.parent){
+        scene.add(previewGroup);
+    }
+
     try{
         renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
         renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
@@ -1284,6 +1291,7 @@ function WallCase(wallType){
     // console.log("wallType",wallType)    
 
 
+    renderer.domElement.addEventListener("mousemove", wallCaseHover);
     renderer.domElement.addEventListener("click", wallCaseClick);
 
     document.addEventListener('keyup', wallCaseEscape);
@@ -1302,6 +1310,48 @@ function WallCase(wallType){
 
 }
 
+
+
+function wallCaseHover(event){
+    previewGroup.clear()
+
+    onPointerMove(event)
+    const copyPath=userPoints.slice()
+    // console.log("wallHover",copyPath)
+    const intersects = intersectsTileMeshes()
+    if(intersects.length==0){return}
+    const IntersectPoint=intersects[0].point
+    const chunkX=Math.floor((IntersectPoint.x+3.75)/7.5);const chunkY=Math.floor((IntersectPoint.y+3.75)/7.5)
+    const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
+    
+    let newPoint = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
+
+    if(copyPath.length>2){ 
+        newPoint = trySnapPoint(newPoint, copyPath, 0.1);
+        
+    }
+    copyPath.push(newPoint)//new THREE.Vector3(xyz[0],xyz[1],xyz[2]))
+    if(copyPath.length>1){ 
+
+
+        const segments = buildWallSegments(copyPath, 0.2, 0.1);
+        if(segments.length>0){
+            // console.log("segments",segments)
+            
+            segments.forEach(seg => {
+                const color = new THREE.Color(Math.random(), Math.random(), Math.random());
+                const mat = new THREE.LineBasicMaterial({ color });
+                const geo = new THREE.BufferGeometry().setFromPoints(seg);
+                const line = new THREE.Line(geo, mat);
+                previewGroup.add(line); // put in group instead of scene
+            });
+        }
+        
+    }
+
+    requestRenderIfNotRequested();
+}
+
 function wallCaseClick(){
     if(!suppressPlacement.value){
         
@@ -1312,8 +1362,13 @@ function wallCaseClick(){
         const chunkX=Math.floor((IntersectPoint.x+3.75)/7.5)
         const chunkY=Math.floor((IntersectPoint.y+3.75)/7.5)
         const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
-        console.log("IntersectPoint",IntersectPoint,xyz)
-        userPoints.push(new THREE.Vector3(xyz[0],xyz[1],xyz[2]))
+        // console.log("IntersectPoint",IntersectPoint,xyz)
+        let newPoint = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
+        // userPoints.push(new THREE.Vector3(xyz[0],xyz[1],xyz[2]))
+        if(userPoints.length>2){ 
+            newPoint = trySnapPoint(newPoint, userPoints, 0.1);
+        }
+        userPoints.push(newPoint)
     }else{suppressPlacement.value=false;}
 }
 
@@ -1322,9 +1377,12 @@ function wallCaseEscape(e){
         // DragSelectionKey = false;
         // controls.enabled=true
         console.log("poopee")
+        InputState.value="neutral"
+        previewGroup.clear()
         userPoints=[]
         document.removeEventListener('keyup', wallCaseEscape)
         renderer.domElement.removeEventListener("click", wallCaseClick)
+        renderer.domElement.removeEventListener("mousemove", wallCaseHover)
     }
 }
 
