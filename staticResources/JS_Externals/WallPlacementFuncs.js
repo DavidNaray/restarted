@@ -42,43 +42,50 @@ function segmentLength(seg) {
   return len;
 }
 
-function balanceStraights(straights, x, y) {
-  let changed = true;
-  while (changed) {
-    changed = false;
+export function mergeCornerSegments(segments) {
+  const corners = [];
+  const newSegments = [];
 
-    for (let i = 0; i < straights.length; i++) {
-      const seg = straights[i];
-      const len = segmentLength(seg);
-      if (len < y && straights.length > 1) {
-        const left = i > 0 ? straights[i - 1] : null;
-        const right = i < straights.length - 1 ? straights[i + 1] : null;
+  // split into straights vs corners
+  for (const seg of segments) {
+    if (!seg || seg.length === 0) continue;
+    if (seg.length > 2) {
+      corners.push([...seg]);
+    } else {
+      newSegments.push([...seg]);
+    }
+  }
 
-        let mergeLeftScore = Infinity;
-        let mergeRightScore = Infinity;
+  // helper: check if two polylines share any point
+  function sharesPoint(a, b) {
+    for (const pa of a) {
+      for (const pb of b) {
+        if (pa.equals(pb)) return true;
+      }
+    }
+    return false;
+  }
 
-        if (left) {
-          const newLen = segmentLength(left) + len;
-          mergeLeftScore = Math.abs(x - newLen);
+  // --- merge loop
+  let merged = true;
+  while (merged) {
+    merged = false;
+
+    outer: for (let i = 0; i < corners.length; i++) {
+      for (let j = i + 1; j < corners.length; j++) {
+        if (sharesPoint(corners[i], corners[j])) {
+          // merge j into i
+          corners[i].push(...corners[j]);
+          corners.splice(j, 1);
+          merged = true;
+          break outer;
         }
-        if (right) {
-          const newLen = segmentLength(right) + len;
-          mergeRightScore = Math.abs(x - newLen);
-        }
-
-        if (mergeLeftScore <= mergeRightScore && left) {
-          straights[i - 1] = [left[0], seg[seg.length - 1]];
-          straights.splice(i, 1);
-        } else if (right) {
-          straights[i + 1] = [seg[0], right[right.length - 1]];
-          straights.splice(i, 1);
-        }
-        changed = true;
-        break;
       }
     }
   }
-  return straights;
+
+  // add corners back
+  return [...newSegments, ...corners];
 }
 
 /**
@@ -105,7 +112,7 @@ export function buildWallSegments(points, x, y) {
 
   const dist = computeDistances(cleaned);
   const total = dist[dist.length - 1];
-  const segments = [];
+  var segments = [];
 
   // --- Step 2: split each line into [x/2, x, ..., x/2] without gaps
   const lineSplits = [];
@@ -176,17 +183,7 @@ export function buildWallSegments(points, x, y) {
   if (isClosed) {
     console.log("woo, closed");
 
-    // const firstHead = lineSplits[0][0];
-    // const lastTail = lineSplits[lineSplits.length - 1].slice(-1)[0];
 
-    // // drop the duplicate end cap
-    // segments.pop();
-
-    // // replace the first head with a corner segment
-    // const corner = cleaned[0];
-    // segments[0] = [ lastTail[0], corner, firstHead[1] ];
-
-    // console.log("closing corner:", segments[0]);
     const startFirst = lineSplits[0][0];
     
     const lastTail = lineSplits[lineSplits.length - 1].slice(-1)[0];
@@ -204,46 +201,37 @@ export function buildWallSegments(points, x, y) {
     if (segmentLength(lastTail) >= y) segments.push(lastTail);
   }
 
+
+  segments = mergeCornerSegments(segments);
   return segments;
 }
 
 
 export function trySnapPoint(candidate, existingPoints, snapRadius = 1.0) {
-  if (existingPoints.length < 2) return candidate;
+  if (existingPoints.length < 1) return candidate;
 
   let bestSnap = null;
   let bestDist = Infinity;
 
-  // --- 1. Snap to start or end point
-  const start = existingPoints[0];
-  const end = existingPoints[existingPoints.length - 1];
-
-  const distToStart = candidate.distanceTo(start);
-  if (distToStart < snapRadius && distToStart < bestDist) {
-    bestSnap = start;
-    bestDist = distToStart;
+  // --- 1. Snap to any existing vertex (not just start/end)
+  for (let i = 0; i < existingPoints.length; i++) {
+    const d = candidate.distanceTo(existingPoints[i]);
+    if (d < snapRadius && d < bestDist) {
+      bestSnap = existingPoints[i];
+      bestDist = d;
+    }
   }
 
-  const distToEnd = candidate.distanceTo(end);
-  if (distToEnd < snapRadius && distToEnd < bestDist) {
-    bestSnap = end;
-    bestDist = distToEnd;
-  }
-
-  // --- 2. Snap to mid-segment
+  // --- 2. Snap to mid-segment (only if not at endpoints)
   for (let i = 0; i < existingPoints.length - 1; i++) {
     const a = existingPoints[i];
     const b = existingPoints[i + 1];
-
-    // only valid if this is a straight 2-point segment
-    // (you can later expand if you keep track of "corner segments")
     if (!a || !b) continue;
 
     const closest = closestPointOnSegment(candidate, a, b);
     const d = candidate.distanceTo(closest);
 
     if (d < snapRadius && d < bestDist) {
-      // must actually be between a and b, not just at an endpoint
       if (!closest.equals(a) && !closest.equals(b)) {
         bestSnap = closest;
         bestDist = d;
