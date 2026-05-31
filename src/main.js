@@ -5,26 +5,25 @@ const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
 
 const cookieParser = require('cookie-parser');
-const bcrypt = require('bcrypt');
-const bson = require('bson');
 
-const Coordfinder=require("./modules/NextChunkCoord")
-const genTerrain=require("./modules/TerrainGeneration")
 const userSchemaImport=require("./Schemas/User")
 const TileScheme=require("./Schemas/Tile")
 const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
 const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight,BuildingPlacement}=require("./modules/PlacementValidation.js")
-const {PortalConnectivity}=require("./modules/AbtractMapGeneration.js")
 const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
 const {calculateReward}=require("./modules/RewardCalculating.js")
-const {convertMapToMongoDoc,toCachedUser}=require("./modules/MongoAbstractConversions.js")
 const {updatePixelLocAndOcc,ProgressOrders}=require("./modules/PathfindingFunctionality.js")
 const {getTheMessage,killEntry}=require("./modules/TickMessages.js")
+
+const {HandleReg}=require("./modules/RegistrationLogin/HandleReg.js")
+const {HandleLogin}=require("./modules/RegistrationLogin/HandleLogin.js")
+
+
 const ChunkManager=require("./modules/CacheChunkInfo.js")
 const MovementOrderClass=require("./modules/MovementOrderClass.js")
-// console.log(ChunkManager,"?")
+
 
 const mongoose = require('mongoose');
 const { Console } = require('console');
@@ -33,9 +32,6 @@ mongoose.connect(mongoDB).then(()=>{console.log("successfully connected to mongo
 
 const User = mongoose.model('User', userSchemaImport)
 const TemplateScheme = mongoose.model('Templates', TemplateSchemaImport)
-// const TileScheme = mongoose.model('Tiles', TileSchemaImport)
-
-// module.exports={TileScheme};
 
 function getTodayDateString() {
   const now = new Date();
@@ -53,9 +49,8 @@ const io = new Server(
         }
     }
 );
-server.listen(PORT,()=>{
-    console.log("listening to port 5000")
-})
+
+server.listen(PORT,()=>{console.log("listening to port 5000")})
 
 app.use(express.static("./staticResources"))
 app.use(express.static("./staticResources/JS_Externals"))
@@ -63,173 +58,61 @@ app.use(cookieParser());
 app.use(express.json()); // <-- This must come BEFORE your POST route handlers
 
 app.get("/homepage",(req,res)=>{
-    //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
-    //any errors in the future, potentially use path.resolve
     res.status(200).sendFile(path.join(__dirname,'../sitePages/Homepage.html'))
 })
 
 app.get("/play",(req,res)=>{
-    //if i want to access index through sitePages, when commented out, if index.html in staticResources, gets it from there
-    //any errors in the future, potentially use path.resolve
     res.status(200).sendFile(path.join(__dirname,'../sitePages/index.html'))
 })
 
 app.post('/Register-user', async (req, res) => {
   const { username,password } = req.body;
 
-  try {
-    const existingUser = await User.findOne({ username });
-    if (existingUser) {
-        console.log("Username already exists, preventing spam reg?:", username);
-        return res.status(400).json({ success: false, message: 'Username already exists' });
-    }
-    
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
+  const toReturn=await HandleReg(ChunkManager,User,username,password);
 
-    const user = new User({ username, passwordHash });
-
-    // Create a JWT token with payload identifying the user
-    // RefreshTokenImport,AccessTokenImport
-    const accessToken = AccessTokenImport(user)//jwt.sign({ username: user.username }, ACCESS_TOKEN_SECRET, { expiresIn: '15m' });
-    const refreshToken = RefreshTokenImport(user)//jwt.sign({ username: user.username }, REFRESH_TOKEN_SECRET);
-
-    // Save refreshToken to user in DB (optional)
-    user.refreshTokens.push(refreshToken);
-
-    //run the terrain generation function with the coords
-    const pos=Coordfinder.GiveMeNextCoordAndSetState()
-    const chunkX=pos[0];const chunkY=pos[1];
-
-    user.OriginTile=[chunkX,chunkY]
-    try{
-        await user.save();
-
-
-        
-        const UserToCache = await User.findOne({ username });
-        // await ChunkManager.RegisterUser(UserToCache._id.toString(),UserToCache)
-        const UserToCacheConverted = await toCachedUser(UserToCache)
-        await ChunkManager.RegisterUser(UserToCacheConverted.id,UserToCacheConverted)
-
-
-        // === Create Tile ===
-        const defaultHeightmapURL = './Tiles/HeightMaps/00.png';
-        const defaultTexturemapURL = './Tiles/TextureMaps/00.png';
-        const defaultWalkmapURL = './Tiles/WalkMaps/00.png';
-        await genTerrain.generateHeightmap(chunkX,chunkY)//function that creates terrain
-
-        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+chunkX.toString()+chunkY.toString()+".png"
-
-        var abstractMapForTile;
-        try{abstractMapForTile=await PortalConnectivity(WalkMapLocation)//,true)
-        }catch(eb){console.log("Error in abstract map generation:", eb);}
-        
-        
-        // const B_TownHall={
-        //     "userId":user._id,
-        //     "assetId": "DATC",
-        //     "instances":[{
-        //         "position":[0,0,0],
-        //         "metaData":{
-        //             "health":100,
-        //             "state":"Built"
-        //         }
-        //     }]
-        // }
-        const tile = new TileScheme({
-            x:chunkX,
-            y:chunkY,
-            owner: user._id,
-            allies: [],
-            involvedUsers: [],
-            // AbstractMap:convertMapToMongoDoc(abstractMapForTile),
-            textures:{
-                heightmapUrl: './Tiles/HeightMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultHeightmapURL,
-                texturemapUrl: './Tiles/TextureMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultTexturemapURL,
-                WalkMapURL: './Tiles/WalkMaps/'+chunkX.toString()+chunkY.toString()+'.png' || defaultWalkmapURL,
-            },
-            units: [],
-            buildings: []//B_TownHall
-        });
-
-        try {
-            if(abstractMapForTile){
-                const abstractMapDoc= convertMapToMongoDoc(abstractMapForTile);
-                const doc = { AbstractMap: abstractMapDoc };
-
-                const size = bson.calculateObjectSize(doc);
-                
-                console.log('Mongo document size in bytes:', size);
-
-                tile.AbstractMap=abstractMapDoc;
-                tile.markModified('AbstractMap');
-            }
-
-            await tile.save();
-            console.log("✅ Tile saved successfully");
-        } catch (err) {
-            console.error("❌ Tile save failed:", err);
-        }
-        res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
-        res.json({ accessToken,user, success: true, message: 'User recognised'});
-
-    } catch (err) {
-        console.log("Error saving user:", err);
-        return res.status(400).json({ success: false, message: "Username already exists" });
-    }
-
-    console.log("ITS ON REGISTER MAN!!")
-
-    
-    
-    
-
-
-
-    
-  } catch (err) {
+  if(toReturn =="ServerFail"){
     res.status(500).json({ success: false, message: "server failure" });
   }
+  else if(toReturn =="ExistsUser"){
+    return res.status(400).json({ success: false, message: 'Username already exists' });
+  }
+  else{
+    const AccessToken=toReturn["AT"];
+    const RefreshToken=toReturn["RT"];
+    const user=toReturn["user"];
+    res.cookie('refreshToken', RefreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' });
+    res.json({ AccessToken ,user, success: true, message: 'User recognised'});
+  }
 });
+
 app.post('/Login-user', async (req, res) => {
   const { username,password } = req.body;
 
-  try {
-    const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'User not found' });
-    }
+  const toReturn=await HandleLogin(ChunkManager,User,username,password);
 
-    const passwordMatch = bcrypt.compare(password, user.passwordHash);
-    if (!passwordMatch) {
-      return res.status(400).json({ success: false, message: 'Incorrect password' });
-    }
-    
-    // Create a JWT token with payload identifying the user
-    const accessToken = AccessTokenImport(user)
-    const refreshToken = RefreshTokenImport(user)
-
-    // Save refreshToken to user in DB (optional)
-    user.refreshTokens.push(refreshToken);
-    await user.save();
-    
-    const UserToCache = await User.findOne({ username });
-    const UserToCacheConverted = await toCachedUser(UserToCache)
-    await ChunkManager.RegisterUser(UserToCacheConverted.id,UserToCacheConverted)
-
-    console.log("WE LOGGIN IN  MAN!!")
-    res.cookie('refreshToken', refreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' }); // if HTTPS
-    res.json({ accessToken,user, success: true, message: 'User recognised'});
-  } catch (err) {
-
+  if(toReturn == "NoUser"){
+    return res.status(400).json({ success: false, message: 'User not found' });
+  }
+  else if(toReturn =="WrongPass"){
+    return res.status(400).json({ success: false, message: 'Incorrect password' });
+  }
+  else if(toReturn =="ServerFail"){
     res.status(500).json({ success: false, message: 'Server error' });
   }
+  else{
+    const AccessToken=toReturn["AT"];
+    const RefreshToken=toReturn["RT"];
+    const user=toReturn["user"];
+    res.cookie('refreshToken', RefreshToken, { httpOnly: true, secure: true, sameSite: 'Strict' });
+    res.json({ AccessToken ,user, success: true, message: 'User recognised'});
+  }
+
 });
 
 // refresh token route
 app.post('/token', async (req, res) => {
-    // console.log(req.cookies.refreshToken,"COME ON REFRESH TOKENNNNN")
+
+
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken){
         return res.status(401).json({ message: "No refresh token provided" });
@@ -256,10 +139,6 @@ app.post('/token', async (req, res) => {
 
 app.get('/tiles', authenticateTokenImport, async (req, res) => {//authenticateToken
   try {
-    // const today = getTodayDateString();
-    // var rewardrequest = false;
-
-    // console.log("tiles id",req.user.id)
     const user = await User.findOne({ _id: req.user.id });
     // console.log(user)
     if (!user) return res.status(404).json({ message: "User not found" });
@@ -856,7 +735,6 @@ io.on('connection', (socket) => {
     socket.on('testing',async () => {//relevant to seeing if the abstractMap code worked
         // const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+"0"+"0"+".png"
         socket.emit('testingResponse', "hello");
-        // PortalConnectivity(WalkMapLocation)
     });
 
     socket.on('DeployAllUnits',async ({RequestMetaData}) => {
