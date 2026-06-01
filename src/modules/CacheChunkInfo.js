@@ -14,42 +14,34 @@ class GlobalChunkManager {
         }
         // return 
     }
-    async RegisterChunk(tiles,userId){
-        const returnDict={
-            "owner":[],
-            "allies":[],
-            "involvedUsers":[],
-            "Neighbours":[]
-        }
-        for (const [key, value] of Object.entries(tiles)) {
-            for(const tile of value){
-                if(this.getTile(tile.x,tile.y)){
-                    await addUserToTileWatch(`${tile.x},${tile.y}`,userId)
-                    returnDict[key].push(this.getTile(tile.x,tile.y))
-                    continue;
-                }
-                const tileDict={
-                    x:tile.x,
-                    y:tile.y,
-                    freeIndices:tile.freeIndices,
-                    topIndice:tile.topIndice,
-                    owner:tile.owner,
-                    allies:tile.allies,
-                    involvedUsers:tile.involvedUsers,
-                    AbstractMap:tile.AbstractMap,
-                    textures:tile.textures,
-                    units:tile.units,
-                    buildings:tile.buildings,
-                    updatedAt:tile.updatedAt,
-                    _id:tile._id,
-                }
-                this.tiles.set(`${tile.x},${tile.y}`,tileDict)
-                returnDict[key].push(tileDict)
-                await updateOccupancyMap(tile,userId)
+
+    async RegisterTile(tile,userId){
+        var tileDict=this.getTile(tile.x,tile.y);
+
+        if(!tileDict){
+            tileDict={
+                x:tile.x,
+                y:tile.y,
+                freeIndices:tile.freeIndices,
+                topIndice:tile.topIndice,
+                owner:tile.owner,
+                allies:tile.allies,
+                involvedUsers:tile.involvedUsers,
+                AbstractMap:tile.AbstractMap,
+                textures:tile.textures,
+                units:tile.units,
+                buildings:tile.buildings,
+                updatedAt:tile.updatedAt,
+                _id:tile._id,
             }
+            this.tiles.set(`${tile.x},${tile.y}`,tileDict)
         }
-        return returnDict;
+        
+        await addUserToTileWatch(`${tile.x},${tile.y}`,userId)
+        return tileDict;
     }
+
+
 
     async RegisterUser(userId,user){
         console.log("Registering user:",userId);

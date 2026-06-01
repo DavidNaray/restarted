@@ -153,7 +153,12 @@ async function getUserIdArrayForTile(tilekey){
 }
 
 async function addUserToTileWatch(tilekey,userId){
-    UsersSeeingTileMap.get(tilekey).push(userId);
+    if(UsersSeeingTileMap.get(tilekey)){
+        UsersSeeingTileMap.get(tilekey).push(userId);
+    }else{
+        UsersSeeingTileMap.set(tilekey,[userId])
+    }
+        
 }
 
 async function getPixelLocationsForTile(tileKey){

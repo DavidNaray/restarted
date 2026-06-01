@@ -7,7 +7,6 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 
 const userSchemaImport=require("./Schemas/User")
-const TileScheme=require("./Schemas/Tile")
 const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
@@ -19,6 +18,7 @@ const {getTheMessage,killEntry}=require("./modules/TickMessages.js")
 
 const {HandleReg}=require("./modules/RegistrationLogin/HandleReg.js")
 const {HandleLogin}=require("./modules/RegistrationLogin/HandleLogin.js")
+const {HandleTiles}=require("./modules/TilesAndTextures/HandleTiles.js")
 
 
 const ChunkManager=require("./modules/CacheChunkInfo.js")
@@ -138,66 +138,23 @@ app.post('/token', async (req, res) => {
 
 
 app.get('/tiles', authenticateTokenImport, async (req, res) => {//authenticateToken
-  try {
-    const user = await User.findOne({ _id: req.user.id });
-    // console.log(user)
-    if (!user) return res.status(404).json({ message: "User not found" });
 
-    // if (user.lastClaimDate !== today) {rewardrequest = true;}
+    const Returned=await HandleTiles(User,ChunkManager,req.user.id);
 
-    const tiles = {
-        "owner":await TileScheme.find({ owner: user._id }),
-        "allies":await TileScheme.find({ allies: user._id }),
-        "involvedUsers":await TileScheme.find({ involvedUsers: user._id })
-    }
-    // Set of all known tile keys
-    const knownTilesSet = new Set();
-    for (const category of Object.values(tiles)) {
-        for (const tile of category) {
-            knownTilesSet.add(`${tile.x},${tile.y}`);
-        }
-    }
-    const deltas = [
-        [-1, 0], [1, 0],
-        [0, -1], [0, 1],
-        [-1, -1], [-1, 1],
-        [1, -1], [1, 1],
-    ];
-
-    // Find perimeter neighbors
-    const neighborCoords = new Set();
-    for (const category of Object.values(tiles)) {
-        for (const tile of category) {
-            for (const [dx, dy] of deltas) {
-                const nx = tile.x + dx;
-                const ny = tile.y + dy;
-                const key = `${nx},${ny}`;
-                if (!knownTilesSet.has(key)) {//so if you dont find the 'neighbour' key in keys that are interacted by user
-                    neighborCoords.add(key);
-                }
-            }
-        }
+    if(Returned=="NoUser"){
+        res.status(404).json({ message: "User not found" });
     }
 
-
-    // Fetch the actual tile documents for these perimeter tiles
-    const neighborsTiles = await TileScheme.find({
-        $or: [...neighborCoords].map(coord => {
-            const [x, y] = coord.split(',').map(Number);
-            return { x, y };
-        })
-    });
-    tiles["Neighbours"]=neighborsTiles
+    else if(Returned=="ERRORTiles"){
+        res.status(500).json({ success: false, message: 'Failed to fetch tiles' })
+    }
     
-    // await updateOccupancyMap(tiles,user._id.toString())
+    else{
+        const ogTile=Returned["OGTile"]
+        const returnDict=Returned["returnDict"]
+        res.json({ success: true, tiles: returnDict,OriginTile:ogTile});
+    }
 
-    //pass tiles into ChunkManager registration, itll spit out the json of those tiles
-    const returnDict=await ChunkManager.RegisterChunk(tiles,user._id.toString())
-    // console.log(user.OriginTile,"OriginTile")
-    res.json({ success: true, tiles: returnDict,OriginTile:user.OriginTile});
-  } catch (err) {
-    res.status(500).json({ success: false, message: 'Failed to fetch tiles' });
-  }
 });
 
 
@@ -747,7 +704,6 @@ io.on('connection', (socket) => {
         const chunkX=values.chunkCoords[0]
         const chunkY=values.chunkCoords[1]
 
-        // const tile = await TileScheme.findOne({x: chunkX,y: chunkY});
         const tile = await ChunkManager.getTile(chunkX,chunkY);
         
         // var tileFreeIndices=tile.freeIndices
