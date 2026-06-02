@@ -58,6 +58,7 @@ const tileSchema = new mongoose.Schema({
                     health: Number,
                     state: String,// e.g., "idle", "moving", "attacking"
                     position: [Number], // [x, y]
+                    UnitType: String,
                 }),default:{}
             }
         }),default:{}

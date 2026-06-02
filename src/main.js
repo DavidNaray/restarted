@@ -10,16 +10,17 @@ const userSchemaImport=require("./Schemas/User")
 const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
-const {PointPlacementVerification,IdentifySpecificChunkPoint,SharpImgBuildingPlacementVerification,getPosWithHeight,BuildingPlacement}=require("./modules/PlacementValidation.js")
+const {SharpImgBuildingPlacementVerification,getPosWithHeight,BuildingPlacement}=require("./modules/PlacementValidation.js")
 const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
 const {calculateReward}=require("./modules/RewardCalculating.js")
-const {updatePixelLocAndOcc,ProgressOrders}=require("./modules/PathfindingFunctionality.js")
+const {updatePixelLocAndOcc}=require("./modules/PathfindingFunctionality.js")
 const {getTheMessage,killEntry}=require("./modules/TickMessages.js")
 
 const {HandleReg}=require("./modules/RegistrationLogin/HandleReg.js")
 const {HandleLogin}=require("./modules/RegistrationLogin/HandleLogin.js")
 const {HandleTiles}=require("./modules/TilesAndTextures/HandleTiles.js")
-
+const {validateclickedPoint,SpecificChunkPoint}=require("./modules/Verification/Positioning.js")
+const {ProgressOrders}=require("./modules/UnitsAndMovement/OrderTracking.js")
 
 const ChunkManager=require("./modules/CacheChunkInfo.js")
 const MovementOrderClass=require("./modules/MovementOrderClass.js")
@@ -167,51 +168,24 @@ app.get('/Tiles/TextureMaps/{*any}',authenticateTokenImport,async (req, res) => 
 
 app.get('/Tiles/HeightMaps/{*any}', authenticateTokenImport, async (req, res) => {
     const filePath = req.params; // captures everything after /Tiles/TextureMaps/
-    // console.log('Requested file:', filePath);
     res.status(200).sendFile(path.join(__dirname,'../Tiles/HeightMaps',filePath.any[0]))
-    // const fullPath = path.join(__dirname, 'Tiles/TextureMaps', filePath);
-
-    // res.sendFile(fullPath, err => {
-    //     if (err) {
-    //         console.error(err);
-    //         res.status(404).send('File not found');
-    //     }
-    // });
 });
 
 app.get('/Tiles/WalkMaps/{*any}',authenticateTokenImport, async(req, res) => {
     const filePath = req.params; // captures everything after /Tiles/TextureMaps/
-    // console.log('Requested file:', filePath);
-    res.status(200).sendFile(path.join(__dirname,'../Tiles/WalkMaps',filePath.any[0]))
-    // const fullPath = path.join(__dirname, 'Tiles/TextureMaps', filePath);
 
-    // res.sendFile(fullPath, err => {
-    //     if (err) {
-    //         console.error(err);
-    //         res.status(404).send('File not found');
-    //     }
-    // });
+    res.status(200).sendFile(path.join(__dirname,'../Tiles/WalkMaps',filePath.any[0]))
 });
 
 app.get('/Assets/Asset_Masks/{*any}',authenticateTokenImport, async(req, res) => {
     const filePath = req.params; // captures everything after /Tiles/TextureMaps/
-    // console.log('Requested file:', filePath);
-    console.log("ima trying to get a mask rn")
-    res.status(200).sendFile(path.join(__dirname,'../Assets/Asset_Masks',filePath.any[0]))
-    // const fullPath = path.join(__dirname, 'Tiles/TextureMaps', filePath);
 
-    // res.sendFile(fullPath, err => {
-    //     if (err) {
-    //         console.error(err);
-    //         res.status(404).send('File not found');
-    //     }
-    // });
+    res.status(200).sendFile(path.join(__dirname,'../Assets/Asset_Masks',filePath.any[0]))
+
 });
 
-app.get('/Assets/GLB_Exports/{*any}',authenticateTokenImport, async(req, res) => {
+app.get('/Assets/GLB_Exports/{*any}', async(req, res) => {
     const filePath = req.params; // captures everything after /Tiles/TextureMaps/
-    // console.log('Requested file:', filePath);
-    // res.status(200).sendFile(path.join(__dirname,'Tiles/HeightMaps',filePath.any[0]))
 
     res.sendFile(path.resolve(__dirname,'../Assets/GLB_Exports',filePath.any[0]))
 
@@ -587,7 +561,7 @@ io.on('connection', (socket) => {
                 console.log(`No user found for playerId: ${socket.userId}`);
                 return;
             }
-            const values=await IdentifySpecificChunkPoint(user.OriginTile,RequestMetaData.position)
+            const values= SpecificChunkPoint(user.OriginTile,RequestMetaData.position)
             
             const buildingToPlace=RequestMetaData.BuildingType
             const Rotation=RequestMetaData.rotation
@@ -662,30 +636,28 @@ io.on('connection', (socket) => {
         const userId=socket.userId
         const passIn=RequestMetaData.position//need to localise for the tile
         
-        const TheUser = await ChunkManager.getUser(userId)//User.findOne({ _id: userId });
-        console.log(TheUser.OriginTile,"OriginTile")
-        const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,passIn)
-        // console.log("wonder what ill get",values.chunkCoords,values.pixelCoords)
-        
-        const tileX=values.chunkCoords[0]
-        const tileY=values.chunkCoords[1]
-        const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+tileX+tileY+".png"
+        const TheUser = await ChunkManager.getUser(userId)
 
-        const permission=await PointPlacementVerification(values.pixelCoords,WalkMapLocation)
-        // console.log("new confirm func",permission,WalkMapLocation)
+        const values= SpecificChunkPoint(TheUser.OriginTile,passIn);
+        const response= validateclickedPoint(values.pixelCoords,values.chunkCoords)
 
-        var position;
-        if(permission){
+        if(response=="ValidPoint"){
+            const tileX=values.chunkCoords[0]
+            const tileY=values.chunkCoords[1]
             const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
-            position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
+
+            const position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
+
             const responseObject={
-                "permission":permission,
+                "permission":true,
                 "position":position,
                 "tile":values.chunkCoords,
                 "owner":userId,
             }
             socket.emit('CanYouDeployHere', responseObject);
-        }else{socket.emit('CanYouDeployHere', {"permission":permission});}
+        }
+        else{socket.emit('CanYouDeployHere', {"permission":false});}
+
 
     })
 
@@ -697,43 +669,40 @@ io.on('connection', (socket) => {
     socket.on('DeployAllUnits',async ({RequestMetaData}) => {
         const userId=socket.userId
         var chosenServerIndices=[];
+        const UnitType=RequestMetaData.UnitType;
         
-        // const TheUser = await User.findOne({ _id: userId });
         const TheUser = await ChunkManager.getUser(userId)
-        const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,RequestMetaData.DeployPosition)
+        const values= SpecificChunkPoint(TheUser.OriginTile,RequestMetaData.DeployPosition);
+
         const chunkX=values.chunkCoords[0]
         const chunkY=values.chunkCoords[1]
-
         const tile = await ChunkManager.getTile(chunkX,chunkY);
-        
-        // var tileFreeIndices=tile.freeIndices
-        // var TileTopIndice=tile.topIndice
-        // const compositeKey=`${userId},${RequestMetaData.UnitType}`
+        const tileKey=`${chunkX},${chunkY}`
         
         for(let i=0;i<RequestMetaData.UnitCount;i++){
             if(tile.freeIndices.length>0){
-                // console.log(tileFreeIndices,"FREE INDICES!")
                 const freeIndice=tile.freeIndices.shift().toString();//pops first element in array
 
-                updatePixelLocAndOcc(chunkX,chunkY,freeIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
+                // updatePixelLocAndOcc(chunkX,chunkY,freeIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
+                
+                ChunkManager.AddUnitToTile(tileKey,values.pixelCoords,freeIndice,userId,UnitType,null)
 
                 //add to chosenServerIndices to notify user of development
                 chosenServerIndices.push(freeIndice)
             }else{
 
-                updatePixelLocAndOcc(chunkX,chunkY,tile.topIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
+                // updatePixelLocAndOcc(chunkX,chunkY,tile.topIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
+                
                 //add to chosenServerIndices to notify user of development
+                ChunkManager.AddUnitToTile(tileKey,values.pixelCoords,tile.topIndice,userId,UnitType,null)
                 chosenServerIndices.push(tile.topIndice)
+                
                 tile.topIndice+=1
             }
                  
         }
-        // tile.freeIndices=tileFreeIndices
-        // tile.topIndice=TileTopIndice
-        // tile.save()
-        // console.log("chosen....",chosenServerIndices)
 
-        // console.log("deploying units in pixel",values.pixelCoords)
+        // console.log("deploying units in pixel",chosenServerIndices,values.pixelCoords)
         const responseObject={
             "AssetClass":"Unit",
             "position":values.pixelCoords,//RequestMetaData.DeployPosition,
@@ -747,34 +716,33 @@ io.on('connection', (socket) => {
     });
 
     socket.on('MovementCommand',async ({RequestMetaData}) => {
-        // console.log(RequestMetaData)//.SelectedUnits.Unit)
         const userId=socket.userId
-        const TheUser = await ChunkManager.getUser(userId)//await User.findOne({ _id: userId });
-        
+        const TheUser = await ChunkManager.getUser(userId)
+        // console.log("TheUser",TheUser)
         const destinationPoint=RequestMetaData.position
-        const TargetTileXY=RequestMetaData.TargetTile
         const UserIdCommandee=RequestMetaData.userOwner
         const selectedUnits=RequestMetaData.SelectedUnits
-        // console.log("selectedUnits",selectedUnits["Unit"])
-        //need to verify that the RequestMetaData.UserOwner (one commanding) shares Id of owner of unit of serverID
-        // const response=await validateUnitOwnership(selectedUnits,UserIdCommandee)
-        const CHEATER=await validateUnitOwnershipTwo(selectedUnits["Unit"],UserIdCommandee)
-        // const CHEATER=response
-        // const originTiles=response[1]
+
+        //units that are actually moveable
+        //chunkID -> unitType -> serverIds -> []
+        const ActualUnits=selectedUnits["Unit"]
+
+        // const CHEATER=await validateUnitOwnershipTwo(selectedUnits["Unit"],UserIdCommandee)
+
+        // if(CHEATER){
+        //     //perform kicking and ban basically, manipulating info is egregious offense
+        // }
         
-        if(CHEATER){
-            //perform kicking and ban basically, manipulating info is egregious offense
+        const Values= SpecificChunkPoint(TheUser.OriginTile,destinationPoint);
+
+        const response= validateclickedPoint(Values.pixelCoords,Values.chunkCoords)
+        if(response=="ValidPoint"){
+            // console.log("userId",userId)
+            const obj=new MovementOrderClass(ActualUnits,Values,userId)
+            await obj.orderSetup();
         }
-        //otherwise yay continue
 
-        //the only thing valid is Unit assetClass so youre literally passing in
-        // console.log(selectedUnits["Unit"],"pass in object")
-        //of form tile->{unittype ->{serverIds:[] }}
-
-
-        const values=await IdentifySpecificChunkPoint(TheUser.OriginTile,destinationPoint)
         
-        new MovementOrderClass(selectedUnits["Unit"],values.pixelCoords,values.chunkCoords,userId)
         // await newOrder.calculateMedian();
         // const cheapestPortal=await newOrder.getClosestAccessiblePortal()
         // console.log("huh?", cheapestPortal)

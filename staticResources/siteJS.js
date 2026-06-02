@@ -49,8 +49,9 @@ function sceneSetup(SetupInformation){
     //--------------------------------------------
 
     camera = new THREE.PerspectiveCamera( 75, renderer.domElement.width / renderer.domElement.height, 0.1, 10000 );//window.innerWidth / window.innerHeight
-    camera.position.z = 5;
-    camera.position.y = 1;
+    camera.position.z = OriginTile[0]//5;
+    camera.position.x = OriginTile[1]
+    camera.position.y = 2//OriginTile[1]//1;
     camera.lookAt(new THREE.Vector3(0,0,0))
     
     controls = new OrbitControls( camera, renderer.domElement );
@@ -100,6 +101,8 @@ function sceneSetup(SetupInformation){
     }
 
 }
+
+
 
 function render(){
     renderRequested = false;

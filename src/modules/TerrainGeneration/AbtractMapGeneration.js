@@ -1,18 +1,17 @@
 const sharp = require('sharp');
-const {MinHeap,PriorityQueue}=require("./MinH_PQ.js")
-const ChunkManager=require("./CacheChunkInfo.js")
-const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
-const {getDataOfTile}=require("./PathfindingFunctionality.js")
+const {MinHeap,PriorityQueue}=require("../Pathfinding/MinH_PQ.js")
+const ChunkManager=require("../CacheChunkInfo.js")
+const {convertMongoPortalGraphToMap}=require("../MongoAbstractConversions.js")
 
-const walkMapWidth=1536//512*3
-const walkMapHeight=1536//512*3
+const {combineSegments,extractRegion}=require("./ImageStitching.js")
+
 
 // Scale and position setup
 const worldTileSize = 7.5;//7.5; // world units → corresponds to full width/height of walkMap
 
 const subgridSize=32;
 
-async function generatePortalMap(Imglocation,debug=false) {
+async function generatePortalMap(Imglocation,debug) {
     const { data, info } = await sharp(Imglocation)
         .ensureAlpha()
         .raw()
@@ -28,12 +27,8 @@ async function generatePortalMap(Imglocation,debug=false) {
         const index = (y * info.width + x) * 4;
         const r = data[index], g = data[index + 1], b = data[index + 2];
 
-        
         const isWhite = r > 240 && g > 240 && b > 240;   // near white
         const isYellow = r > 240 && g > 240 && b < 15;   // near yellow
-        // if(isYellow){
-        //     console.log("seeing yellow!!!")
-        // }
         return isWhite || isYellow;
     }
 
@@ -116,13 +111,13 @@ async function generatePortalMap(Imglocation,debug=false) {
                 });
                 
                 // If debug mode, paint this pixel orange
-                // if (debug) {
-                //     const idxRGBA = (avgY * info.width + avgX) * 4;
-                //     data[idxRGBA] = 255;     // R
-                //     data[idxRGBA + 1] = 165; // G
-                //     data[idxRGBA + 2] = 0;   // B
-                //     data[idxRGBA + 3] = 255; // A
-                // }
+                if (debug) {
+                    const idxRGBA = (avgY * info.width + avgX) * 4;
+                    data[idxRGBA] = 255;     // R
+                    data[idxRGBA + 1] = 165; // G
+                    data[idxRGBA + 2] = 0;   // B
+                    data[idxRGBA + 3] = 255; // A
+                }
             }
         }
 
@@ -141,13 +136,13 @@ async function generatePortalMap(Imglocation,debug=false) {
         }
     }
 
-    // if (debug) {
-    //     console.log("?,should be oing something",Imglocation)
-    //     await sharp(data, {
-    //         raw: { width: info.width, height: info.height, channels: 4 }
-    //     })
-    //     .toFile(Imglocation); // overwrite original image
-    // }
+    if (debug) {
+        console.log("?,should be oing something",Imglocation)
+        await sharp(data, {
+            raw: { width: info.width, height: info.height, channels: 4 }
+        })
+        .toFile(Imglocation); // overwrite original image
+    }
 
     return [portalMap, data,debug];
 }
@@ -199,70 +194,6 @@ async function addEdgeToAbstractGraph(abstractMap,subgrid,start, end, cost,subgr
     //     abstractMap.set(start,valueSet)
     // }
 
-}
-
-async function extractRegion(rawData, channels, x, y, width, height) {
-//   const region = new Uint8Array(width * height * channels);
-
-//   for (let row = 0; row < height; row++) {
-//     const srcStart = ((y + row) * walkMapWidth + x) * channels;
-//     const srcEnd = srcStart + width * channels;
-
-//     const dstStart = row * width * channels;
-
-//     region.set(rawData.subarray(srcStart, srcEnd), dstStart);
-//   }
-
-//   return region;
-    const region = Buffer.alloc(width * height * channels);
-
-    for (let row = 0; row < height; row++) {
-        const srcStart = ((y + row) * walkMapWidth + x) * channels;
-        const srcEnd = srcStart + width * channels;
-        const dstStart = row * width * channels;
-
-        rawData.copy(region, dstStart, srcStart, srcEnd);
-    }
-
-    return region;
-}
-
-async function combineSegments(bufA, bufB, posA, posB) {
-    // posA and posB are the WORLD coords of the top-left corner of each buffer in pixels
-    const SUBGRID_SIZE = 32;
-
-    const minX = Math.min(posA.x, posB.x);
-    const minY = Math.min(posA.y, posB.y);
-
-    const maxX = Math.max(posA.x, posB.x);
-    const maxY = Math.max(posA.y, posB.y);
-
-    const width  = 32+(maxX - minX);
-    const height = 32+(maxY - minY);
-    // console.log(width,height,"?")
-    const combined = Buffer.alloc(width * height * 4, 0);
-
-    function copyBuffer(src, srcW, srcH, destX, destY) {
-        for (let y = 0; y < srcH; y++) {
-            const srcOffset = y * srcW * 4;
-            const destOffset = ((destY + y) * width + destX) * 4;
-            combined.set(src.subarray(srcOffset, srcOffset + srcW * 4), destOffset);
-        }
-    }
-
-    // Place each buffer at correct position relative to minX/minY
-    
-    // console.log(posA.x - minX, posA.y - minY)
-    // console.log(posB.x - minX, posB.y - minY)
-    copyBuffer(bufA, 32, 32, posA.x - minX, posA.y - minY);
-    copyBuffer(bufB, 32, 32, posB.x - minX, posB.y - minY);
-
-    return {
-        buffer: combined,
-        origin: { x: minX, y: minY },
-        width,
-        height
-    };
 }
 
 async function AstarPathCost(rawData, startPixel, goalPixel, segmentOrigin, segmentWidth, segmentHeight, flag = false) {
@@ -372,6 +303,7 @@ async function AstarPathCost(rawData, startPixel, goalPixel, segmentOrigin, segm
 
     return flag ? { cost: Infinity, path: [] } : Infinity;
 }
+
 //now to build the connectivity of portals within a subsection
 async function PortalConnectivity(Imglocation,debug=false){
 
@@ -502,10 +434,6 @@ async function PortalConnectivity(Imglocation,debug=false){
                 }
             }
         }
-        // if(portals.length==0){
-        //     // console.log("damn, no portals ig",subgridKey)
-
-        // }
         
     }
     if(debug){
@@ -1120,16 +1048,6 @@ async function abstractMapAstarMultiTileCapable(start, goal, startChunkAbstractM
             tileData=tileData.get("buffer")
             if(!tileData){continue;}
 
-            // console.log(tileData,"bruh please")
-            // Assume tileData has: data (buffer), width, height
-
-            // if (!isWalkableInData(tileData, 32, 32, (neighPX - 32*subgridX), (neighPY - 32*subgridY) )) {
-            //     // Portal pixel not walkable - skip this neighbor
-            //     console.log("hmmm.....")
-            //     continue;
-            // }
-
-            // console.log("gets down here")
             const tentativeG = currentG + cost;
             if (!gScore.has(neighborKey) || tentativeG < gScore.get(neighborKey)) {
                 // console.log("even into the boom")

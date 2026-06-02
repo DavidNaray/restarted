@@ -117,6 +117,7 @@ export class Tile{
         // })
         // .catch(err => {console.error('Texture load error:', err);});
     }
+    
     BuildTileBase(){
         // if (this.heightmap && this.texture) {
 

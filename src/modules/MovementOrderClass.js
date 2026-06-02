@@ -1,17 +1,20 @@
-const {addMovementOrder,getPixelLocationsForTile,getDataOfTile,getUserIdArrayForTile,removeMovementOrder,updatePixelLocAndOcc}=require("./PathfindingFunctionality.js")
+const {getPixelLocationsForTile,updatePixelLocAndOcc}=require("./PathfindingFunctionality.js")
 
-const {AstarPathCost,abstractMapAstarMultiTileCapable,TotalSubgridCombining,AstarPathCostPathIncluded}= require("./AbtractMapGeneration.js")
+const {abstractMapAstarMultiTileCapable,TotalSubgridCombining,AstarPathCostPathIncluded}= require("./TerrainGeneration/AbtractMapGeneration.js")
 const {unitPositionChangeForUsers,unitChunkCrossHandleForUsers}=require("./TickMessages.js")
+
 const TileScheme=require("../Schemas/Tile")
 const ChunkManager=require("./CacheChunkInfo.js")
+const {getClosestAccessiblePortal,determineSubgrid}=require("./Pathfinding/PathfindingUtils.js")
+const {addMovementOrder,removeMovementOrder}=require("./UnitsAndMovement/OrderTracking.js")
+const {AbstractAStar}=require("./Pathfinding/AbstractAStar.js")
 
 class MovementOrder{
-    constructor(selectedUnits,ClickedPixel,TargetChunk,ownerId){
+    constructor(selectedUnits,values,ownerId){
+        
         this.owner=ownerId;
-
-        console.log("destination",TargetChunk,ClickedPixel)
-        this.destinationPoint=ClickedPixel;
-        this.targetChunk=TargetChunk;
+        this.destinationPoint=values.pixelCoords;
+        this.targetChunk=values.chunkCoords;
         this.UnitsInvolved=selectedUnits;//tile-> serverIds, becomes... tile -> id ->[type, pos]
         
         this.OrderCenter;
@@ -19,19 +22,18 @@ class MovementOrder{
         this.formationPoints=[]
         
         this._progressMovementRunning=false
-        
-        addMovementOrder(this)
-        this.validateclickedPoint()
+
+        addMovementOrder(this);
         
     }
-    //ChunkManager.getTile(x,y).AbstractMap
+
     async calculateMedian(){
         //take the UnitsInvolved and find the pixel that is the median of all of them
         const pixelPositions = [];
         const newMapping=new Map();
 
         for (const chunkID in this.UnitsInvolved) {
-            // console.log(chunkID,"hmm chunkId")
+
             newMapping.set(chunkID,new Map())
 
             const [chunkX, chunkY] = chunkID.split(',').map(Number);
@@ -39,26 +41,16 @@ class MovementOrder{
             const offsetY = chunkY * 1536;
 
             const unitTypes = this.UnitsInvolved[chunkID];
-            const pixelMap = await getPixelLocationsForTile(chunkID)
-            if (!pixelMap) continue;//skip if not found, prevents death
-            // console.log(pixelMap, "pixelMap")
-            // console.log("exists for it!",pixelMap)
 
-            //since unitT
             for (const unitType in unitTypes) {
                 const serverIds = unitTypes[unitType].ServerIds;
                 for (const id of serverIds) {
-                    // console.log
-                    const pos = pixelMap.get(id)[2];
-                    // console.log(pos,id)
-                    if (pos) {
-                        newMapping.get(chunkID).set(id,[unitType,pos])
-                        pixelPositions.push({ x: pos[0] +offsetX, y: pos[1] +offsetY});
-                    }
+                    const pos = ChunkManager.GetUnitPosition(chunkID,id,this.owner)
+  
+                    newMapping.get(chunkID).set(id,[unitType,pos])
+                    pixelPositions.push({ x: pos[0] +offsetX, y: pos[1] +offsetY});
                 }
-
             }
-
         }
 
         this.UnitsInvolved=newMapping;
@@ -80,146 +72,96 @@ class MovementOrder{
 
         this.OrderCenter=[localX,localY];
         this.chunkHoldingCenter=[chunkX,chunkY]
-
-        // console.log(this.OrderCenter,this.chunkHoldingCenter)
+        
+        // console.log("MEDIAN",this.OrderCenter,this.chunkHoldingCenter)
     }
 
     createFormation(){//called every time the order center moves/calculated
         //take the OrderCenter and go over the units, generating the offsets for them to make the formation
 
+        //set their target in the mapping
+
         //for now just make the target the orderc center
-        for (let [key, value] of this.UnitsInvolved) {
-            for (let [unitId, valueunit] of value) {
-                valueunit[2]=`${this.chunkHoldingCenter[0]},${this.chunkHoldingCenter[1]}|${this.determineSubgrid(this.OrderCenter)[0]},${this.determineSubgrid(this.OrderCenter)[1]}|${this.OrderCenter[0]},${this.OrderCenter[1]}`
+        for (let [chunk, Mapping] of this.UnitsInvolved) {
+            for (let [unitId, TypePos] of Mapping) {
+                const Ordchunk=`${this.chunkHoldingCenter[0]},${this.chunkHoldingCenter[1]}`
+                const OrdSubgrid=`${determineSubgrid(this.OrderCenter)[0]},${determineSubgrid(this.OrderCenter)[1]}`
+                const OrdPixel=`${this.OrderCenter[0]},${this.OrderCenter[1]}`
+
+                TypePos[2]=`${Ordchunk}|${OrdSubgrid}|${OrdPixel}`
+                // console.log("formation",TypePos[2])
             }
             
         }
     }
 
-    determineSubgrid(PixelPoint){
-        //PixelPoint of form [x,y]
-        //texture is 1536x1536 and split into 48x48 subgrids starting at 0,0
+    async PathFromStartPortalToEndSubgrid(CP,goal){
 
-        const subgridX=Math.floor(PixelPoint[0]/32)
-        // console.log(subgridX)
-        const subgridY=Math.floor(PixelPoint[1]/32)
-
-        return [subgridX,subgridY]//`${subgridX},${subgridY}`
-    }
-
-    async getClosestAccessiblePortal(point){
-
-        // const [x,y]=this.chunkHoldingCenter
-        const x=point.chunkX//this.chunkHoldingCenter[0]
-        const y=point.chunkY//this.chunkHoldingCenter[1]
-        const graphMap=await getDataOfTile(`${x},${y}`)//ChunkManager.getTile(x,y).AbstractMap;
-        //theAbstractMapForCenterPointTile is an array, this is because mongoDB doesnt support map, must convert
-
-        // const graphMap = theAbstractMapForCenterPointTile//convertMongoPortalGraphToMap(theAbstractMapForCenterPointTile);
-        // console.log("converted!!!!!!!!,: ",graphMap,"!!!!!!")
-        const subgridKey=this.determineSubgrid([point.x,point.y])//this.OrderCenter)
-
-        //get the array of portals for a subgrid
-        const portalPixels=graphMap.get(`${subgridKey[0]},${subgridKey[1]}`).get("connections")
-        // console.log("portalPixels",portalPixels)
-        //perform A* from OrderCenter to the different portalPixels and select the portal with the least cost
-        //since the direction is to the next portal after the one it is on
-        
-        //get the rgba data for the tile which is necessary for the pathfinding
-        const TheData=graphMap.get(`${subgridKey[0]},${subgridKey[1]}`).get("buffer")//await getDataOfTile(`${x},${y}`)
-        // console.log(TheData,"within getClosestAccessiblePortal")
-        //start pixel is where the median is, so orderCenter
-        const startPixel={
-            x:point.x - 32*Number(subgridKey[0]),//Number(this.OrderCenter[0]),
-            y:point.y - 32*Number(subgridKey[1])//Number(this.OrderCenter[1])
-        }
-
-        let cheapestPortal={pixelVal:"",cost:Infinity,chunk:{x:x,y:y},subgrid:{x:subgridKey[0],y:subgridKey[1]}};
-        for(const bing of portalPixels){
-            // console.log("bing",bing)
-            const [goalX,goalY]=bing[0].split(",")
-
-
-            
-            const goalPixel={
-                x:Number(goalX) - 32*Number(subgridKey[0]),
-                y:Number(goalY) - 32*Number(subgridKey[1])
-            }
-            // const fuzzyGoalPixel = findClosestWalkablePixel(goalPixel, TheData, 1536, 1536);
-            // if (!fuzzyGoalPixel) {
-            //     // No reachable pixel near portal, skip this portal
-            //     continue;
-            // }
-            // const X=Number(subgridKey[0])
-            // const Y=Number(subgridKey[1])
-            // console.log(Buffer.isBuffer(TheData),"should be a buffer....")
-            const cost=await AstarPathCost(TheData,startPixel,goalPixel,{x:0,y:0},32,32)
-
-            if(cost< cheapestPortal.cost){cheapestPortal={pixelVal:{x:Number(goalX),y:Number(goalY)},cost:cost,chunk:{x:x,y:y},subgrid:{x:subgridKey[0],y:subgridKey[1]}}}
-
-        }
-        // console.log("WOO, cheapest baby thats reachable!",cheapestPortal.pixelVal,cheapestPortal.cost)
-        return cheapestPortal;
-
-    }
-
-    async validateclickedPoint(){
-        
-        const y=this.destinationPoint[1]
-        const x=this.destinationPoint[0]
-        
-        const subgridX=Math.floor(x/32)
-        const subgridY=Math.floor(y/32)
-
-        const localisedX=x-32*subgridX
-        const localisedY=y-32*subgridY
-        
-        var data=await getDataOfTile(`${this.targetChunk[0]},${this.targetChunk[1]}`)
-        // console.log("target chunk man, ",data,"....")
-        data=data.get(`${subgridX},${subgridY}`).get("buffer")
-        // console.log(Buffer.isBuffer(data),"data...")
-
-        const index = (localisedY * 32 + localisedX) * 4;
-        // console.log(data,"data",index,localisedY,localisedX)
-        const r = data[index], g = data[index + 1], b = data[index + 2];
-
-        if(r === Number(255) && g === Number(255) && (b === Number(255) || b === Number(0))){
-            console.log(r,g,b,"valid",subgridX,subgridY)
-            console.log("ok, destination point actually valid")
-            await this.orderSetup()
-        }else{
-            //remove the order...
-            console.log(r,g,b,"invalid",subgridX,subgridY,data)
-            console.log("ok, destination point not valid")
-            await removeMovementOrder(this)
-        }
-    }
-
-    async PathFromStartPortalToEndSubgrid(CP,goal){//CP:cheapest portal
-        // console.log("aight",CP)
-        // const CX=cheapestPortal
         const startKey=`${CP.chunk.x},${CP.chunk.y}|${CP.subgrid.x},${CP.subgrid.y}|${CP.pixelVal.x},${CP.pixelVal.y}`
         const goalKey=`${goal.chunk.x},${goal.chunk.y}|${goal.subgrid.x},${goal.subgrid.y}|${goal.pixelVal.x},${goal.pixelVal.y}`
-        // const goalSubgrid=this.determineSubgrid(this.destinationPoint)
-        // const goalKey=`${this.targetChunk[0]},${this.targetChunk[1]}|${goalSubgrid[0]},${goalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
-        
-        // console.log("start,goal:",startKey,goalKey)
 
-        const x=CP.chunk.x//this.chunkHoldingCenter[0]
-        const y=CP.chunk.y//this.chunkHoldingCenter[1]
-        const startingAbstractMap=await getDataOfTile(`${x},${y}`)//ChunkManager.getTile(x,y).AbstractMap;
-        // const MapAbstractStarting = convertMongoPortalGraphToMap(startingAbstractMapArray);
-        // console.log(MapAbstractStarting)
+        const x=CP.chunk.x
+        const y=CP.chunk.y
+        const startingAbstractMap=await ChunkManager.getAbstractMap(`${x},${y}`);
 
+        const path=await AbstractAStar(startKey,goalKey,startingAbstractMap)
+        // await abstractMapAstarMultiTileCapable(startKey,goalKey,startingAbstractMap)
 
-        const path=await abstractMapAstarMultiTileCapable(startKey,goalKey,startingAbstractMap)
-        // console.log("path?",path,goalKey)
         return path;
+    }
+
+    async orderSetup(){
+        //calc the center of the order
+        await this.calculateMedian();
+        this.createFormation()
+
+        const StartSubgrid=determineSubgrid([Number(this.OrderCenter[0]),Number(this.OrderCenter[1])])
+        const s={
+            CKey:`${this.chunkHoldingCenter[0]},${this.chunkHoldingCenter[1]}`,
+            PKey:`${Number(this.OrderCenter[0])},${Number(this.OrderCenter[1])}`,
+            subKey:`${StartSubgrid[0]},${StartSubgrid[1]}`
+        }
+        
+        const GoalSubgrid=determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
+        const g={
+            gCKey:`${this.targetChunk[0]},${this.targetChunk[1]}`,
+            gPKey:`${this.destinationPoint[0]},${this.destinationPoint[1]}`,
+            gsubKey:`${GoalSubgrid[0]},${GoalSubgrid[1]}`
+        }
+
+        const StartKey=`${s.CKey}|${s.subKey}|${s.PKey}`
+        const goalkey=`${g.gCKey}|${g.gsubKey}|${g.gPKey}`
+        
+        const StartPoint={
+            chunkX:this.chunkHoldingCenter[0],
+            chunkY:this.chunkHoldingCenter[1],
+            x:Number(this.OrderCenter[0]),
+            y:Number(this.OrderCenter[1])}
+
+        const Goalpoint={
+            chunkX:this.targetChunk[0],
+            chunkY:this.targetChunk[1],
+            x:this.destinationPoint[0],
+            y:this.destinationPoint[1]}
+
+        const cheapestPortalStart=await getClosestAccessiblePortal(StartPoint)
+        const cheapestPortalGoal=await getClosestAccessiblePortal(Goalpoint)
+
+
+        const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortalStart,cheapestPortalGoal)
+        if(pathnodesCentral==null || pathnodesCentral==false){
+            console.log("path impossible, killing order")
+            return false;}
+
+        //replace the start with the actual starting pixel
+        pathnodesCentral[0]=StartKey
+        pathnodesCentral[pathnodesCentral.length -1]=goalkey
+        console.log("actual first path....",pathnodesCentral)
     }
 
     async getCombinedSubgridsDataForPath(pathnodes,point,goalKey){
         //startPoint is of form chunk|subgrid|pixel
-        const currentSubgridKey = `${point.chunkX},${point.chunkY}|${this.determineSubgrid([point.x, point.y]).join(",")}|${point.x},${point.y}`;
+        const currentSubgridKey = `${point.chunkX},${point.chunkY}|${determineSubgrid([point.x, point.y]).join(",")}|${point.x},${point.y}`;
         var startIndex = 0
         var windowSize = 3
         // pathnodes.push(goalKey)//actual clicked on final point
@@ -324,63 +266,13 @@ class MovementOrder{
         
     }
 
-    async orderSetup(){
-        //calc the center of the order
-        await this.calculateMedian();
-        this.createFormation()
-
-        //get the path for the order central
-        const CX=this.chunkHoldingCenter[0]
-        const CY=this.chunkHoldingCenter[1]
-        const PX=Number(this.OrderCenter[0])
-        const PY=Number(this.OrderCenter[1])
-
-        const StartSubgrid=this.determineSubgrid([PX,PY])
-        const StartKey=`${CX},${CY}|${StartSubgrid[0]},${StartSubgrid[1]}|${PX},${PY}`
-
-        const GoalSubgrid=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
-        const goalkey=`${this.targetChunk[0]},${this.targetChunk[1]}|${GoalSubgrid[0]},${GoalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
-
-
-        const breakgoal=goalkey.split("|")
-        const goalCC=breakgoal[0].split(",")
-        const goalPC=breakgoal[2].split(",")
-
-        if(goalPC[0]==undefined || goalPC[1]==undefined){console.log(goalPC,"path impossible, killing order");return false;}
-        
-        const centerpoint={
-            chunkX:CX,chunkY:CY,
-            x:PX,y:PY
-        }
-        const Goalpoint={
-            chunkX:Number(goalCC[0]),chunkY:Number(goalCC[1]),
-            x:Number(goalPC[0]),y:Number(goalPC[1])
-        }
-
-        const cheapestPortal=await this.getClosestAccessiblePortal(centerpoint)
-        const cheapestPortalGoal=await this.getClosestAccessiblePortal(Goalpoint)
-        // console.log(cheapestPortal,cheapestPortal, "bruh, goals")
-
-        const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortal,cheapestPortalGoal)
-        if(pathnodesCentral==null || pathnodesCentral==false){
-            console.log("path impossible, killing order")
-            // await removeMovementOrder(this)
-            return false;
-        }
-        //replace the start with the actual starting pixel
-        pathnodesCentral[0]=StartKey
-        pathnodesCentral[pathnodesCentral.length -1]=goalkey
-        console.log("actual first path....",pathnodesCentral)
-    }
-
-
     async getTheNextPixel(CX,CY,PX,PY,goalKey){
         const centerpoint={
             chunkX:CX,chunkY:CY,
             // subgridX:0,subgridY:0,
             x:PX,y:PY
         }
-        const cheapestPortal=await this.getClosestAccessiblePortal(centerpoint)//closest to order center point
+        const cheapestPortal=await getClosestAccessiblePortal(centerpoint)//closest to order center point
 
         const breakgoal=goalKey.split("|")
         const goalCC=breakgoal[0].split(",")
@@ -389,9 +281,8 @@ class MovementOrder{
             console.log("path impossible, killing order")
             return false;
         }
-        const cheapestPortalGoal=await this.getClosestAccessiblePortal({
+        const cheapestPortalGoal=await getClosestAccessiblePortal({
             chunkX:Number(goalCC[0]),chunkY:Number(goalCC[1]),
-            // subgridX:0,subgridY:0,
             x:Number(goalPC[0]),y:Number(goalPC[1])
         })
         // const goalSubgrid=this.determineSubgrid(this.destinationPoint)
@@ -468,13 +359,13 @@ class MovementOrder{
                             
                             
                             //get the userids array for the tile unit is now on
-                            const thoseIds=await getUserIdArrayForTile(chunkUnit)
+                            const thoseIds=ChunkManager.getUserIdArrayForTile(chunkUnit)
                             if(CX!=xPart || CY!=yPart){//unit has moved to a different chunk
 
                                 console.log("unit moved to a different chunk",chunkUnit,CX,CY,xPart,yPart)
                                 //create a new entry for the unit in the new chunk
                                 var chosenServerIndices;
-                                const tile = await ChunkManager.getTile(xPart,yPart)//TileScheme.findOne({x: xPart,y: yPart});
+                                const tile = ChunkManager.getTile(xPart,yPart)//TileScheme.findOne({x: xPart,y: yPart});
                                 // var tileFreeIndices=tile.freeIndices
                                 // var TileTopIndice=tile.topIndice
 

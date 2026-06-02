@@ -2,8 +2,8 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const {RefreshTokenImport,AccessTokenImport}=require("../Verification")
 const Coordfinder=require("../NextChunkCoord")
-const genTerrain=require("../TerrainGeneration")
-const {PortalConnectivity}=require("../AbtractMapGeneration")
+const genTerrain=require("../TerrainGeneration/TerrainGeneration")
+const {PortalConnectivity}=require("../TerrainGeneration/AbtractMapGeneration.js")
 const TileScheme=require("../../Schemas/Tile")
 const {convertMapToMongoDoc,toCachedUser}=require("../MongoAbstractConversions.js")
 const bson = require('bson');
@@ -39,7 +39,7 @@ async function HandleReg(ChunkManager,User,username,password){
         await ChunkManager.RegisterUser(UserToCacheConverted.id,UserToCacheConverted)
 
         await genTerrain.generateHeightmap(chunkX,chunkY)
-        const WalkMapLocation=path.join(__dirname,'../../Tiles/WalkMaps/')+chunkX.toString()+chunkY.toString()+".png"
+        const WalkMapLocation=path.join(__dirname,'../../../Tiles/WalkMaps/')+chunkX.toString()+chunkY.toString()+".png"
 
         var abstractMapForTile;
         try{abstractMapForTile=await PortalConnectivity(WalkMapLocation)
