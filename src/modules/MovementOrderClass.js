@@ -1,6 +1,3 @@
-const {getPixelLocationsForTile,updatePixelLocAndOcc}=require("./PathfindingFunctionality.js")
-
-const {TotalSubgridCombining,AstarPathCostPathIncluded}= require("./TerrainGeneration/AbtractMapGeneration.js")
 const {unitPositionChangeForUsers,unitChunkCrossHandleForUsers}=require("./TickMessages.js")
 
 const TileScheme=require("../Schemas/Tile")
@@ -8,6 +5,8 @@ const ChunkManager=require("./CacheChunkInfo.js")
 const {getClosestAccessiblePortal,determineSubgrid}=require("./Pathfinding/PathfindingUtils.js")
 const {addMovementOrder,removeMovementOrder}=require("./UnitsAndMovement/OrderTracking.js")
 const {AbstractAStar}=require("./Pathfinding/AbstractAStar.js")
+const {AstarPathCost}=require("./TerrainGeneration/AStarCost.js")
+const {StitchPath}= require("./TerrainGeneration/ImageStitching.js")
 
 class MovementOrder{
     constructor(selectedUnits,values,ownerId){
@@ -19,12 +18,12 @@ class MovementOrder{
         
         this.OrderCenter;
         this.chunkHoldingCenter;
+        this.CentralPath=null;
+
+
         this.formationPoints=[]
         
         this._progressMovementRunning=false
-
-        addMovementOrder(this);
-        
     }
 
     async calculateMedian(){
@@ -46,14 +45,16 @@ class MovementOrder{
                 const serverIds = unitTypes[unitType].ServerIds;
                 for (const id of serverIds) {
                     const pos = ChunkManager.GetUnitPosition(chunkID,id,this.owner)
-  
+                    // console.log("bro:", pos)
                     newMapping.get(chunkID).set(id,[unitType,pos])
+                    // console.log("[unitType,pos]",[unitType,pos])
                     pixelPositions.push({ x: pos[0] +offsetX, y: pos[1] +offsetY});
                 }
             }
         }
 
         this.UnitsInvolved=newMapping;
+        // console.log("this.UnitsInvolved",this.UnitsInvolved)
 
         if (pixelPositions.length === 0) {this.OrderCenter = null;return;}
 
@@ -156,6 +157,10 @@ class MovementOrder{
         pathnodesCentral[0]=StartKey
         pathnodesCentral[pathnodesCentral.length -1]=goalkey
         console.log("actual first Abstract path....",pathnodesCentral)
+        
+        this.CentralPath=pathnodesCentral;
+
+        addMovementOrder(this);
     }
 
     async getCombinedSubgridsDataForPath(pathnodes,point,goalKey){
@@ -174,16 +179,9 @@ class MovementOrder{
         while(localGoal==false){
             const windowNodes = [... new Set(pathnodes.slice(startIndex, startIndex + windowSize))];
             localGoal=true
-            // Ensure unit's current subgrid is included
-            
 
-            // windowNodes.unshift(currentSubgridKey)
-            // windowNodes[0]=currentSubgridKey//replace first since it shares the same subgrid as the point 
-            // console.log(windowNodes.length)
-            // windowNodes.push(goalKey)
             bufferRes=await TotalSubgridCombining(windowNodes)
-            // console.log("windowNodes",windowNodes)
-            // console.log("bufferRes!",bufferRes)
+
             const endsplit=windowNodes.pop().split("|")
             const [endXpix,endYpix]=endsplit[2].split(",")
             const [endXChunk,endYChunk]=endsplit[0].split(",")
@@ -226,17 +224,6 @@ class MovementOrder{
                 }
             }
         }
-                //         
-        //         //remove that node from the path
-        //         const indexremove=windowNodes.length -1
-        //         
-        //         pathnodes.splice(indexremove,1)
-        //         if(pathnodes.length==0 || windowSize>pathnodes.length){
-        //             return false;
-        //         }
-
-        //     }
-        // }
         
 
         if (localStart.x < 0 || localStart.y < 0 || localStart.x >= bufferRes.width || localStart.y >= bufferRes.height) {
@@ -265,56 +252,96 @@ class MovementOrder{
         
     }
 
-    async getTheNextPixel(CX,CY,PX,PY,goalKey){
-        const centerpoint={
-            chunkX:CX,chunkY:CY,
-            // subgridX:0,subgridY:0,
-            x:PX,y:PY
-        }
-        const cheapestPortal=await getClosestAccessiblePortal(centerpoint)//closest to order center point
+    CutPathBuffer(AbstractPath){
 
-        const breakgoal=goalKey.split("|")
-        const goalCC=breakgoal[0].split(",")
-        const goalPC=breakgoal[2].split(",")
-        if(goalPC[0]==undefined || goalPC[1]==undefined){
-            console.log("path impossible, killing order")
-            return false;
-        }
-        const cheapestPortalGoal=await getClosestAccessiblePortal({
-            chunkX:Number(goalCC[0]),chunkY:Number(goalCC[1]),
-            x:Number(goalPC[0]),y:Number(goalPC[1])
-        })
-        // const goalSubgrid=this.determineSubgrid(this.destinationPoint)
-        // const goalKey=`${this.targetChunk[0]},${this.targetChunk[1]}|${goalSubgrid[0]},${goalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
-        // const WSG=this.determineSubgrid([PX,PY])
-        // const instead=`${CX},${CY}|${WSG[0]},${WSG[1]}|${PX},${PX}`
-        // let instead={pixelVal:{x:PX,y:PY},cost:1,chunk:{x:CX,y:CY},subgrid:{x:WSG[0],y:WSG[1]}};
-        const pathnodesCentral=await this.PathFromStartPortalToEndSubgrid(cheapestPortal,cheapestPortalGoal)//cheapestPortal
-        
-        // console.log("pathnodesCentral",pathnodesCentral)
-        if(pathnodesCentral==null || pathnodesCentral==false){
-            console.log("path impossible, killing order")
-            // await removeMovementOrder(this)
-            return false;
-        }
-        // if(pathnodesCentral[pathnodesCentral.length-1]==goalKey ){//stops units from oscillating
-        //     console.log("made it, killing potential oscillation")
-        //     return false;
-        // }
-        //have to append the actual clicked on point to the end of the path
-        // const subby=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
-        // const finalformatted=`${this.targetChunk[0]},${this.targetChunk[1]}|${subby[0]},${subby[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
-        // pathnodesCentral.push(goalKey)
+        //get the first <=3 points of the abstract map
+        const snippedPath=AbstractPath.slice(0,3);
+        if(snippedPath.length ==1){return "OnTarget"}
 
-        // ✅ Prepend the unit's actual position
-        // const unitSubgrid = this.determineSubgrid([centerpoint.x, centerpoint.y]);
-        // const unitKey = `${centerpoint.chunkX},${centerpoint.chunkY}|${unitSubgrid[0]},${unitSubgrid[1]}|${centerpoint.x},${centerpoint.y}`;
-        // pathnodesCentral.unshift(unitKey);
+        //create the buffer of the snippedPath
+        const Combined=StitchPath(snippedPath)
 
-
-        const globalNext=await this.getCombinedSubgridsDataForPath(pathnodesCentral,centerpoint,goalKey)
-        return globalNext
+        return Combined;
     }
+
+    async UnitMovement(){
+        for (let [chunkID, TypePos] of this.UnitsInvolved) {
+            const [sX,sY]=chunkID.split(",").map(Number);
+
+            for (let [unitId, UnitPosAndTarget] of TypePos) {
+                const [UnitType,UnitPos,goalkey]=UnitPosAndTarget
+
+                //get the abstract Path for the unit to its formation target
+                const subgrid=determineSubgrid(UnitPos)
+                const StartKey=`${chunkID}|${subgrid[0]},${subgrid[1]}|${UnitPos[0]},${UnitPos[1]}`
+                // const goalkey=`${g.gCKey}|${g.gsubKey}|${g.gPKey}`
+                
+                const brokenGoal=goalkey.split("|");
+                const g={
+                    chunk:brokenGoal[0].split(",").map(Number),
+                    pixel:brokenGoal[2].split(",").map(Number)
+                }
+
+                const StartPoint={
+                    chunkX:sX,
+                    chunkY:sY,
+                    x:UnitPos[0],
+                    y:UnitPos[1]}
+
+                const Goalpoint={
+                    chunkX:g.chunk[0],
+                    chunkY:g.chunk[1],
+                    x:g.pixel[0],
+                    y:g.pixel[1]}
+
+                const cheapestPortalStart=await getClosestAccessiblePortal(StartPoint)
+                const cheapestPortalGoal=await getClosestAccessiblePortal(Goalpoint)
+
+                const AbstractPath=await this.PathFromStartPortalToEndSubgrid(cheapestPortalStart,cheapestPortalGoal)
+                if(AbstractPath==null || AbstractPath==false){
+                    console.log("path impossible, skipping unit")
+                    continue}
+
+                AbstractPath[0]=StartKey
+                AbstractPath[AbstractPath.length -1]=goalkey
+
+                const SliceBuffer=await this.CutPathBuffer(AbstractPath);
+                if(SliceBuffer=="OnTarget"){continue}
+                
+            }
+
+        }
+    }
+
+    async CentralMovement(){
+        const SliceBuffer=await this.CutPathBuffer(this.CentralPath);
+        if(SliceBuffer=="OnTarget"){return 0;}
+
+        const cut=this.CentralPath.slice(0,3)
+        const [fX,fY]=cut[0].split("|")[2].split(",").map(Number);
+        const [lX,lY]=cut[cut.length- 1].split("|")[2].split(",").map(Number);
+
+        const [fsx,fsy]=determineSubgrid([fX,fY]);
+        const [lsx,lsy]=determineSubgrid([lX,lY]);
+
+        const Buffer=SliceBuffer.buffer
+        const origin=SliceBuffer.origin
+        const width=SliceBuffer.width
+        const height=SliceBuffer.height
+
+        const StartPixel={
+            x:fX - fsx*32,
+            y:fY - fsy*32}
+
+        const GoalPixel={
+            x:lX - lsx*32,
+            y:lY - lsy*32}
+
+        const Returned= await AstarPathCost(Buffer,StartPixel,GoalPixel,{x:0,y:0},width,height,true);
+        console.log("snipper",cut)
+        console.log("Returned",Returned)
+    }
+
 
     async ProgressMovement(){
 
@@ -322,153 +349,162 @@ class MovementOrder{
         this._progressMovementRunning = true;
         
         try{
+            await this.CentralMovement();
+            
+            await this.UnitMovement();
+
+            
             //all units need to reach their formation positions before centerpoint moves
-            var allowCenterMove=true        
-            const unitPart = async () =>{
-                const freshMap=new Map()
-                var mutate=true;
-                for (let [key, value] of this.UnitsInvolved) {
-                    const [keyX,keyY]=key.split(",")
+
+            // var allowCenterMove=true        
+            // const unitPart = async () =>{
+            //     const freshMap=new Map()
+            //     var mutate=true;
+            //     for (let [key, value] of this.UnitsInvolved) {
+            //         const [keyX,keyY]=key.split(",")
                     
-                    for (let [unitId, valueunit] of value) {
-                        const formationPoint=valueunit[2]//of form chunk|subgrid|pixel, goal point for the unit
-                        if (!formationPoint) continue; // Safety check
+            //         for (let [unitId, valueunit] of value) {
+            //             const formationPoint=valueunit[2]//of form chunk|subgrid|pixel, goal point for the unit
+            //             if (!formationPoint) continue; // Safety check
 
-                        const CX=Number(keyX)
-                        const CY=Number(keyY)
-                        const PX=Number(valueunit[1][0])
-                        const PY=Number(valueunit[1][1])
-                        // console.log(PX,PY,"PLEASE",this.OrderCenter)
+            //             const CX=Number(keyX)
+            //             const CY=Number(keyY)
+            //             const PX=Number(valueunit[1][0])
+            //             const PY=Number(valueunit[1][1])
+            //             // console.log(PX,PY,"PLEASE",this.OrderCenter)
 
-                        const globalNextForUnit=await this.getTheNextPixel(CX,CY,PX,PY,formationPoint);
+            //             const globalNextForUnit=await this.getTheNextPixel(CX,CY,PX,PY,formationPoint);
                         
-                        // if()
-                        if(globalNextForUnit !=false ){
-                            // console.log("globalNextForUnit",globalNextForUnit)
-                            mutate=false
+            //             // if()
+            //             if(globalNextForUnit !=false ){
+            //                 // console.log("globalNextForUnit",globalNextForUnit)
+            //                 mutate=false
 
-                            const xPart=Math.floor(globalNextForUnit.x / 1536)
-                            const yPart=Math.floor(globalNextForUnit.y / 1536)
-                            const chunkUnit=`${xPart},${yPart}`
+            //                 const xPart=Math.floor(globalNextForUnit.x / 1536)
+            //                 const yPart=Math.floor(globalNextForUnit.y / 1536)
+            //                 const chunkUnit=`${xPart},${yPart}`
 
-                            const pixelsUnit=[globalNextForUnit.x % 1536,globalNextForUnit.y % 1536]
+            //                 const pixelsUnit=[globalNextForUnit.x % 1536,globalNextForUnit.y % 1536]
                             
-                            if (!freshMap.has(chunkUnit)) {freshMap.set(chunkUnit, new Map());}
+            //                 if (!freshMap.has(chunkUnit)) {freshMap.set(chunkUnit, new Map());}
 
                             
                             
-                            //get the userids array for the tile unit is now on
-                            const thoseIds=ChunkManager.getUserIdArrayForTile(chunkUnit)
-                            if(CX!=xPart || CY!=yPart){//unit has moved to a different chunk
+            //                 //get the userids array for the tile unit is now on
+            //                 const thoseIds=ChunkManager.getUserIdArrayForTile(chunkUnit)
+            //                 if(CX!=xPart || CY!=yPart){//unit has moved to a different chunk
 
-                                console.log("unit moved to a different chunk",chunkUnit,CX,CY,xPart,yPart)
-                                //create a new entry for the unit in the new chunk
-                                var chosenServerIndices;
-                                const tile = ChunkManager.getTile(xPart,yPart)//TileScheme.findOne({x: xPart,y: yPart});
-                                // var tileFreeIndices=tile.freeIndices
-                                // var TileTopIndice=tile.topIndice
+            //                     console.log("unit moved to a different chunk",chunkUnit,CX,CY,xPart,yPart)
+            //                     //create a new entry for the unit in the new chunk
+            //                     var chosenServerIndices;
+            //                     const tile = ChunkManager.getTile(xPart,yPart)//TileScheme.findOne({x: xPart,y: yPart});
+            //                     // var tileFreeIndices=tile.freeIndices
+            //                     // var TileTopIndice=tile.topIndice
 
-                                if(tile.freeIndices.length>0){
-                                    const freeIndice=tile.freeIndices.shift().toString();//pops first element in array
-                                    chosenServerIndices=freeIndice
-                                }else{
-                                    chosenServerIndices=tile.topIndice
-                                    tile.topIndice+=1
-                                }
-                                //add info to the pixel location
+            //                     if(tile.freeIndices.length>0){
+            //                         const freeIndice=tile.freeIndices.shift().toString();//pops first element in array
+            //                         chosenServerIndices=freeIndice
+            //                     }else{
+            //                         chosenServerIndices=tile.topIndice
+            //                         tile.topIndice+=1
+            //                     }
+            //                     //add info to the pixel location
                                 
-                                updatePixelLocAndOcc(xPart,yPart,chosenServerIndices,valueunit[0],pixelsUnit,this.owner)
+            //                     updatePixelLocAndOcc(xPart,yPart,chosenServerIndices,valueunit[0],pixelsUnit,this.owner)
 
-                                // tile.freeIndices=tileFreeIndices
-                                // tile.topIndice=TileTopIndice
-                                // tile.save()
+            //                     // tile.freeIndices=tileFreeIndices
+            //                     // tile.topIndice=TileTopIndice
+            //                     // tile.save()
 
-                                const oldTile = await ChunkManager.getTile(CX,CY)//TileScheme.findOne({x: CX,y: CY});
-                                // var OldtileFreeIndices=oldTile.freeIndices
-                                // var OldTileTopIndice=oldTile.topIndice
-                                if(unitId==oldTile.topIndice-1){
-                                    oldTile.topIndice-=1;
-                                }else{
-                                    oldTile.freeIndices.push(unitId)
-                                }
-                                updatePixelLocAndOcc(CX,CY,unitId,valueunit[0],pixelsUnit,this.owner,true)
-                                // oldTile.freeIndices=OldtileFreeIndices
-                                // oldTile.topIndice=OldTileTopIndice
-                                // oldTile.save()
-                                //send command to remove the unit from the old chunk
+            //                     const oldTile = await ChunkManager.getTile(CX,CY)//TileScheme.findOne({x: CX,y: CY});
+            //                     // var OldtileFreeIndices=oldTile.freeIndices
+            //                     // var OldTileTopIndice=oldTile.topIndice
+            //                     if(unitId==oldTile.topIndice-1){
+            //                         oldTile.topIndice-=1;
+            //                     }else{
+            //                         oldTile.freeIndices.push(unitId)
+            //                     }
+            //                     updatePixelLocAndOcc(CX,CY,unitId,valueunit[0],pixelsUnit,this.owner,true)
+            //                     // oldTile.freeIndices=OldtileFreeIndices
+            //                     // oldTile.topIndice=OldTileTopIndice
+            //                     // oldTile.save()
+            //                     //send command to remove the unit from the old chunk
 
-                                await unitChunkCrossHandleForUsers(thoseIds,
-                                    {   unitId:unitId,//what the current unit serverId is
-                                        ChunkX:CX,ChunkY:CY,//what the old chunk was, so is the target to remove the unit from
-                                        newChunkX:xPart,newChunkY:yPart,//the new chunk to add the unit to
-                                        serverId:chosenServerIndices,//what id to give that unit
-                                        x:pixelsUnit[0],y:pixelsUnit[1],//where to place it
-                                        unitType:valueunit[0],//what type of unit it is
-                                        owner: this.owner,//who owns the unit
-                                        AssetClass: "Unit"//what type of asset it is
-                                    }
-                                )
+            //                     await unitChunkCrossHandleForUsers(thoseIds,
+            //                         {   unitId:unitId,//what the current unit serverId is
+            //                             ChunkX:CX,ChunkY:CY,//what the old chunk was, so is the target to remove the unit from
+            //                             newChunkX:xPart,newChunkY:yPart,//the new chunk to add the unit to
+            //                             serverId:chosenServerIndices,//what id to give that unit
+            //                             x:pixelsUnit[0],y:pixelsUnit[1],//where to place it
+            //                             unitType:valueunit[0],//what type of unit it is
+            //                             owner: this.owner,//who owns the unit
+            //                             AssetClass: "Unit"//what type of asset it is
+            //                         }
+            //                     )
 
-                                //remove that same unit from involved units, replace it with the new one
-                                // this.UnitsInvolved.get(chunkUnit).set(chosenServerIndices,[valueunit[0],pixelsUnit,formationPoint])
-                                // this.UnitsInvolved.get(key).delete(unitId)
-                                freshMap.get(chunkUnit).set(chosenServerIndices,[valueunit[0],pixelsUnit,formationPoint])
-                            }else{
-                                // console.log("order to move within a chunk")
-                                updatePixelLocAndOcc(xPart,yPart,unitId,valueunit[0],pixelsUnit,this.owner)
-                                freshMap.get(chunkUnit).set(unitId,[valueunit[0],pixelsUnit,formationPoint])
-                                await unitPositionChangeForUsers(thoseIds,{unitId:unitId,ChunkX:xPart,ChunkY:yPart,x:pixelsUnit[0],y:pixelsUnit[1]})
-                            }
+            //                     //remove that same unit from involved units, replace it with the new one
+            //                     // this.UnitsInvolved.get(chunkUnit).set(chosenServerIndices,[valueunit[0],pixelsUnit,formationPoint])
+            //                     // this.UnitsInvolved.get(key).delete(unitId)
+            //                     freshMap.get(chunkUnit).set(chosenServerIndices,[valueunit[0],pixelsUnit,formationPoint])
+            //                 }else{
+            //                     // console.log("order to move within a chunk")
+            //                     updatePixelLocAndOcc(xPart,yPart,unitId,valueunit[0],pixelsUnit,this.owner)
+            //                     freshMap.get(chunkUnit).set(unitId,[valueunit[0],pixelsUnit,formationPoint])
+            //                     await unitPositionChangeForUsers(thoseIds,{unitId:unitId,ChunkX:xPart,ChunkY:yPart,x:pixelsUnit[0],y:pixelsUnit[1]})
+            //                 }
                             
-                        }else{
-                            // console.log("on top of formation")
-                        }
-                    }
-                }
-                // return freshMap
-                if(!mutate){this.UnitsInvolved=freshMap;}//this.createFormation()
-                return mutate
-            }
+            //             }else{
+            //                 // console.log("on top of formation")
+            //             }
+            //         }
+            //     }
+            //     // return freshMap
+            //     if(!mutate){this.UnitsInvolved=freshMap;}//this.createFormation()
+            //     return mutate
+            // }
 
-            allowCenterMove=await unitPart()
+            // allowCenterMove=await unitPart()
 
             
             
-            // console.log(this.UnitsInvolved)
-            if(allowCenterMove){
+            // // console.log(this.UnitsInvolved)
+            // if(allowCenterMove){
 
-                const CX=this.chunkHoldingCenter[0]
-                const CY=this.chunkHoldingCenter[1]
-                const PX=Number(this.OrderCenter[0])
-                const PY=Number(this.OrderCenter[1])
-                const GoalSubgrid=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
-                const goalkey=`${this.targetChunk[0]},${this.targetChunk[1]}|${GoalSubgrid[0]},${GoalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
+            //     const CX=this.chunkHoldingCenter[0]
+            //     const CY=this.chunkHoldingCenter[1]
+            //     const PX=Number(this.OrderCenter[0])
+            //     const PY=Number(this.OrderCenter[1])
+            //     const GoalSubgrid=this.determineSubgrid([this.destinationPoint[0],this.destinationPoint[1]])
+            //     const goalkey=`${this.targetChunk[0]},${this.targetChunk[1]}|${GoalSubgrid[0]},${GoalSubgrid[1]}|${this.destinationPoint[0]},${this.destinationPoint[1]}`
 
-                const globalNext=await this.getTheNextPixel(CX,CY,PX,PY,goalkey);
-                // const globalNext=await this.getCombinedSubgridsDataForPath(pathnodesCentral,centerpoint)
-                if(globalNext!=false){
-                    // console.log("to the next!", globalNext)
-                    this.chunkHoldingCenter=[Math.floor(globalNext.x / 1536),Math.floor(globalNext.y / 1536)]
-                    this.OrderCenter=[globalNext.x % 1536,globalNext.y % 1536]
+            //     const globalNext=await this.getTheNextPixel(CX,CY,PX,PY,goalkey);
+            //     // const globalNext=await this.getCombinedSubgridsDataForPath(pathnodesCentral,centerpoint)
+            //     if(globalNext!=false){
+            //         // console.log("to the next!", globalNext)
+            //         this.chunkHoldingCenter=[Math.floor(globalNext.x / 1536),Math.floor(globalNext.y / 1536)]
+            //         this.OrderCenter=[globalNext.x % 1536,globalNext.y % 1536]
                     
-                    //calc the formation since those points have to move with the central since central moved
-                    this.createFormation()
+            //         //calc the formation since those points have to move with the central since central moved
+            //         this.createFormation()
                     
-                    await unitPart()
+            //         await unitPart()
             
-                    // if(!allowCenterMove){this.UnitsInvolved=freshMap;this.createFormation()}
+            //         // if(!allowCenterMove){this.UnitsInvolved=freshMap;this.createFormation()}
 
-                }else{                    
-                    //center reached the end so kill the order from the list
-                    console.log("destination reache or invalid, removing order",globalNext,this.targetChunk,this.destinationPoint,this.chunkHoldingCenter,this.OrderCenter)
-                    // console.log()
-                    await removeMovementOrder(this)
-                }
+            //     }else{                    
+            //         //center reached the end so kill the order from the list
+            //         console.log("destination reache or invalid, removing order",globalNext,this.targetChunk,this.destinationPoint,this.chunkHoldingCenter,this.OrderCenter)
+            //         // console.log()
+            //         await removeMovementOrder(this)
+            //     }
             
                 
                 
-            }
-        }finally {
+            // }
+        }
+        
+        
+        finally {
             this._progressMovementRunning = false;
         }
 

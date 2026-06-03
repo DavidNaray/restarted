@@ -2,8 +2,7 @@ const ChunkManager=require("../CacheChunkInfo.js")
 const {
     parseChunkKey,
     parseSubgridKey,
-    reconstructPath,
-    parseNodeKey}=require("./PathfindingUtils.js")
+    reconstructPath}=require("./PathfindingUtils.js")
 
 const {connectBorder}=require("../TerrainGeneration/ImageStitching.js")
 const {MinHeap,PriorityQueue}=require("./MinH_PQ.js")

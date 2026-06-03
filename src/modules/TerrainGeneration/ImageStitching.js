@@ -143,9 +143,58 @@ async function connectBorder(
         }
     }
 
-    console.log("neighbours",neighbors)
+    // console.log("neighbours",neighbors)
     return neighbors;
 }
 
+async function StitchPath(Nodes){
 
-module.exports={combineSegments,extractRegion,connectBorder}
+    const Mapping=new Map();
+
+    for (const node of Nodes) {
+
+        const [ChunkKey,SubgridKey,Pixels]=node.split("|");
+        const Key=`${ChunkKey}|${SubgridKey}`;
+
+        if(Mapping.has(Key)){continue}
+
+        const Data=ChunkManager.getAbstractMap(ChunkKey);
+        const buffer = Data.get(SubgridKey).get("buffer");
+
+
+        const [cx, cy] = ChunkKey.split(",").map(Number);
+        const [sx, sy] = SubgridKey.split(",").map(Number);
+        const origin = {
+            x: cx * walkMapWidth + sx * subgridSize,
+            y: cy * walkMapHeight + sy * subgridSize
+        };
+
+        Mapping.set(Key, {buffer, origin})
+    }
+
+    const entries = [...Mapping.values()];
+
+    if (entries.length === 1) {
+        return {
+            buffer: entries[0].buffer,
+            origin: entries[0].origin,
+            width: 32,
+            height: 32
+        };
+    }
+
+    let combined = entries[0];
+
+    for (let i = 1; i < entries.length; i++) {
+        combined = await combineSegments(
+            combined.buffer,
+            entries[i].buffer,
+            combined.origin,
+            entries[i].origin
+        );
+    }
+
+    return combined
+}
+
+module.exports={combineSegments,extractRegion,connectBorder,StitchPath}

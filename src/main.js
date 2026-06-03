@@ -771,12 +771,7 @@ const TICK_RATE = (1000 / 60)/3; // 20 ticks per second
 
 async function gameTick() {
 
-    // for (const [socketId, socket] of io.sockets.sockets) {
-    //     const playerId = socket.userId;
-    //     const visibleUnits = getUnitsForPlayer(playerId); // however you track this
-    //     socket.emit('TickUpdate', visibleUnits);
-    // }
-    await ProgressOrders();
+    await ProgressOrders();//MovementOrders
 
     
     //get the messages, go through it 
