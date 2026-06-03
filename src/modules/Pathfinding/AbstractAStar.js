@@ -1,8 +1,12 @@
+const ChunkManager=require("../CacheChunkInfo.js")
 const {
-    loadChunkAbstractMap,
     parseChunkKey,
     parseSubgridKey,
-    reconstructPath}=require("./PathfindingUtils.js")
+    reconstructPath,
+    parseNodeKey}=require("./PathfindingUtils.js")
+
+const {connectBorder}=require("../TerrainGeneration/ImageStitching.js")
+const {MinHeap,PriorityQueue}=require("./MinH_PQ.js")
 
 
 const TILE_SIZE = 1536;
@@ -35,6 +39,22 @@ function heuristic(aKey, bKey) {
     return Math.hypot(bx - ax, by - ay);
 }
 
+function extendCoords(set,chunkKey){
+    const mapping=new Map();
+    for (const [key, cost] of set.entries()) {
+        const PixelPoint = key.split(",");
+        const [neighPX, neighPY] = PixelPoint.map(Number);
+        
+        const subgridX = Math.floor(neighPX / SUBGRID_SIZE);
+        const subgridY = Math.floor(neighPY / SUBGRID_SIZE);
+
+        const neighborKey = `${chunkKey}|${subgridX},${subgridY}|${neighPX},${neighPY}`;
+        mapping.set(neighborKey,cost)
+    }
+    return mapping;
+}
+
+
 //go over abstractMaps to find a path from the closest portal to the portal closest to the goal
 async function AbstractAStar(start, goal, startChunkAbstractMap) {
 
@@ -53,7 +73,6 @@ async function AbstractAStar(start, goal, startChunkAbstractMap) {
 
     while (!openSet.isEmpty()) {
         const current = openSet.dequeue();
-        // console.log("current",current)
         // Skip if this is an outdated node with worse gScore
         const currentG = gScore.get(current);
         if (currentG === undefined) continue;
@@ -67,25 +86,25 @@ async function AbstractAStar(start, goal, startChunkAbstractMap) {
 
         // Load chunk map if missing
         if (!loadedChunkMaps.has(chunkKey)) {
-            const newMap = await loadChunkAbstractMap(chunkKey);
+            const newMap = ChunkManager.getAbstractMap(chunkKey)
             if (!newMap) continue;
             loadedChunkMaps.set(chunkKey, newMap);
         }
-        // console.log(chunkKey,"chunkKey current")
-        const graph = loadedChunkMaps.get(chunkKey)//.get("connections");
-        // console.log(graph,"graph")
+
+        const graph = loadedChunkMaps.get(chunkKey)
         if (!graph) continue;
 
         const subgridMap = graph.get(subgridKey).get("connections");
-        // console.log(subgridMap,"subgridMap")
         if (!subgridMap) continue;
 
-        const neighbors = subgridMap.get(current.split('|')[2]);
+
+        const preNeighbours=subgridMap.get(current.split('|')[2]);
+        const neighbors = extendCoords(preNeighbours,chunkKey);//subgridMap.get(current.split('|')[2]);
         if (!neighbors) continue;
 
         const [CCX, CCY] = chunkKey.split(",").map(Number);
-        const [pixelXC, pixelYC] = current.split('|')[2].split(",").map(Number);
         const [SubgridXC, SubgridYC] = current.split('|')[1].split(",").map(Number);
+        const [pixelXC, pixelYC] = current.split('|')[2].split(",").map(Number);
 
         // Check for cross-chunk adjacency edges
         const edges = [];
@@ -101,73 +120,48 @@ async function AbstractAStar(start, goal, startChunkAbstractMap) {
 
             let accessAbstractMap = loadedChunkMaps.get(adjChunkKey);
             if (!accessAbstractMap) {
-                accessAbstractMap = await loadChunkAbstractMap(adjChunkKey);
+                accessAbstractMap = await ChunkManager.getAbstractMap(adjChunkKey);
                 if (!accessAbstractMap) continue;
                 loadedChunkMaps.set(adjChunkKey, accessAbstractMap);
             }
 
-            const adjNeighbours = await combineDataOfSubgridsForSearch(
+            const adjNeighbours= await connectBorder(
                 current.split('|')[0],//tileAkey
                 adjChunkKey,//tileBkey
                 [pixelXC, pixelYC],//start
                 [SubgridXC, SubgridYC],//startingsubgrid
                 edge,//direction
                 accessAbstractMap//the abtractmap of the adjacent tile
-            );
+            )
 
             for (const [portalKey, cost] of adjNeighbours) {
-                // console.log("portalKey",portalKey,"cost",cost)
-                const setKey = `${adjChunkKey}|${portalKey}`;
-                // neighbors[setKey] = cost;
-                neighbors.set(setKey, cost);
+                neighbors.set(portalKey, cost);
             }
         }
 
-        // console.log("something to do with processing neighbours,",current,neighbors)
         // Process all neighbors
-        for (const [neighborPixel, cost] of neighbors.entries()) {
-            // console.log(neighborPixel,cost)
-            const breakdown = neighborPixel.split("|");
+        for (const [neighborKey, cost] of neighbors.entries()) {
 
-            let newChunkX = CCX;
-            let newChunkY = CCY;
-            let PixelPoint;
+            const breakdown = neighborKey.split("|");
 
-            if (breakdown.length === 1) {
-                PixelPoint = breakdown[0].split(",");
-            } else if (breakdown.length === 2) {
-                const [cx, cy] = breakdown[0].split(",").map(Number);
-                newChunkX = cx;
-                newChunkY = cy;
-                PixelPoint = breakdown[1].split(",");
-                // console.log("bruh come on, ",newChunkX,newChunkY,PixelPoint,"PixelPoint")
-            } else {
-                console.warn("Unexpected neighbor key format:", neighborPixel);
+            if (breakdown.length != 3) {
+                console.log("Invalid neighbor key:", neighborKey);
                 continue;
             }
+            
+            const [CCX, CCY] = breakdown[0].split(",").map(Number);
+            const [SubgridXC, SubgridYC] = breakdown[1].split(",").map(Number);
+            const [pixelXC, pixelYC] = breakdown[2].split(",").map(Number);
 
-            const [neighPX, neighPY] = PixelPoint.map(Number);
-            const subgridX = Math.floor(neighPX / SUBGRID_SIZE);
-            const subgridY = Math.floor(neighPY / SUBGRID_SIZE);
-            const neighborKey = `${newChunkX},${newChunkY}|${subgridX},${subgridY}|${neighPX},${neighPY}`;
+            const chunkKeyStr = breakdown[0];
+            const subgridStr = breakdown[1];
+            const pixelStr = breakdown[2];
 
-            // Load tile data if missing
-            const chunkKeyStr = `${newChunkX},${newChunkY}`;
-            // console.log("chunkKeyStr",chunkKeyStr)
-            // if (!loadedTileData.has(chunkKeyStr)) {
-            //     const tileDataObj = await getDataOfTile(chunkKeyStr);
-            //     if (!tileDataObj) {
-            //         // Unable to load tile data, skip neighbor
-            //         continue;
-            //     }
-            //     loadedTileData.set(chunkKeyStr, tileDataObj);
-            // }
-            // console.log(chunkKeyStr,"chunkKeyStr",`${subgridX},${subgridY}`,"subgrid of neigh")
-            var tileData = loadedChunkMaps.get(chunkKeyStr)//.get('buffer')//loadedTileData.get(chunkKeyStr)//.get();
+            var tileData = loadedChunkMaps.get(chunkKeyStr)
             if(!tileData){console.log("no abtract map?")}
             
-            tileData=tileData.get(`${subgridX},${subgridY}`)
-            if(!tileData){console.log("no subgrid on;", `${subgridX},${subgridY}`);continue;}
+            tileData=tileData.get(subgridStr);
+            if(!tileData){console.log("no subgrid on;", subgridStr);continue}
              
             tileData=tileData.get("buffer")
             if(!tileData){continue;}

@@ -1,5 +1,5 @@
 const ChunkManager=require("../CacheChunkInfo.js")
-const {AstarPathCost}=require("../TerrainGeneration/AbtractMapGeneration.js")
+const {AstarPathCost}=require("../TerrainGeneration/AStarCost.js")
 
 
 function parseChunkKey(fullKey) {
@@ -10,7 +10,15 @@ function parseSubgridKey(fullKey) {
     return fullKey.split('|')[1]; // "subgridX,subgridY"
 }
 
+function parseNodeKey(key) {
+    const [chunk, subgrid, pixel] = key.split("|");
 
+    const [chunkX, chunkY] = chunk.split(",").map(Number);
+    const [subX, subY] = subgrid.split(",").map(Number);
+    const [px, py] = pixel.split(",").map(Number);
+
+    return { chunkX, chunkY, subX, subY, px, py };
+}
 
 
 function reconstructPath(cameFrom, current) {
@@ -77,5 +85,6 @@ module.exports={
     parseSubgridKey,
     reconstructPath,
     getClosestAccessiblePortal,
-    determineSubgrid
+    determineSubgrid,
+    parseNodeKey
 }

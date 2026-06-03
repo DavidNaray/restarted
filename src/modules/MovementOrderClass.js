@@ -1,6 +1,6 @@
 const {getPixelLocationsForTile,updatePixelLocAndOcc}=require("./PathfindingFunctionality.js")
 
-const {abstractMapAstarMultiTileCapable,TotalSubgridCombining,AstarPathCostPathIncluded}= require("./TerrainGeneration/AbtractMapGeneration.js")
+const {TotalSubgridCombining,AstarPathCostPathIncluded}= require("./TerrainGeneration/AbtractMapGeneration.js")
 const {unitPositionChangeForUsers,unitChunkCrossHandleForUsers}=require("./TickMessages.js")
 
 const TileScheme=require("../Schemas/Tile")
@@ -105,7 +105,6 @@ class MovementOrder{
         const startingAbstractMap=await ChunkManager.getAbstractMap(`${x},${y}`);
 
         const path=await AbstractAStar(startKey,goalKey,startingAbstractMap)
-        // await abstractMapAstarMultiTileCapable(startKey,goalKey,startingAbstractMap)
 
         return path;
     }
@@ -156,7 +155,7 @@ class MovementOrder{
         //replace the start with the actual starting pixel
         pathnodesCentral[0]=StartKey
         pathnodesCentral[pathnodesCentral.length -1]=goalkey
-        console.log("actual first path....",pathnodesCentral)
+        console.log("actual first Abstract path....",pathnodesCentral)
     }
 
     async getCombinedSubgridsDataForPath(pathnodes,point,goalKey){

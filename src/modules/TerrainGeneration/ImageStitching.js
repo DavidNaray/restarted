@@ -1,6 +1,10 @@
 
+const ChunkManager=require("../CacheChunkInfo.js")
+const {AstarPathCost}=require("./AStarCost.js")
+
 const walkMapWidth=1536//512*3
 const walkMapHeight=1536//512*3
+const subgridSize=32;
 
 async function extractRegion(rawData, channels, x, y, width, height) {
     const region = Buffer.alloc(width * height * channels);
@@ -18,7 +22,6 @@ async function extractRegion(rawData, channels, x, y, width, height) {
 
 async function combineSegments(bufA, bufB, posA, posB) {
     // posA and posB are the WORLD coords of the top-left corner of each buffer in pixels
-    const SUBGRID_SIZE = 32;
 
     const minX = Math.min(posA.x, posB.x);
     const minY = Math.min(posA.y, posB.y);
@@ -54,4 +57,95 @@ async function combineSegments(bufA, bufB, posA, posB) {
     };
 }
 
-module.exports={combineSegments,extractRegion}
+async function connectBorder(
+    tileAKey,tileBKey,
+    startPixel,
+    subgridStart,
+    direction,
+    targetAbstractMap){
+
+    const [sx, sy] = subgridStart;
+    let bx = sx, by = sy;
+    switch (direction) {
+        case "left":   bx = 47; break;//going left (start on right)
+        case "right":  bx = 0;  break;
+        case "top":    by = 47; break;
+        case "bottom": by = 0;  break;
+    }
+
+    const dataA=ChunkManager.getAbstractMap(tileAKey)
+    const dataB=ChunkManager.getAbstractMap(tileBKey)
+
+    //the buffers of the 2 neighbouring segments
+    const bufA = dataA.get(`${sx},${sy}`).get("buffer");
+    const bufB = dataB.get(`${bx},${by}`).get("buffer");
+
+    const [Ax,Ay]=tileAKey.split(',').map(Number);
+    const [Bx,By]=tileBKey.split(',').map(Number);
+    const DeltaX=(Ax - Bx)*walkMapWidth;
+    const DeltaY=(Ay - By)*walkMapHeight;
+
+    const posA = { x: sx * subgridSize, y: sy * subgridSize };
+    const posB = { x: bx * subgridSize - DeltaX, y: by * subgridSize - DeltaY};
+
+    var originA={x: 0, y: 0}//start
+    var originB={x: 32, y: 32}//goal
+    if(posB.x<posA.x){originA.x= 32;originB.x=0}
+    else if(posB.x==posA.x){originA.x= 0;originB.x= 0}else{}
+
+    if(posB.y<posA.y){originA.y= 32;originB.y=0}
+    else if(posB.y==posA.y){originA.y= 0;originB.y=0}else{}
+
+    // console.log("originA",originA,"originB",originB, direction)
+    const { buffer, origin, width, height }= await combineSegments(bufA, bufB, originA, originB);
+    // console.log(width, height, "buffer",buffer)
+
+    //startpixel in buffer coord
+    const startInput = {
+        x: startPixel[0] - posA.x + originA.x, //origin.x,
+        y: startPixel[1] - posA.y + originA.y  //- origin.y
+    };
+    
+
+    const goalKey = `${bx},${by}`;
+    const portalsOfGoal = targetAbstractMap.get(goalKey).get("connections");
+    
+    const neighbors = [];
+
+    for (const [portalPixelKey] of portalsOfGoal.entries()) {
+
+        const [px, py] = portalPixelKey.split(",").map(Number);
+
+        // goal portal in buffer coord 
+        //make it local to subgrid, then adjust for tile offset, then buffer offset
+        const goalInput = {
+            x: px - posB.x - DeltaX + originB.x, //origin.x,
+            y: py - posB.y - DeltaY + originB.y  //origin.y
+        };
+        // console.log("startInput",startInput,"goalInput",goalInput)
+
+        const cost = await AstarPathCost(
+            buffer,
+            startInput,
+            goalInput,
+            { x: 0, y: 0 },
+            width,
+            height
+        );
+
+        if (cost !== Infinity) {
+            const subgridBit=`${Math.floor(px / subgridSize)},${Math.floor(py / subgridSize)}`
+            const pixelBit=`${px},${py}`
+
+            const canonicalKey =`${tileBKey}|${subgridBit}|${pixelBit}`;
+
+            neighbors.push([canonicalKey, cost]);
+        }
+    }
+
+    console.log("neighbours",neighbors)
+    return neighbors;
+}
+
+
+module.exports={combineSegments,extractRegion,connectBorder}
