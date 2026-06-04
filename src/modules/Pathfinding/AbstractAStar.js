@@ -108,7 +108,7 @@ async function AbstractAStar(start, goal, startChunkAbstractMap) {
         // Check for cross-chunk adjacency edges
         const edges = [];
         if (SubgridXC === 0) edges.push("left");
-        else if (pixelXC === 47) edges.push("right");
+        else if (SubgridXC === 47) edges.push("right");
         if (SubgridYC === 0) edges.push("top");
         else if (SubgridYC === 47) edges.push("bottom");
 

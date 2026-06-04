@@ -149,52 +149,88 @@ async function connectBorder(
 
 async function StitchPath(Nodes){
 
-    const Mapping=new Map();
+    const Mapping=new Set();
+    // new Map();
+
+    const stitched={
+        buffer:null,
+        origin:null,
+        width:0,
+        height:0
+    }
 
     for (const node of Nodes) {
+        if (!node) continue; // skip undefined nodes
 
         const [ChunkKey,SubgridKey,Pixels]=node.split("|");
         const Key=`${ChunkKey}|${SubgridKey}`;
-
         if(Mapping.has(Key)){continue}
+
+        const [cx, cy] = ChunkKey.split(",").map(Number);
+        const [sx, sy] = SubgridKey.split(",").map(Number);
 
         const Data=ChunkManager.getAbstractMap(ChunkKey);
         const buffer = Data.get(SubgridKey).get("buffer");
 
 
-        const [cx, cy] = ChunkKey.split(",").map(Number);
-        const [sx, sy] = SubgridKey.split(",").map(Number);
-        const origin = {
-            x: cx * walkMapWidth + sx * subgridSize,
-            y: cy * walkMapHeight + sy * subgridSize
-        };
+        const worldX = cx * walkMapWidth  + sx * subgridSize;
+        const worldY = cy * walkMapHeight + sy * subgridSize;
 
-        Mapping.set(Key, {buffer, origin})
+        if(stitched.buffer == null){
+            stitched.buffer = buffer;
+            stitched.origin = { x: worldX, y: worldY };
+            stitched.width  = 32;
+            stitched.height = 32;
+            continue;
+        }
+
+        const newMinX = Math.min(stitched.origin.x, worldX);
+        const newMinY = Math.min(stitched.origin.y, worldY);
+
+        const newMaxX = Math.max(stitched.origin.x + stitched.width,worldX + 32);
+        const newMaxY = Math.max(stitched.origin.y + stitched.height,worldY + 32);
+
+        const newWidth  = newMaxX - newMinX;
+        const newHeight = newMaxY - newMinY;
+
+        //create a new buffer 
+        const newBuf = Buffer.alloc(newWidth * newHeight * 4, 0);
+
+        const offX = stitched.origin.x - newMinX;
+        const offY = stitched.origin.y - newMinY;
+
+        //copy the stiched buffer into the new buffer
+        for (let y = 0; y < stitched.height; y++) {
+            const src = stitched.buffer.subarray(
+                y * stitched.width * 4,
+                (y+1) * stitched.width * 4
+            );
+
+            const destOffset = ((offY + y) * newWidth + offX) * 4;
+            newBuf.set(src, destOffset);
+        }
+
+        //get offsets to place the subgrids buffer into the new buffer
+        const subOffX = worldX - newMinX;
+        const subOffY = worldY - newMinY;
+
+        for (let y = 0; y < 32; y++) {
+            const src = buffer.subarray(y * 32 * 4, (y+1) * 32 * 4);
+            const destOffset = ((subOffY + y) * newWidth + subOffX) * 4;
+            newBuf.set(src, destOffset);
+        }
+
+        stitched.buffer = newBuf;
+        stitched.origin = { x: newMinX, y: newMinY };
+        stitched.width  = newWidth;
+        stitched.height = newHeight;
+
+
+
+        Mapping.add(Key)//{buffer, origin:WorldOrigin})
     }
 
-    const entries = [...Mapping.values()];
-
-    if (entries.length === 1) {
-        return {
-            buffer: entries[0].buffer,
-            origin: entries[0].origin,
-            width: 32,
-            height: 32
-        };
-    }
-
-    let combined = entries[0];
-
-    for (let i = 1; i < entries.length; i++) {
-        combined = await combineSegments(
-            combined.buffer,
-            entries[i].buffer,
-            combined.origin,
-            entries[i].origin
-        );
-    }
-
-    return combined
+    return stitched
 }
 
 module.exports={combineSegments,extractRegion,connectBorder,StitchPath}

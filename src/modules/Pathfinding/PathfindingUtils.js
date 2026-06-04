@@ -11,6 +11,7 @@ function parseSubgridKey(fullKey) {
 }
 
 
+
 function reconstructPath(cameFrom, current) {
     const path = [current];
     while (cameFrom.has(current)) {
@@ -28,6 +29,13 @@ function determineSubgrid(PixelPoint){
     const subgridY=Math.floor(PixelPoint[1]/32)
 
     return [subgridX,subgridY]
+}
+
+function determineChunk(PixelPoint){
+    const chunkX=Math.floor(PixelPoint[0]/1536)
+    const chunkY=Math.floor(PixelPoint[1]/1536)
+
+    return [chunkX,chunkY]
 }
 
 async function getClosestAccessiblePortal(point){
@@ -65,7 +73,36 @@ async function getClosestAccessiblePortal(point){
     return cheapestPortal;
 }
 
+function RealignPath(bufferOrigin,Path,Count){
 
+    Count+=1 //units current position always in path
+
+    var toReturn=[];
+
+    for(let i = 0; i < Count; i++){
+        try{
+            //bufferCoord into Global pixel Coord
+            var [pX,pY]=Path[i].split(",").map(Number);
+            pX+=bufferOrigin.x
+            pY+=bufferOrigin.y
+
+            //get the chunk
+            const [cX,cY]=determineChunk([pX,pY])
+
+            //transform the pixel location into tile scale
+            pX-=cX*1536
+            pY-=cY*1536
+
+            //get the subgrid for the now tile-scale pixel coords
+            const [sX,sY]=determineSubgrid([pX,pY])
+
+            const key=`${cX},${cY}|${sX},${sY}|${pX},${pY}`
+            toReturn.push(key)
+        }catch(err){break}
+
+    }
+    return toReturn;
+}
 
 
 
@@ -75,5 +112,7 @@ module.exports={
     parseSubgridKey,
     reconstructPath,
     getClosestAccessiblePortal,
-    determineSubgrid
+    determineSubgrid,
+    determineChunk,
+    RealignPath
 }
