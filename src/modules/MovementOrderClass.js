@@ -50,7 +50,7 @@ class MovementOrder{
                 for (const id of serverIds) {
                     const pos = ChunkManager.GetUnitPosition(chunkID,id,this.owner)
                     // console.log("bro:", pos)
-                    newMapping.get(chunkID).set(id,[unitType,pos])
+                    newMapping.get(chunkID).set(id,[])
                     // console.log("[unitType,pos]",[unitType,pos])
                     pixelPositions.push({ x: pos[0] +offsetX, y: pos[1] +offsetY});
                 }
@@ -88,12 +88,15 @@ class MovementOrder{
 
         //for now just make the target the orderc center
         for (let [chunk, Mapping] of this.UnitsInvolved) {
-            for (let [unitId, TypePos] of Mapping) {
+            for (let [unitId, Target] of Mapping) {
+                const pos = ChunkManager.GetUnitPosition(chunk,unitId,this.owner)
+
                 const Ordchunk=`${this.chunkHoldingCenter[0]},${this.chunkHoldingCenter[1]}`
                 const OrdSubgrid=`${determineSubgrid(this.OrderCenter)[0]},${determineSubgrid(this.OrderCenter)[1]}`
                 const OrdPixel=`${this.OrderCenter[0]},${this.OrderCenter[1]}`
 
-                TypePos[2]=`${Ordchunk}|${OrdSubgrid}|${OrdPixel}`
+                const TargetKey=`${Ordchunk}|${OrdSubgrid}|${OrdPixel}`
+                this.UnitsInvolved.get(chunk).set(unitId,TargetKey)
                 // console.log("formation",TypePos[2])
             }
             
@@ -117,7 +120,6 @@ class MovementOrder{
     async orderSetup(){
         //calc the center of the order
         await this.calculateMedian();
-        this.createFormation()
 
         const StartSubgrid=determineSubgrid([Number(this.OrderCenter[0]),Number(this.OrderCenter[1])])
         const s={
@@ -167,95 +169,6 @@ class MovementOrder{
         addMovementOrder(this);
     }
 
-    async getCombinedSubgridsDataForPath(pathnodes,point,goalKey){
-        //startPoint is of form chunk|subgrid|pixel
-        const currentSubgridKey = `${point.chunkX},${point.chunkY}|${determineSubgrid([point.x, point.y]).join(",")}|${point.x},${point.y}`;
-        var startIndex = 0
-        var windowSize = 3
-        // pathnodes.push(goalKey)//actual clicked on final point
-        
-        // pathnodes.unshift(currentSubgridKey) //add the point the unit is actually on rn
-        pathnodes[0]=currentSubgridKey
-        pathnodes[pathnodes.length-1]=goalKey
-        var localGoal=false
-        var localStart;
-        var bufferRes;
-        while(localGoal==false){
-            const windowNodes = [... new Set(pathnodes.slice(startIndex, startIndex + windowSize))];
-            localGoal=true
-
-            bufferRes=await TotalSubgridCombining(windowNodes)
-
-            const endsplit=windowNodes.pop().split("|")
-            const [endXpix,endYpix]=endsplit[2].split(",")
-            const [endXChunk,endYChunk]=endsplit[0].split(",")
-            
-            const endX=1536*Number(endXChunk)+Number(endXpix)
-            const endY=1536*Number(endYChunk)+Number(endYpix) 
-
-            const startX=1536*point.chunkX+point.x
-            const startY=1536*point.chunkY+point.y
-            const unitPositionPixel={x:startX,y:startY};
-            const endPixel={x:endX,y:endY}
-            
-            function isWalkableColor(r, g, b) {
-                return r === Number(255) && g === Number(255) && (b === Number(255) || b === Number(0));
-            }
-
-
-            //convert the coordinates into a global space and then subtract the origin which will localise it to the buffer
-            localStart = {
-                x: Math.floor(unitPositionPixel.x - bufferRes.origin.x) ,
-                y: Math.floor(unitPositionPixel.y - bufferRes.origin.y)
-            };
-
-            localGoal = {
-                x: Math.floor(endPixel.x - bufferRes.origin.x) ,
-                y: Math.floor(endPixel.y - bufferRes.origin.y) 
-            };
-                
-            const idxg = (localGoal.y * bufferRes.width + localGoal.x) * 4;
-            const rg = bufferRes.buffer[idxg], gg = bufferRes.buffer[idxg + 1], bg = bufferRes.buffer[idxg + 2];
-            if (!isWalkableColor(rg, gg, bg)) {
-                // return [Infinity,null]//{ x: goalPixel.x, y: goalPixel.y };
-                // endPixel,rg,gg,bg,localGoal,bufferRes,
-                console.log("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
-                localGoal=false
-                windowSize+=1
-                if(pathnodes.length==0 || windowSize==pathnodes.length){
-                    console.log("zamn buddy")
-                    return false;
-                }
-            }
-        }
-        
-
-        if (localStart.x < 0 || localStart.y < 0 || localStart.x >= bufferRes.width || localStart.y >= bufferRes.height) {
-            console.error("Local start out of bounds:", localStart, "Buffer origin:", bufferRes.origin, "Buffer size:", bufferRes.width, bufferRes.height);
-            // return false or handle gracefully
-            return false;
-        }
-        if (localGoal.x < 0 || localGoal.y < 0 || localGoal.x >= bufferRes.width || localGoal.y >= bufferRes.height) {
-            console.error("Local goal out of bounds:", localGoal, "Buffer origin:", bufferRes.origin, "Buffer size:", bufferRes.width, bufferRes.height);
-            // return false or handle gracefully
-            return false;
-        }
-        // console.log(localStart,localGoal,bufferRes.origin,bufferRes.width,bufferRes.height)
-        // console.log("width, height bruh",bufferRes.width,bufferRes.height)
-        const costplease=await AstarPathCostPathIncluded(
-            bufferRes.buffer,
-            localStart,localGoal,
-            {x:0,y:0},
-            bufferRes.width,
-            bufferRes.height
-        )
-        // console.log("costplease",costplease)
-        if(costplease[1]===null){return false}//console.log("cost is null man");
-        // console.log("pos",bufferRes.origin.x+costplease[1].x,bufferRes.origin.y+costplease[1].y)
-        return {x:bufferRes.origin.x+costplease[1].x,y:bufferRes.origin.y+costplease[1].y}
-        
-    }
-
     CutPathBuffer(AbstractPath){
 
         //get the first <=3 points of the abstract map
@@ -268,66 +181,7 @@ class MovementOrder{
         return Combined;
     }
 
-    async UnitMovement(){
-        for (let [chunkID, TypePos] of this.UnitsInvolved) {
-            const [sX,sY]=chunkID.split(",").map(Number);
-
-            for (let [unitId, UnitPosAndTarget] of TypePos) {
-                const [UnitType,UnitPos,goalkey]=UnitPosAndTarget
-
-                //get the abstract Path for the unit to its formation target
-                const subgrid=determineSubgrid(UnitPos)
-                const StartKey=`${chunkID}|${subgrid[0]},${subgrid[1]}|${UnitPos[0]},${UnitPos[1]}`
-                // const goalkey=`${g.gCKey}|${g.gsubKey}|${g.gPKey}`
-                
-                const brokenGoal=goalkey.split("|");
-                const g={
-                    chunk:brokenGoal[0].split(",").map(Number),
-                    pixel:brokenGoal[2].split(",").map(Number)
-                }
-
-                const StartPoint={
-                    chunkX:sX,
-                    chunkY:sY,
-                    x:UnitPos[0],
-                    y:UnitPos[1]}
-
-                const Goalpoint={
-                    chunkX:g.chunk[0],
-                    chunkY:g.chunk[1],
-                    x:g.pixel[0],
-                    y:g.pixel[1]}
-
-                const cheapestPortalStart=await getClosestAccessiblePortal(StartPoint)
-                const cheapestPortalGoal=await getClosestAccessiblePortal(Goalpoint)
-
-                const AbstractPath=await this.PathFromStartPortalToEndSubgrid(cheapestPortalStart,cheapestPortalGoal)
-                if(AbstractPath==null || AbstractPath==false){
-                    console.log("path impossible, skipping unit")
-                    continue}
-
-                AbstractPath[0]=StartKey
-                AbstractPath[AbstractPath.length -1]=goalkey
-
-                const SliceBuffer=await this.CutPathBuffer(AbstractPath);
-                if(SliceBuffer=="OnTarget"){continue}
-                
-            }
-
-        }
-    }
-
-    async CentralMovement(speed=1){
-        const SliceBuffer=await this.CutPathBuffer(this.CentralPath);
-        if(SliceBuffer=="OnTarget"){return 0;}
-
-        const Buffer=SliceBuffer.buffer
-        const origin=SliceBuffer.origin
-        const width=SliceBuffer.width
-        const height=SliceBuffer.height
-
-        const cut = this.CentralPath.slice(0, Math.min(3, this.CentralPath.length));
-        
+    startGoalPoints(cut,origin){
         const [sChunkX, sChunkY] = cut[0].split("|")[0].split(",").map(Number);
         const [gChunkX, gChunkY] = cut[cut.length- 1].split("|")[0].split(",").map(Number);
         
@@ -347,6 +201,123 @@ class MovementOrder{
             y: gChunkY*1536 + lY - origin.y
         };
 
+        return [StartPixel,GoalPixel]
+    }
+
+    async getSliceBufferForUnit(sX,sY,chunkID,UnitPos,goalkey){
+        const subgrid=determineSubgrid(UnitPos)
+        const StartKey=`${chunkID}|${subgrid[0]},${subgrid[1]}|${UnitPos[0]},${UnitPos[1]}`
+
+        const brokenGoal=goalkey.split("|");
+        const g={
+            chunk:brokenGoal[0].split(",").map(Number),
+            pixel:brokenGoal[2].split(",").map(Number)
+        }
+
+        const StartPoint={
+            chunkX:sX,
+            chunkY:sY,
+            x:UnitPos[0],
+            y:UnitPos[1]}
+
+        const Goalpoint={
+            chunkX:g.chunk[0],
+            chunkY:g.chunk[1],
+            x:g.pixel[0],
+            y:g.pixel[1]}
+
+        const cheapestPortalStart=await getClosestAccessiblePortal(StartPoint)
+        const cheapestPortalGoal=await getClosestAccessiblePortal(Goalpoint)
+
+        const AbstractPath=await this.PathFromStartPortalToEndSubgrid(cheapestPortalStart,cheapestPortalGoal)
+        if(AbstractPath==null || AbstractPath==false){
+            console.log("path impossible, skipping unit")
+            return ["NoPath","NoPath"]}
+
+        AbstractPath[0]=StartKey
+        AbstractPath[AbstractPath.length -1]=goalkey
+        // console.log("unit Abstract path",AbstractPath)
+        const SliceBuffer=await this.CutPathBuffer(AbstractPath);
+        return [SliceBuffer,AbstractPath]
+    }
+
+    async UnitMovement(){
+        const makeChanges=[]
+
+        for (let [chunkID, TypePos] of this.UnitsInvolved) {
+            const [sX,sY]=chunkID.split(",").map(Number);
+
+            for (let [unitId, goalkey] of TypePos) {
+                const unitSpeed=1;
+
+                const UnitPos=ChunkManager.GetUnitPosition(chunkID,unitId,this.owner)
+                // const [goalkey]=Target
+                // console.log("goalkey",goalkey)
+
+                const[  SliceBuffer,
+                        AbstractPath
+                    ]=await this.getSliceBufferForUnit(sX,sY,chunkID,UnitPos,goalkey)
+                
+                // console.log(SliceBuffer,AbstractPath)
+                if( SliceBuffer=="OnTarget" || 
+                    SliceBuffer=="NoPath"){continue}
+
+                const Buffer=SliceBuffer.buffer
+                const origin=SliceBuffer.origin
+                const width=SliceBuffer.width
+                const height=SliceBuffer.height
+
+                const cut = AbstractPath.slice(0, Math.min(3, AbstractPath.length));
+                
+                const [StartPixel,GoalPixel]=this.startGoalPoints(cut,origin);
+                
+                const Returned= await AstarPathCost(Buffer,StartPixel,GoalPixel,{x:0,y:0},width,height,true);
+                // console.log("Returned",Returned)
+
+                const NextCoords=RealignPath(origin,Returned.path,unitSpeed);
+                let NextPosition=NextCoords[NextCoords.length -1]
+                console.log("unit",NextPosition)
+                const [A,B,C]=NextPosition.split("|")
+                const segA=`${A}|${B}`
+
+                const newXY=C.split(",").map(Number)
+                if(chunkID!=A){
+                    //remove unit from current tile, free up its serverID
+                    //create new unit in tile A with same stats but new position
+                    const newID=ChunkManager.UpdateUnit(chunkID,unitId,this.owner,A,newXY)
+                    // console.log("newID",newID)
+                    //record that this.UnitsInvolved needs changes
+                    makeChanges.push([chunkID,unitID,newID,A])
+
+                }
+                else{ChunkManager.UpdateUnitPosition(chunkID,unitId,this.owner,newXY)}
+            }
+        }
+
+        for(const change of makeChanges){
+            
+            this.UnitsInvolved.get(change[0]).delete(change[1])
+            
+            const empty=this.UnitsInvolved.get(change[0]).size()==0
+            if(empty){this.UnitsInvolved.delete(change[0])}
+
+            this.UnitsInvolved.set(change[3]).set(change[2],[])
+        }
+    }
+
+    async CentralMovement(speed=1){
+        const SliceBuffer=await this.CutPathBuffer(this.CentralPath);
+        if(SliceBuffer=="OnTarget"){return 0;}
+
+        const Buffer=SliceBuffer.buffer
+        const origin=SliceBuffer.origin
+        const width=SliceBuffer.width
+        const height=SliceBuffer.height
+
+        const cut = this.CentralPath.slice(0, Math.min(3, this.CentralPath.length));
+        
+        const [StartPixel,GoalPixel]=this.startGoalPoints(cut,origin);
+
         const Returned= await AstarPathCost(Buffer,StartPixel,GoalPixel,{x:0,y:0},width,height,true);
 
         const NextCoords=RealignPath(origin,Returned.path,speed);
@@ -361,8 +332,14 @@ class MovementOrder{
             this.CentralPath.shift();
         }else if(this.CentralPath[0] == this.CentralPath[1]){
             this.CentralPath.shift();
-            console.log("Central reached goal position")
-        }else{this.CentralPath[0] = NextPosition;}
+            console.log("Central reached goal position", this.CentralPath[0])
+        }else{
+            this.CentralPath[0] = NextPosition;
+
+            const brokenNext=NextPosition.split("|")
+            this.OrderCenter=brokenNext[2].split(",").map(Number);
+            this.chunkHoldingCenter=brokenNext[0].split(",").map(Number);
+        }
 
     }
 
@@ -374,6 +351,8 @@ class MovementOrder{
         try{
             await this.CentralMovement();
             
+            await this.createFormation();
+
             await this.UnitMovement();
         }
         finally {

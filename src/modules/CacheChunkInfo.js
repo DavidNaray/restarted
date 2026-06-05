@@ -98,6 +98,46 @@ class GlobalChunkManager {
         return Unit.position;
     }
 
+    UpdateUnitPosition(tileKey,serverID,ownerID,NewPosition){
+        serverID=serverID.toString();
+
+        const tile = this.tiles.get(tileKey);
+        const ownerGroup= tile.units.get(ownerID)
+        ownerGroup.instances.get(serverID).position=NewPosition
+    }
+
+    UpdateUnit(tileKey,serverID,ownerID, targetTile,NewPosition){
+        serverID=serverID.toString();
+        const tile = this.tiles.get(tileKey);
+        const ownerGroup= tile.units.get(ownerID)
+        const unitCopy=ownerGroup.instances.get(serverID)
+
+        ownerGroup.instances.delete(serverID)
+        tile.freeIndices.push(serverID)
+
+        if (oldOwnerGroup.instances.size === 0) {
+            oldTile.units.delete(ownerID);
+        }
+
+        const newTile = this.tiles.get(newTileKey);
+        if (!newTile.units.has(ownerID)) {
+            newTile.units.set(ownerID, { instances: new Map() });
+        }
+        const newOwnerGroup = newTile.units.get(ownerID);
+        unitData.position = newPos;
+        
+        let IdToUse=null;
+        if(newTile.freeIndices.length>0){
+            IdToUse=newTile.freeIndices.shift().toString();
+        }else{
+            IdToUse=newTile.topIndice
+            newTile.topIndice+=1
+        }
+        newOwnerGroup.instances.set(IdToUse, unitData);
+
+        return IdToUse;
+    }
+
     async RegisterUser(userId,user){
         console.log("Registering user:",userId);
         if(this.users.has(userId)){
