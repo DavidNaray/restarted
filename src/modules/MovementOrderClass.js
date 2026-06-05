@@ -251,35 +251,57 @@ class MovementOrder{
                 const unitSpeed=1;
 
                 const UnitPos=ChunkManager.GetUnitPosition(chunkID,unitId,this.owner)
-                // const [goalkey]=Target
-                // console.log("goalkey",goalkey)
+                const [subx,suby]=determineSubgrid(UnitPos);
+                const unitSnipKey=`${chunkID}|${subx},${suby}`
+                const unitKey= `${unitSnipKey}|${UnitPos[0]},${UnitPos[1]}`
+
+                const brokenGoal=goalkey.split("|")
+                const goalSnipKey=`${brokenGoal[0]}|${brokenGoal[1]}`
+
+                if(unitKey==goalkey){console.log("unit hit goal");continue}
 
                 const[  SliceBuffer,
                         AbstractPath
                     ]=await this.getSliceBufferForUnit(sX,sY,chunkID,UnitPos,goalkey)
                 
                 // console.log(SliceBuffer,AbstractPath)
-                if( SliceBuffer=="OnTarget" || 
-                    SliceBuffer=="NoPath"){continue}
+                let Buffer=SliceBuffer.buffer
+                let origin=SliceBuffer.origin
+                let width=SliceBuffer.width
+                let height=SliceBuffer.height
 
-                const Buffer=SliceBuffer.buffer
-                const origin=SliceBuffer.origin
-                const width=SliceBuffer.width
-                const height=SliceBuffer.height
+                if( SliceBuffer=="NoPath"){console.log("BOOM",SliceBuffer);continue}
+                else if(SliceBuffer=="OnTarget"){ 
+                    // console.log("remaining",AbstractPath,"target",goalkey);
+                    AbstractPath.unshift(unitKey)
+                    Buffer=ChunkManager.getAbstractMap(chunkID).get(`${subx},${suby}`).get("buffer")
+                    width=32
+                    height=32
+                    origin={
+                        x:sX*1536 + subx*32,
+                        y:sY*1536 + suby*32
+                    }
+                    // continue
+                }
+
 
                 const cut = AbstractPath.slice(0, Math.min(3, AbstractPath.length));
                 
                 const [StartPixel,GoalPixel]=this.startGoalPoints(cut,origin);
+
+                
                 
                 const Returned= await AstarPathCost(Buffer,StartPixel,GoalPixel,{x:0,y:0},width,height,true);
                 // console.log("Returned",Returned)
 
                 const NextCoords=RealignPath(origin,Returned.path,unitSpeed);
                 let NextPosition=NextCoords[NextCoords.length -1]
-                console.log("unit",NextPosition)
+                
                 const [A,B,C]=NextPosition.split("|")
                 const segA=`${A}|${B}`
-
+                const [AA,BB,CC]=AbstractPath[1].split("|")
+                const segB=`${AA}|${BB}`
+                
                 const newXY=C.split(",").map(Number)
                 if(chunkID!=A){
                     //remove unit from current tile, free up its serverID
@@ -287,10 +309,13 @@ class MovementOrder{
                     const newID=ChunkManager.UpdateUnit(chunkID,unitId,this.owner,A,newXY)
                     // console.log("newID",newID)
                     //record that this.UnitsInvolved needs changes
-                    makeChanges.push([chunkID,unitID,newID,A])
+                    makeChanges.push([chunkID,unitId,newID,A])
 
                 }
-                else{ChunkManager.UpdateUnitPosition(chunkID,unitId,this.owner,newXY)}
+                else{
+                    ChunkManager.UpdateUnitPosition(chunkID,unitId,this.owner,newXY)
+                }
+                console.log("unit",NextPosition,cut)
             }
         }
 
@@ -298,10 +323,14 @@ class MovementOrder{
             
             this.UnitsInvolved.get(change[0]).delete(change[1])
             
-            const empty=this.UnitsInvolved.get(change[0]).size()==0
+            const empty=this.UnitsInvolved.get(change[0]).size==0
             if(empty){this.UnitsInvolved.delete(change[0])}
 
-            this.UnitsInvolved.set(change[3]).set(change[2],[])
+            if (!this.UnitsInvolved.has(change[3])) {
+                this.UnitsInvolved.set(change[3], new Map());
+            }
+
+            this.UnitsInvolved.get(change[3]).set(change[2],[])
         }
     }
 

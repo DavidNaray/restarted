@@ -115,25 +115,26 @@ class GlobalChunkManager {
         ownerGroup.instances.delete(serverID)
         tile.freeIndices.push(serverID)
 
-        if (oldOwnerGroup.instances.size === 0) {
-            oldTile.units.delete(ownerID);
+        if (ownerGroup.instances.size === 0) {
+            tile.units.delete(ownerID);
         }
 
-        const newTile = this.tiles.get(newTileKey);
+        const newTile = this.tiles.get(targetTile);
         if (!newTile.units.has(ownerID)) {
             newTile.units.set(ownerID, { instances: new Map() });
         }
         const newOwnerGroup = newTile.units.get(ownerID);
-        unitData.position = newPos;
+        unitCopy.position = NewPosition;
         
         let IdToUse=null;
         if(newTile.freeIndices.length>0){
-            IdToUse=newTile.freeIndices.shift().toString();
+            IdToUse=newTile.freeIndices.shift()
         }else{
             IdToUse=newTile.topIndice
             newTile.topIndice+=1
         }
-        newOwnerGroup.instances.set(IdToUse, unitData);
+        IdToUse=IdToUse.toString()
+        newOwnerGroup.instances.set(IdToUse, unitCopy);
 
         return IdToUse;
     }

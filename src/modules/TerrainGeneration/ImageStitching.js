@@ -73,8 +73,11 @@ async function connectBorder(
         case "bottom": by = 0;  break;
     }
 
+
     const dataA=ChunkManager.getAbstractMap(tileAKey)
     const dataB=ChunkManager.getAbstractMap(tileBKey)
+
+
 
     //the buffers of the 2 neighbouring segments
     const bufA = dataA.get(`${sx},${sy}`).get("buffer");

@@ -124,14 +124,18 @@ async function AbstractAStar(start, goal, startChunkAbstractMap) {
                 loadedChunkMaps.set(adjChunkKey, accessAbstractMap);
             }
 
-            const adjNeighbours= await connectBorder(
-                current.split('|')[0],//tileAkey
-                adjChunkKey,//tileBkey
-                [pixelXC, pixelYC],//start
-                [SubgridXC, SubgridYC],//startingsubgrid
-                edge,//direction
-                accessAbstractMap//the abtractmap of the adjacent tile
-            )
+            let adjNeighbours;
+            try{
+                adjNeighbours= await connectBorder(
+                    current.split('|')[0],//tileAkey
+                    adjChunkKey,//tileBkey
+                    [pixelXC, pixelYC],//start
+                    [SubgridXC, SubgridYC],//startingsubgrid
+                    edge,//direction
+                    accessAbstractMap//the abtractmap of the adjacent tile
+                )
+            }catch(err){continue}
+            if(!adjNeighbours){continue}
 
             for (const [portalKey, cost] of adjNeighbours) {
                 neighbors.set(portalKey, cost);
