@@ -97,7 +97,6 @@ class MovementOrder{
 
                 const TargetKey=`${Ordchunk}|${OrdSubgrid}|${OrdPixel}`
                 this.UnitsInvolved.get(chunk).set(unitId,TargetKey)
-                // console.log("formation",TypePos[2])
             }
             
         }
@@ -264,13 +263,13 @@ class MovementOrder{
                         AbstractPath
                     ]=await this.getSliceBufferForUnit(sX,sY,chunkID,UnitPos,goalkey)
                 
-                // console.log(SliceBuffer,AbstractPath)
+
                 let Buffer=SliceBuffer.buffer
                 let origin=SliceBuffer.origin
                 let width=SliceBuffer.width
                 let height=SliceBuffer.height
 
-                if( SliceBuffer=="NoPath"){console.log("BOOM",SliceBuffer);continue}
+                if( SliceBuffer=="NoPath"){continue}
                 else if(SliceBuffer=="OnTarget"){ 
                     // console.log("remaining",AbstractPath,"target",goalkey);
                     AbstractPath.unshift(unitKey)
@@ -284,38 +283,25 @@ class MovementOrder{
                     // continue
                 }
 
-
                 const cut = AbstractPath.slice(0, Math.min(3, AbstractPath.length));
                 
                 const [StartPixel,GoalPixel]=this.startGoalPoints(cut,origin);
 
-                
-                
                 const Returned= await AstarPathCost(Buffer,StartPixel,GoalPixel,{x:0,y:0},width,height,true);
-                // console.log("Returned",Returned)
 
                 const NextCoords=RealignPath(origin,Returned.path,unitSpeed);
                 let NextPosition=NextCoords[NextCoords.length -1]
                 
                 const [A,B,C]=NextPosition.split("|")
-                const segA=`${A}|${B}`
-                const [AA,BB,CC]=AbstractPath[1].split("|")
-                const segB=`${AA}|${BB}`
                 
                 const newXY=C.split(",").map(Number)
                 if(chunkID!=A){
-                    //remove unit from current tile, free up its serverID
-                    //create new unit in tile A with same stats but new position
+                    //remove unit from current tile, add to new positions tile
                     const newID=ChunkManager.UpdateUnit(chunkID,unitId,this.owner,A,newXY)
-                    // console.log("newID",newID)
+
                     //record that this.UnitsInvolved needs changes
                     makeChanges.push([chunkID,unitId,newID,A])
-
-                }
-                else{
-                    ChunkManager.UpdateUnitPosition(chunkID,unitId,this.owner,newXY)
-                }
-                console.log("unit",NextPosition,cut)
+                }else{ChunkManager.UpdateUnitPosition(chunkID,unitId,this.owner,newXY)}
             }
         }
 

@@ -13,7 +13,6 @@ const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport
 const {SharpImgBuildingPlacementVerification,getPosWithHeight,BuildingPlacement}=require("./modules/PlacementValidation.js")
 const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
 const {calculateReward}=require("./modules/RewardCalculating.js")
-const {updatePixelLocAndOcc}=require("./modules/PathfindingFunctionality.js")
 const {getTheMessage,killEntry}=require("./modules/TickMessages.js")
 
 const {HandleReg}=require("./modules/RegistrationLogin/HandleReg.js")
@@ -683,16 +682,12 @@ io.on('connection', (socket) => {
             if(tile.freeIndices.length>0){
                 const freeIndice=tile.freeIndices.shift().toString();//pops first element in array
 
-                // updatePixelLocAndOcc(chunkX,chunkY,freeIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
-                
                 ChunkManager.AddUnitToTile(tileKey,values.pixelCoords,freeIndice,userId,UnitType,null)
 
                 //add to chosenServerIndices to notify user of development
                 chosenServerIndices.push(freeIndice)
             }else{
 
-                // updatePixelLocAndOcc(chunkX,chunkY,tile.topIndice,RequestMetaData.UnitType,values.pixelCoords,userId)
-                
                 //add to chosenServerIndices to notify user of development
                 ChunkManager.AddUnitToTile(tileKey,values.pixelCoords,tile.topIndice,userId,UnitType,null)
                 chosenServerIndices.push(tile.topIndice)
