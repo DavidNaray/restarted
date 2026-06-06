@@ -1,4 +1,3 @@
-const {updateOccupancyMap}=require("./PathfindingFunctionality.js")
 const {convertMongoPortalGraphToMap}=require("./MongoAbstractConversions.js")
 
 class GlobalChunkManager {
@@ -106,6 +105,18 @@ class GlobalChunkManager {
         ownerGroup.instances.get(serverID).position=NewPosition
     }
 
+    GetUnitTypeAndClass(tileKey,serverID,ownerID){
+        serverID=serverID.toString();
+
+        const tile = this.tiles.get(tileKey);
+        const ownerGroup= tile.units.get(ownerID)
+        // console.log("ownerGroup, exists!",ownerGroup)
+        const Unit=ownerGroup.instances.get(serverID)
+        // console.log("Unit, exists!",Unit)
+
+        return [Unit.UnitType,"Unit"];
+    }
+
     UpdateUnit(tileKey,serverID,ownerID, targetTile,NewPosition){
         serverID=serverID.toString();
         const tile = this.tiles.get(tileKey);
@@ -155,5 +166,5 @@ class GlobalChunkManager {
         return false;
     }
 }
-// const ChunkManager=new GlobalChunkManager()
+
 module.exports=new GlobalChunkManager()

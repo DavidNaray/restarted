@@ -3,17 +3,13 @@ const express=require("express");
 const path = require('path')
 const { Server } = require('socket.io');
 const jwt = require('jsonwebtoken');
-
+const { Console } = require('console');
+const mongoose = require('mongoose');
 const cookieParser = require('cookie-parser');
-
-const userSchemaImport=require("./Schemas/User")
-const TemplateSchemaImport=require("./Schemas/Template")
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
 const {SharpImgBuildingPlacementVerification,getPosWithHeight,BuildingPlacement}=require("./modules/PlacementValidation.js")
-const {validateUnitOwnership,validateUnitOwnershipTwo}=require("./modules/UnitPositionValidation.js")
 const {calculateReward}=require("./modules/RewardCalculating.js")
-const {getTheMessage,killEntry}=require("./modules/TickMessages.js")
 
 const {HandleReg}=require("./modules/RegistrationLogin/HandleReg.js")
 const {HandleLogin}=require("./modules/RegistrationLogin/HandleLogin.js")
@@ -22,14 +18,15 @@ const {validateclickedPoint,SpecificChunkPoint}=require("./modules/Verification/
 const {ProgressOrders}=require("./modules/UnitsAndMovement/OrderTracking.js")
 
 const ChunkManager=require("./modules/CacheChunkInfo.js")
+const TickManager=require("./modules/TickManager.js")
 const MovementOrderClass=require("./modules/MovementOrderClass.js")
 
 
-const mongoose = require('mongoose');
-const { Console } = require('console');
+const userSchemaImport=require("./Schemas/User")
+const TemplateSchemaImport=require("./Schemas/Template")
 const mongoDB="mongodb://localhost:27017/firstEver"
-mongoose.connect(mongoDB).then(()=>{console.log("successfully connected to mongoDB")})
 
+mongoose.connect(mongoDB).then(()=>{console.log("successfully connected to mongoDB")})
 const User = mongoose.model('User', userSchemaImport)
 const TemplateScheme = mongoose.model('Templates', TemplateSchemaImport)
 
@@ -722,7 +719,7 @@ io.on('connection', (socket) => {
         //chunkID -> unitType -> serverIds -> []
         const ActualUnits=selectedUnits["Unit"]
 
-        // const CHEATER=await validateUnitOwnershipTwo(selectedUnits["Unit"],UserIdCommandee)
+        // const CHEATER=//confirm unit ownership
 
         // if(CHEATER){
         //     //perform kicking and ban basically, manipulating info is egregious offense
@@ -762,33 +759,22 @@ io.on('connection', (socket) => {
 });
 
 
-const TICK_RATE = (1000 / 60)/3; // 20 ticks per second
-
 async function gameTick() {
 
     await ProgressOrders();//MovementOrders
-
     
-    //get the messages, go through it 
-    const messages=await getTheMessage()
-    // console.log("hi?",messages)
-    for (const [userIdent, TheirMessage] of messages) {
-        const TheirSocket=userSockets.get(userIdent)
+    const messages=TickManager.GetMessages()
 
-        // if(TheirMessage.replacements){
-        //     console.log("its here man......")
-
-        // }
-        // console.log("TheirMessage",TheirMessage,TheirSocket)
-        // const iterator = TheirSocket.values();
-        for (const value of TheirSocket) {
-            // console.log(value);
-            io.to(value).emit('TickUpdate', TheirMessage);
-        }
+    for (const [userId, Message] of messages) {
+        const TheirSocket=userSockets.get(userId)
         
-        await killEntry(userIdent)
+        try{
+            for (const value of TheirSocket) {
+                io.to(value).emit('TickUpdate', Message);
+            }
+        }catch(nosoc){console.log("no socket?",nosoc)}
     }
-
+    TickManager.ClearMessages()
 }
 
-setInterval(gameTick, TICK_RATE);
+setInterval(gameTick, TickManager.GetTickRate());

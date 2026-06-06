@@ -1,7 +1,7 @@
 const path = require('path');
 const bcrypt = require('bcrypt');
 const {RefreshTokenImport,AccessTokenImport}=require("../Verification")
-const Coordfinder=require("../NextChunkCoord")
+const Coordfinder=require("./NextChunkCoord.js")
 const genTerrain=require("../TerrainGeneration/TerrainGeneration")
 const {PortalConnectivity}=require("../TerrainGeneration/AbtractMapGeneration.js")
 const TileScheme=require("../../Schemas/Tile")

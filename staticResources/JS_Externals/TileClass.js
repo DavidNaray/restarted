@@ -271,6 +271,10 @@ export class Tile{
         this.instancePooling.removeInstance(serverId)//.moveUnit(theserverId,transform)
     }
 
+    getUnitData(serverId){
+        return this.instancePooling.getUnitData(serverId)
+    }
+
     async objectLoad(assetId,MetaData,AssetClass,){
         // console.log("TRYNA LOAD IN:",assetId,MetaData,AssetClass)
         //AssetClass is if the asset being loaded should be considered a building or unit etc

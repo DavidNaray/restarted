@@ -1,16 +1,15 @@
-const {unitPositionChangeForUsers,unitChunkCrossHandleForUsers}=require("./TickMessages.js")
 
-const TileScheme=require("../Schemas/Tile")
 const ChunkManager=require("./CacheChunkInfo.js")
-const { getClosestAccessiblePortal,
-        determineSubgrid,
-        determineChunk,
-        RealignPath}=require("./Pathfinding/PathfindingUtils.js")
+const TickManager=require("./TickManager.js")
 
 const {addMovementOrder,removeMovementOrder}=require("./UnitsAndMovement/OrderTracking.js")
 const {AbstractAStar}=require("./Pathfinding/AbstractAStar.js")
 const {AstarPathCost}=require("./TerrainGeneration/AStarCost.js")
 const {StitchPath}= require("./TerrainGeneration/ImageStitching.js")
+const { getClosestAccessiblePortal,
+        determineSubgrid,
+        determineChunk,
+        RealignPath}=require("./Pathfinding/PathfindingUtils.js")
 
 class MovementOrder{
     constructor(selectedUnits,values,ownerId){
@@ -257,7 +256,7 @@ class MovementOrder{
                 const brokenGoal=goalkey.split("|")
                 const goalSnipKey=`${brokenGoal[0]}|${brokenGoal[1]}`
 
-                if(unitKey==goalkey){console.log("unit hit goal");continue}
+                if(unitKey==goalkey){continue}
 
                 const[  SliceBuffer,
                         AbstractPath
@@ -297,11 +296,19 @@ class MovementOrder{
                 const newXY=C.split(",").map(Number)
                 if(chunkID!=A){
                     //remove unit from current tile, add to new positions tile
+                    const [UnitType,UnitClass]=ChunkManager.GetUnitTypeAndClass(chunkID,unitId,this.owner)
                     const newID=ChunkManager.UpdateUnit(chunkID,unitId,this.owner,A,newXY)
-
+                    
                     //record that this.UnitsInvolved needs changes
-                    makeChanges.push([chunkID,unitId,newID,A])
-                }else{ChunkManager.UpdateUnitPosition(chunkID,unitId,this.owner,newXY)}
+                    makeChanges.push([chunkID,unitId,newID,A,C,this.owner,UnitType,UnitClass])
+                }
+                else{
+                    ChunkManager.UpdateUnitPosition(chunkID,unitId,this.owner,newXY)
+                    console.log(NextPosition)
+                    //create updateMessage ID|chunk|pixel
+                    const updateMessage=`${unitId}|${A}|${C}`
+                    TickManager.UpdateMessageUnitPosition(A,updateMessage)
+                }
             }
         }
 
@@ -317,6 +324,10 @@ class MovementOrder{
             }
 
             this.UnitsInvolved.get(change[3]).set(change[2],[])
+
+            //Replace message oldId|newId|oldchunk|newchunk|pixel|owner|unitType|AssetClass
+            const updateMessage=`${change[1]}|${change[2]}|${change[0]}|${change[3]}|${change[4]}|${change[5]}|${change[6]}|${change[7]}`
+            TickManager.UpdateMessageCrossChunk(change[0],change[3],updateMessage)
         }
     }
 

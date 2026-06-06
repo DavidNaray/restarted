@@ -233,6 +233,26 @@ export class TileInstancePool {
         return true;
     }
 
+    getUnitData(serverId){
+        const [objectType,instanceId]=this.ServerId_To_ObjTypeAndInstId_Mapping.get(serverId);
+
+        console.log("objectType",objectType)
+        console.log("instanceId",instanceId)
+
+        // const metaDataUnits={
+        //     "position":[unitReplace.x,unitReplace.y],
+        //     "UnitType":unitReplace.unitType,
+        //     "AssetClass":unitReplace.AssetClass,
+        //     "owner":unitReplace.owner,
+        //     "ServerId":serverId
+        //     // "health":response.health
+        // }
+        const mesh = this.instanceGroups.get(objectType);
+        if (!mesh) return undefined;
+
+        return [objectType,mesh.metadata.get(instanceId)];
+
+    }
 
     compactInstanceObject(objectType, oldMesh) {
         const usedIndices = new Set();

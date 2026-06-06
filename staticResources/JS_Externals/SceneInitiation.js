@@ -379,49 +379,53 @@ function HandleSocketResponses(socket){
     });
 
     socket.on("TickUpdate",async (response)=>{
-        // console.log("ummmm",response)
-        //loop over positions
         const replacements=response.replacements
-        // console.log("replacements",response.replacements)
         const positions=response.positions
 
-        if(replacements){
-            console.log("replacements!!!!!!!!!!",replacements)
-            for(const unitReplace of replacements){
-                const whichTileUnitsRemoveFrom=globalmanager.getTile(unitReplace.ChunkX,unitReplace.ChunkY)
-                const RemoveUnitOfId=unitReplace.unitId
+        //move units across chunks
+        try{
+            if(replacements){
+                for(const replace of replacements){
+                    const [oldId,newId,oldchunk,newchunk,pixel,owner,unitType,AssetClass]=replace.split("|")
+                    const [oChunkX,oChunkY]=oldchunk.split(",").map(Number)
+                    const [nchunkX,nchunkY]=newchunk.split(",").map(Number)
 
-                whichTileUnitsRemoveFrom.removeUnit(RemoveUnitOfId)
-                
-                const whichTileUnits=globalmanager.getTile(unitReplace.newChunkX,unitReplace.newChunkY)
-                const newUnitId=unitReplace.serverId
-
-                const metaDataUnits={
-                    "position":[unitReplace.x,unitReplace.y],//in pixel values for the chunk its to be deployed in!
-                    "UnitType":unitReplace.unitType,
-                    "AssetClass":unitReplace.AssetClass,
-                    "owner":unitReplace.owner,
-                    "ServerId":newUnitId
-                    // "health":response.health
-                }
-                // console.log(response.ServerIds[i], "placing units, this is the serverId of one")
-                const objLoad=await whichTileUnits.objectLoad(unitReplace.unitType,metaDataUnits,unitReplace.AssetClass)
-                if(objLoad){
-                    whichTileUnits.addToScene(unitReplace.UnitType, metaDataUnits)
+                    const RemoveFrom=globalmanager.getTile(oChunkX,oChunkY)
+                    if(RemoveFrom){RemoveFrom.removeUnit(Number(oldId))}
+                    else{/*user does not have the tile loaded to delete the unit */}
+                    
+                    const LoadTo=globalmanager.getTile(nchunkX,nchunkY)
+                    if(LoadTo){
+                        const Meta={
+                            "position":pixel.split(",").map(Number),//in pixel values for the chunk its to be deployed in!
+                            "UnitType":unitType,
+                            "AssetClass":AssetClass,
+                            "owner":owner,
+                            "ServerId":Number(newId)
+                        }
+                        const objLoad=await LoadTo.objectLoad(unitType,Meta,AssetClass)
+                        if(objLoad){LoadTo.addToScene(unitType, Meta)}
+                    }
+                    else{/*user does not have the tile loaded to create the unit */}
                 }
             }
-        }
+        }catch(purr){}
 
-        if(positions){
-            for(const unitmove of positions){
-                // console.log("unitmove",unitmove)
-                const whichTileUnits=globalmanager.getTile(unitmove.ChunkX,unitmove.ChunkY)
-                // console.log(whichTileUnits,"so its got the tile")
-                const UnitServerId=unitmove.unitId
+        //change unit positions within a chunk
+        try{
+            if(positions){
+                for(const position of positions){
+                    const brokenpos=position.split("|")
+                    const [ChunkX,ChunkY]=brokenpos[1].split(",").map(Number)
+                    const [x,y]=brokenpos[2].split(",").map(Number)
+                    const UnitServerId=Number(brokenpos[0])
 
-                whichTileUnits.moveUnit([unitmove.x,unitmove.y],UnitServerId)
+                    const whichTileUnits=globalmanager.getTile(ChunkX,ChunkY)
+
+                    whichTileUnits.moveUnit([x,y],UnitServerId)
+                }
             }
-        }
+        }catch(err){}
 
     })
 
