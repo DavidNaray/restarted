@@ -7,11 +7,33 @@ class GlobalChunkManager {
 
         this.users = new Map();//users have utility
         this.UsersSeeingTileMap=new Map()
+        this.userSockets=new Map();// userId -> Set of socket IDs
     }
     getTile(x, y) {
         try{return this.tiles.get(`${x},${y}`)}
 
         catch(poppy){return false}
+    }
+
+    setUserSocket(userId,socketId){
+        if (!this.userSockets.has(userId)) {this.userSockets.set(userId, new Set());}
+        this.userSockets.get(userId).add(socketId);
+    }
+
+    RemoveUserSocket(userId,socketId){
+        if (this.userSockets.has(userId)) {
+            this.userSockets.get(userId).delete(socketId);
+            const zeroSize=this.userSockets.get(userId).size === 0
+            if (zeroSize){this.userSockets.delete(userId)} 
+        }
+    }
+
+    getUserSockets(userId){
+        return this.userSockets.get(userId);
+    }
+
+    getSockets(){
+        return this.userSockets
     }
 
     async RegisterTile(tile,userId){

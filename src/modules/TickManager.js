@@ -1,18 +1,22 @@
 
 const ChunkManager=require("./CacheChunkInfo.js")
+const ResourceManager=require("./ResourceManager.js")
 
 class TickManager {
 
     constructor() {
-        this.TICK_RATE = (1000 / 60)/3;
+        this.TICK_RATE = 1000 / 10; //10 updates a second //(1000 / 60)/2;//
+        this.ResourceTickRate=1000;//update every 1 second
         this.messages=new Map()
     }
 
     GetTickRate(){return this.TICK_RATE;}
 
+    GetResourceTickRate(){return this.ResourceTickRate;}
+
     GetMessages(){return this.messages;}
 
-    ClearMessages(){this.messages=new Map()}
+    ClearMessages(){this.messages.clear()}
     
     DeleteUserRecord(userId){this.messages.delete(userId)}
     
@@ -47,6 +51,21 @@ class TickManager {
         }
     }
 
+    async ResourceMessage(){
+        try{
+            const UsersAndSockets=ChunkManager.getSockets()
+            for (const [userId, socket] of UsersAndSockets) {
+                const UsersResources=await ResourceManager.getUserResources(userId)
+                const currentMessage=this.messages.get(userId)
+                // this.messages.get(userId).
+                if(currentMessage){
+                    currentMessage.resources=UsersResources
+                }
+                else{this.messages.set(userId,{resources:UsersResources})}
+
+            }
+        }catch(huh){console.log("error somehow",huh)}
+    }
 }
 
 module.exports=new TickManager()

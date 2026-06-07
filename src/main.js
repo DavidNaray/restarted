@@ -220,8 +220,6 @@ async function updateResourceForUser(user){
     return user;
 }
 
-const userSockets = new Map(); // userId -> Set of socket IDs
-
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('No token provided'));
@@ -231,27 +229,7 @@ io.use((socket, next) => {
 
 io.on('connection', (socket) => {
 
-    if (!userSockets.has(socket.userId)) {
-        userSockets.set(socket.userId, new Set());
-    }
-    userSockets.get(socket.userId).add(socket.id);
-
-    socket.on('requestResourceUpdate', async () => {
-        // console.log(`Resources requested by player: ${playerId}`);
-        try{
-            // const user=await User.findOne({ _id: socket.userId })
-            const user=await ChunkManager.getUser(socket.userId)
-            if(!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-
-            await updateResourceForUser(user);
-            socket.emit("resourceUpdate", user.Resources);
-        }catch(err){
-        }
-
-    });
+    ChunkManager.setUserSocket(socket.userId,socket.id)
 
     socket.on('TechnologyTreeRequest', async () => {    
         try{
@@ -749,13 +727,7 @@ io.on('connection', (socket) => {
     });
 
     // Handle disconnect
-    socket.on("disconnect", () => {
-        const sockets = userSockets.get(socket.userId);
-        if (sockets) {
-            sockets.delete(socket.id);
-            if (sockets.size === 0) userSockets.delete(socket.userId);
-        }
-    });
+    socket.on("disconnect", () => {ChunkManager.RemoveUserSocket(socket.userId,socket.id)});
 });
 
 
@@ -766,7 +738,8 @@ async function gameTick() {
     const messages=TickManager.GetMessages()
 
     for (const [userId, Message] of messages) {
-        const TheirSocket=userSockets.get(userId)
+        // const TheirSocket=userSockets.get(userId)
+        const TheirSocket=ChunkManager.getUserSockets(userId)
         
         try{
             for (const value of TheirSocket) {
@@ -778,3 +751,4 @@ async function gameTick() {
 }
 
 setInterval(gameTick, TickManager.GetTickRate());
+setInterval(TickManager.ResourceMessage.bind(TickManager), TickManager.GetResourceTickRate());

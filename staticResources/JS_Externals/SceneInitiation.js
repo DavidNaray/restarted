@@ -37,66 +37,6 @@ export async function getUserTileData(accessToken){
 
 function HandleSocketResponses(socket){
 
-    socket.on('resourceUpdate', (resources) => {
-        
-        const political={Rate:resources.Political.Rate,Total:Math.floor(resources.Political.Total)};
-        const gold={Rate:resources.Gold.Rate,Total:Math.floor(resources.Gold.Total)};
-        const stone={Rate:resources.Stone.Rate,Total:Math.floor(resources.Stone.Total)};
-        const wood={Rate:resources.Wood.Rate,Total:Math.floor(resources.Wood.Total)};
-        const stability={Total:Math.floor(resources.Stability.Total)};  
-        const warSupport={Total:Math.floor(resources.WarSupport.Total)};
-        const manpower={
-            TotalManPower:Math.floor(resources.ManPower.TotalManPower),
-            TotalPopulation:Math.floor(resources.ManPower.TotalPopulation),
-            PopulationRate:resources.ManPower.PopulationRate,
-            RecruitableFactor:resources.ManPower.RecruitableFactor,
-            MaxPopulation:resources.ManPower.MaxPopulation
-        };
-        
-        document.getElementById("PPRTxt").innerText=political.Total;
-        try{
-            document.getElementById("ToolTipPPRate").innerText=political.Rate;
-            document.getElementById("ToolTipPPSurplus").innerText=political.Total;    
-        }catch(a){}
-
-        document.getElementById("GoldRTxt").innerText=gold.Total;
-        try{
-            document.getElementById("ToolTipGoldRate").innerText=gold.Rate;
-            document.getElementById("ToolTipGoldSurplus").innerText=gold.Total;
-        }catch(b){}
-
-        document.getElementById("StoneRTxt").innerText=stone.Total;
-        try{
-            document.getElementById("ToolTipStoneRate").innerText=stone.Rate;
-            document.getElementById("ToolTipStoneSurplus").innerText=stone.Total;
-        }catch(c){}
-
-        document.getElementById("WoodRTxt").innerText=wood.Total;
-        try{
-            document.getElementById("ToolTipWoodRate").innerText=wood.Rate;
-            document.getElementById("ToolTipWoodSurplus").innerText=wood.Total;
-        }catch(d){}
-
-        document.getElementById("StabilityRTxt").innerText=stability.Total;
-        try{
-            document.getElementById("ToolTipStability").innerText=stability.Total;
-        }catch(e){}
-
-        document.getElementById("WarSupportRTxt").innerText=warSupport.Total;
-        try{
-            document.getElementById("ToolTipWarSupport").innerText=warSupport.Total;
-        }catch(f){}
-
-        document.getElementById("ManPowerRTxt").innerText=manpower.TotalManPower;
-        try{
-            document.getElementById("ToolTipTotalManPower").innerText=manpower.TotalManPower;
-            document.getElementById("ToolTipTotalPop").innerText=manpower.TotalPopulation;
-            document.getElementById("ToolTipMonthlyPopGain").innerText=manpower.PopulationRate;
-            document.getElementById("ToolTipRecrtuitableFac").innerText="Recruitable: "+manpower.RecruitableFactor+"%";
-            document.getElementById("ToolTipMaxPop").innerText=manpower.MaxPopulation;
-        }catch(g){}
-    });
-
     socket.on('CanYouPlaceBuilding', async (response) => {
         InputState.value="neutral"
 
@@ -381,6 +321,7 @@ function HandleSocketResponses(socket){
     socket.on("TickUpdate",async (response)=>{
         const replacements=response.replacements
         const positions=response.positions
+        const resources=response.resources
 
         //move units across chunks
         try{
@@ -426,6 +367,10 @@ function HandleSocketResponses(socket){
                 }
             }
         }catch(err){}
+
+        try{
+            if(resources){makeResourceUpdate(resources)}
+        }catch(rerr){}
 
     })
 
@@ -969,14 +914,69 @@ function HandleSocketResponses(socket){
     });
 }
 
+function makeResourceUpdate(resources){
+    const political={Rate:resources.Political.Rate,Total:Math.floor(resources.Political.Total)};
+    const gold={Rate:resources.Gold.Rate,Total:Math.floor(resources.Gold.Total)};
+    const stone={Rate:resources.Stone.Rate,Total:Math.floor(resources.Stone.Total)};
+    const wood={Rate:resources.Wood.Rate,Total:Math.floor(resources.Wood.Total)};
+    const stability={Total:Math.floor(resources.Stability.Total)};  
+    const warSupport={Total:Math.floor(resources.WarSupport.Total)};
+    const manpower={
+        TotalManPower:Math.floor(resources.ManPower.TotalManPower),
+        TotalPopulation:Math.floor(resources.ManPower.TotalPopulation),
+        PopulationRate:resources.ManPower.PopulationRate,
+        RecruitableFactor:resources.ManPower.RecruitableFactor,
+        MaxPopulation:resources.ManPower.MaxPopulation
+    };
+    
+    document.getElementById("PPRTxt").innerText=political.Total;
+    try{
+        document.getElementById("ToolTipPPRate").innerText=political.Rate;
+        document.getElementById("ToolTipPPSurplus").innerText=political.Total;    
+    }catch(a){}
+
+    document.getElementById("GoldRTxt").innerText=gold.Total;
+    try{
+        document.getElementById("ToolTipGoldRate").innerText=gold.Rate;
+        document.getElementById("ToolTipGoldSurplus").innerText=gold.Total;
+    }catch(b){}
+
+    document.getElementById("StoneRTxt").innerText=stone.Total;
+    try{
+        document.getElementById("ToolTipStoneRate").innerText=stone.Rate;
+        document.getElementById("ToolTipStoneSurplus").innerText=stone.Total;
+    }catch(c){}
+
+    document.getElementById("WoodRTxt").innerText=wood.Total;
+    try{
+        document.getElementById("ToolTipWoodRate").innerText=wood.Rate;
+        document.getElementById("ToolTipWoodSurplus").innerText=wood.Total;
+    }catch(d){}
+
+    document.getElementById("StabilityRTxt").innerText=stability.Total;
+    try{
+        document.getElementById("ToolTipStability").innerText=stability.Total;
+    }catch(e){}
+
+    document.getElementById("WarSupportRTxt").innerText=warSupport.Total;
+    try{
+        document.getElementById("ToolTipWarSupport").innerText=warSupport.Total;
+    }catch(f){}
+
+    document.getElementById("ManPowerRTxt").innerText=manpower.TotalManPower;
+    try{
+        document.getElementById("ToolTipTotalManPower").innerText=manpower.TotalManPower;
+        document.getElementById("ToolTipTotalPop").innerText=manpower.TotalPopulation;
+        document.getElementById("ToolTipMonthlyPopGain").innerText=manpower.PopulationRate;
+        document.getElementById("ToolTipRecrtuitableFac").innerText="Recruitable: "+manpower.RecruitableFactor+"%";
+        document.getElementById("ToolTipMaxPop").innerText=manpower.MaxPopulation;
+    }catch(g){}
+}
+
 function HandleInitialEmits(socket){
     socket.emit('requestResourceUpdate');
     socket.emit('requestRewards')
     // socket.emit('testing');
-}
-
-export function EmitResourceUpdate(){
-    socket.emit('requestResourceUpdate');
 }
 
 export function EmitBuildingPlacementRequest(RequestMetaData){//BuildingAssetName,
@@ -1026,7 +1026,10 @@ export function ProductionSetupEmit(){
     // console.log("should be emitting?")
     socket.emit('ProductionSetupRequest');
 }
-setInterval(EmitResourceUpdate, 10000);// Emit resource updates every 10 seconds
+
+
+
+// setInterval(EmitResourceUpdate, 10000);// Emit resource updates every 10 seconds
 
 
 function ChangeProdsFactories(e){

@@ -1,4 +1,4 @@
-import {   EmitResourceUpdate} from "./SceneInitiation.js"
+// import {   EmitResourceUpdate} from "./SceneInitiation.js"
 
 function positionTooltip(targetElem, tooltipElem) {
     const rect = targetElem.getBoundingClientRect();
@@ -128,38 +128,24 @@ export function MakeToolTips(){
             switch(whichToolTip){
                 case "Wood":
                     if(hasNoChildNodes){WoodCase(tooltip)}
-                    // EmitWoodUpdate();
-                    EmitResourceUpdate();
                     break;
                 case "Stone":
                     if(hasNoChildNodes){StoneCase(tooltip);}
-                    // EmitStoneUpdate();
-                    EmitResourceUpdate();
                     break;
                 case "Gold":
                     if(hasNoChildNodes){GoldCase(tooltip);}
-                    // EmitGoldUpdate();
-                    EmitResourceUpdate();
                     break;
                 case "ManPower":
                     if(hasNoChildNodes){ManPowerCase(tooltip);}
-                    // EmitManPowerUpdate();
-                    EmitResourceUpdate();
                     break;
                 case "WarSupport":
                     if(hasNoChildNodes){WarSupportCase(tooltip);}
-                    // EmitWarSupportUpdate();
-                    EmitResourceUpdate();
                     break;
                 case "Stability":
                     if(hasNoChildNodes){StabilityCase(tooltip);}
-                    // EmitStabilityUpdate()
-                    EmitResourceUpdate();
                     break;
                 case "PoliticalPower":
                     if(hasNoChildNodes){PoliticalPowerCase(tooltip);}
-                    // EmitPoliticalPowerUpdate()
-                    EmitResourceUpdate();
                     break;
                 default:
                     tooltip.innerHTML='Resource info';
