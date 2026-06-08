@@ -1,17 +1,8 @@
 import * as THREE from "three";
-import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/loaders/GLTFLoader.js';
-import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/utils/BufferGeometryUtils.js';
 
 import {TileInstancePool} from "./InstancePoolClass.js"
 import {scene,requestRenderIfNotRequested} from "../siteJS.js"
 import {superHeightMapTexture,superColourMapTexture,superWalkMapTexture} from "./SuperCanvas.js"
-
-const loader = new GLTFLoader();
-const fileLoader = new THREE.FileLoader(loader.manager);
-fileLoader.setResponseType('arraybuffer'); // GLB is binary
-fileLoader.setRequestHeader({'Authorization': `Bearer ${localStorage.getItem('accessToken')}`});
-
-export var OBJECTS=new Map(); 
 
 // responsible for generating the tile and holding the instancePools objects that track units and buildings
 export class Tile{
@@ -229,91 +220,6 @@ export class Tile{
         this.instancePooling.moveUnit(theserverId,transform)
     }
 
-    removeUnit(serverId){
-        this.instancePooling.removeInstance(serverId)//.moveUnit(theserverId,transform)
-    }
-
-    getUnitData(serverId){
-        return this.instancePooling.getUnitData(serverId)
-    }
-
-    async objectLoad(assetId,MetaData,AssetClass,){
-        // console.log("TRYNA LOAD IN:",assetId,MetaData,AssetClass)
-        //AssetClass is if the asset being loaded should be considered a building or unit etc
-
-        const has=OBJECTS.has(assetId)
-        if(has){return true}
-
-        return new Promise((resolve, reject) => {
-            fileLoader.load(
-                `Assets/GLB_Exports/${assetId}.glb`,
-                (data) => {
-                    const loader = new GLTFLoader();
-                    loader.parse(
-                        data,
-                        '',
-                        (gltf) => {
-                            const geometries = [];
-                            const materials = [];
-
-                            gltf.scene.traverse((child) => {
-                                if (child.isMesh) {
-                                    child.updateWorldMatrix(true, false);
-                                    child.geometry.applyMatrix4(child.matrixWorld);
-                                    geometries.push(child.geometry);
-
-                                    if (Array.isArray(child.material)) {
-                                        child.material.forEach(mat => {
-                                            if (!materials.includes(mat)) materials.push(mat);
-                                        });
-                                    } else {
-                                        if (!materials.includes(child.material)) materials.push(child.material);
-                                    }
-                                }
-                            });
-
-                            if (geometries.length === 0) {
-                                // console.error("No meshes found in gltf scene");
-                                resolve(false);
-                                return;
-                            }
-
-                            const mergedGeometry = mergeGeometries(geometries, true);
-                            // const mergedMesh = new THREE.Mesh(mergedGeometry, materials);
-                            
-                            // let finalMaterial;
-                            // if (materials.length === 1) {
-                            //     finalMaterial = materials[0];
-                            // } else {
-                            //     // TODO: support multi-material groups if needed
-                            //     console.warn("Multiple materials found, using first only");
-                            //     finalMaterial = materials[0];
-                            // }
-
-                            OBJECTS.set(assetId, {
-                                AssetClass,
-                                // Mesh: mergedMesh
-                                Geometry:mergedGeometry,
-                                material:materials
-                            });
-
-                            resolve(true);
-                        },
-                        (error) => {
-                            // console.error("GLTF parse failed", error);
-                            resolve(false);
-                        }
-                    );
-                },
-                undefined, // onProgress
-                (error) => {
-                    // console.error("GLTF load failed", error);
-                    resolve(false);
-                }
-            );
-        });
-
-        
-    }
+    removeUnit(serverId){this.instancePooling.removeInstance(serverId)}
 
 }

@@ -1,6 +1,5 @@
 import * as THREE from "three";
 import {scene,requestRenderIfNotRequested} from "../siteJS.js"
-import {OBJECTS} from "./TileClass.js"
 
 import {globalmanager} from "./GlobalInstanceMngr.js"
 
@@ -88,7 +87,6 @@ export class TileInstancePool {
 
     createInstanceObjectOfCount(objectType,count,oldMesh = null){
         const objectTypeMesh = globalmanager.getAsset(objectType);
-        // OBJECTS.get(objectType);
         const geometry = objectTypeMesh.geometry;
         const baseMat  = objectTypeMesh.materials;
 
@@ -239,22 +237,10 @@ export class TileInstancePool {
     getUnitData(serverId){
         const [objectType,instanceId]=this.ServerId_To_ObjTypeAndInstId_Mapping.get(serverId);
 
-        console.log("objectType",objectType)
-        console.log("instanceId",instanceId)
-
-        // const metaDataUnits={
-        //     "position":[unitReplace.x,unitReplace.y],
-        //     "UnitType":unitReplace.unitType,
-        //     "AssetClass":unitReplace.AssetClass,
-        //     "owner":unitReplace.owner,
-        //     "ServerId":serverId
-        //     // "health":response.health
-        // }
         const mesh = this.instanceGroups.get(objectType);
         if (!mesh) return undefined;
 
         return [objectType,mesh.metadata.get(instanceId)];
-
     }
 
     compactInstanceObject(objectType, oldMesh) {
