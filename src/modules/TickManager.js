@@ -5,7 +5,7 @@ const ResourceManager=require("./ResourceManager.js")
 class TickManager {
 
     constructor() {
-        this.TICK_RATE = 1000 / 10; //10 updates a second //(1000 / 60)/2;//
+        this.TICK_RATE = 1000 / 15; //10 updates a second //(1000 / 60)/2;//
         this.ResourceTickRate=1000;//update every 1 second
         this.messages=new Map()
     }
@@ -49,6 +49,30 @@ class TickManager {
             }
             else{this.messages.set(userId,{replacements:[unitReplace]})}
         }
+    }
+
+    DeploymentMessage(TargetChunk,UpdateMessage){
+        const concerned=ChunkManager.getUserIdArrayForTile(TargetChunk)
+        for(let userId of concerned){
+            const currentMessage=this.messages.get(userId)
+            if(currentMessage){
+                const deployments=currentMessage.Deployments
+                if(deployments){currentMessage.Deployments.push(UpdateMessage)}
+                else{currentMessage.Deployments=[UpdateMessage]}
+            }
+            else{this.messages.set(userId,{Deployments:[UpdateMessage]})}
+        }
+    }
+
+    DeployPositionPermissionMessage(userId,UpdateMessage){
+        //only concerns the one person
+        const currentMessage=this.messages.get(userId)
+        if(currentMessage){
+            const permission=currentMessage.DeployPosRequestResponse
+            if(permission){currentMessage.DeployPosRequestResponse.push(UpdateMessage)}
+            else{currentMessage.DeployPosRequestResponse=[UpdateMessage]}
+        }
+        else{this.messages.set(userId,{DeployPosRequestResponse:[UpdateMessage]})}
     }
 
     async ResourceMessage(){

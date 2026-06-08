@@ -34,8 +34,89 @@ export async function getUserTileData(accessToken){
     }
 }
 
+export function setupSocketConnection(){
+    socket = io({auth:{token:localStorage.getItem('accessToken')}});
+    
+    socket.on("TickUpdate",async (response)=>{
+        const replacements=response.replacements
+        const positions=response.positions
+        const Deployments=response.Deployments
+        const DeployPosRequestResponse=response.DeployPosRequestResponse
+
+        const resources=response.resources
+        const DailyReward=response.DailyReward
+
+        //move units across chunks
+        if(replacements){
+            for(const replace of replacements){
+                const [oldId,newId,oldchunk,newchunk,pixel,owner,unitType,AssetClass]=replace.split("|")
+                const [oChunkX,oChunkY]=oldchunk.split(",").map(Number)
+                const [nchunkX,nchunkY]=newchunk.split(",").map(Number)
+
+                const RemoveFrom=globalmanager.getTile(oChunkX,oChunkY)
+                if(RemoveFrom){RemoveFrom.removeUnit(Number(oldId))}
+                else{/*user does not have the tile loaded to delete the unit */}
+                
+                const LoadTo=globalmanager.getTile(nchunkX,nchunkY)
+                if(LoadTo){
+                    const Meta={
+                        "position":pixel.split(",").map(Number),//in pixel values for the chunk its to be deployed in!
+                        "UnitType":unitType,
+                        "AssetClass":AssetClass,
+                        "owner":owner,
+                        "ServerId":Number(newId)
+                    }
+                    const objLoad=await globalmanager.objectLoad(unitType,Meta,AssetClass)
+                    if(objLoad){LoadTo.addToScene(unitType, Meta)}
+                }
+                else{/*user does not have the tile loaded to create the unit */}
+            }
+        }
+
+        //change unit positions within a chunk
+        if(positions){
+            for(const position of positions){
+                const brokenpos=position.split("|")
+                const [ChunkX,ChunkY]=brokenpos[1].split(",").map(Number)
+                const [x,y]=brokenpos[2].split(",").map(Number)
+                const UnitServerId=Number(brokenpos[0])
+
+                const whichTileUnits=globalmanager.getTile(ChunkX,ChunkY)
+
+                whichTileUnits.moveUnit([x,y],UnitServerId)
+            }
+        }
+
+        //deploy units at position
+        if(Deployments){await HandleDeployments(Deployments)}
+
+        //response for unit deployment position
+        if(DeployPosRequestResponse){HandleDeploymentPositionRequest(DeployPosRequestResponse)}
+
+        //keep user resources up-to-date
+        if(resources){makeResourceUpdate(resources)}
+
+        //alert user of daily reward
+        if(DailyReward){
+            const msgDiv=document.getElementById("DailyRewardText");
+            const imgDiv=document.getElementById("DailyRewardImage");
+
+            msgDiv.innerText=DailyReward.Message;
+            imgDiv.style.backgroundImage=`url('${DailyReward.ImageLocation}')`;//"url("+response.ImageLocation+")";
+
+            const bruhTwo=document.getElementById("bruhTwo");
+            bruhTwo.style.display="flex"; // Show the reward box
+        }
+
+    })
+    
+    HandleSocketResponses(socket)
+
+}
 
 function HandleSocketResponses(socket){
+
+    
 
     socket.on('CanYouPlaceBuilding', async (response) => {
         InputState.value="neutral"
@@ -255,116 +336,6 @@ function HandleSocketResponses(socket){
         try{if(response.Mil){ ProdCount.innerHTML=`Total Production Lines: ${response.Mil}`} }catch(pp){}
 
 
-    })
-
-    socket.on('CanYouDeployHere', (response) => {
-        // console.log("deplo here?")
-        InputState.value="neutral"
-        // console.log("deploy here?",response)
-        if(response.permission){
-            adjustUnitDeployPosition(response)
-        }
-        //the user clicked, the deployment has/not been set, remove eventListeners
-        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-        renderer.domElement.removeEventListener( 'click',  onTileClick);
-    });
-
-    socket.on('DeployAllUnitsHere', async (response) => {
-        console.log("deploying units",response.position)
-
-        const whichTileUnits=globalmanager.getTile(response.tile[0],response.tile[1])
-        // console.log("owner of deployed units",response.owner)
-
-        for(var i=0;i<response.UnitCount;i++){
-            const metaDataUnits={
-                "position":response.position,//in pixel values for the chunk its to be deployed in!
-                "UnitType":response.UnitType,
-                "AssetClass":response.AssetClass,
-                "owner":response.owner,
-                "ServerId":response.ServerIds[i]
-                // "health":response.health
-            }
-            console.log(response.ServerIds[i], "placing units, this is the serverId of one")
-            const objLoad=await whichTileUnits.objectLoad(response.UnitType,metaDataUnits,response.AssetClass)
-            // console.log("objLoad",objLoad)
-            if(objLoad){
-                whichTileUnits.addToScene(response.UnitType, metaDataUnits)
-            }
-        }
-        
-    });
-
-    socket.on('MovementCommandResponse', (response) => {
-        console.log(response,"hm.....")
-    });
-
-    socket.on("TickUpdate",async (response)=>{
-        const replacements=response.replacements
-        const positions=response.positions
-        const resources=response.resources
-        const DailyReward=response.DailyReward
-
-        //move units across chunks
-        try{
-            if(replacements){
-                for(const replace of replacements){
-                    const [oldId,newId,oldchunk,newchunk,pixel,owner,unitType,AssetClass]=replace.split("|")
-                    const [oChunkX,oChunkY]=oldchunk.split(",").map(Number)
-                    const [nchunkX,nchunkY]=newchunk.split(",").map(Number)
-
-                    const RemoveFrom=globalmanager.getTile(oChunkX,oChunkY)
-                    if(RemoveFrom){RemoveFrom.removeUnit(Number(oldId))}
-                    else{/*user does not have the tile loaded to delete the unit */}
-                    
-                    const LoadTo=globalmanager.getTile(nchunkX,nchunkY)
-                    if(LoadTo){
-                        const Meta={
-                            "position":pixel.split(",").map(Number),//in pixel values for the chunk its to be deployed in!
-                            "UnitType":unitType,
-                            "AssetClass":AssetClass,
-                            "owner":owner,
-                            "ServerId":Number(newId)
-                        }
-                        const objLoad=await LoadTo.objectLoad(unitType,Meta,AssetClass)
-                        if(objLoad){LoadTo.addToScene(unitType, Meta)}
-                    }
-                    else{/*user does not have the tile loaded to create the unit */}
-                }
-            }
-        }catch(purr){}
-
-        //change unit positions within a chunk
-        try{
-            if(positions){
-                for(const position of positions){
-                    const brokenpos=position.split("|")
-                    const [ChunkX,ChunkY]=brokenpos[1].split(",").map(Number)
-                    const [x,y]=brokenpos[2].split(",").map(Number)
-                    const UnitServerId=Number(brokenpos[0])
-
-                    const whichTileUnits=globalmanager.getTile(ChunkX,ChunkY)
-
-                    whichTileUnits.moveUnit([x,y],UnitServerId)
-                }
-            }
-        }catch(err){}
-
-        try{
-            if(resources){makeResourceUpdate(resources)}
-        }catch(rerr){}
-
-        try{
-            if(DailyReward){
-                const msgDiv=document.getElementById("DailyRewardText");
-                const imgDiv=document.getElementById("DailyRewardImage");
-
-                msgDiv.innerText=DailyReward.Message;
-                imgDiv.style.backgroundImage=`url('${DailyReward.ImageLocation}')`;//"url("+response.ImageLocation+")";
-
-                const bruhTwo=document.getElementById("bruhTwo");
-                bruhTwo.style.display="flex"; // Show the reward box
-            }
-        }catch(DRErr){}
     })
 
     socket.on('TechnologyTreeResponse', (response) => {
@@ -966,6 +937,38 @@ function makeResourceUpdate(resources){
     }catch(g){}
 }
 
+async function HandleDeployments(Deployments){
+    for(let Deploy of Deployments){
+        const whichTileUnits=globalmanager.getTile(Deploy.tile[0],Deploy.tile[1]);
+        
+        for(var i=0;i<Deploy.UnitCount;i++){
+            const metaDataUnits={
+                "position":Deploy.position,//in pixel values for the chunk its to be deployed in!
+                "UnitType":Deploy.UnitType,
+                "AssetClass":Deploy.AssetClass,
+                "owner":Deploy.owner,
+                "ServerId":Deploy.ServerIds[i]
+            }
+            // console.log(Deploy.ServerIds[i], "placing units, this is the serverId of one")
+            const objLoad=await globalmanager.objectLoad(Deploy.UnitType,metaDataUnits,Deploy.AssetClass)
+
+            if(objLoad){
+                whichTileUnits.addToScene(Deploy.UnitType, metaDataUnits)
+            }
+        }
+    }
+}
+
+function HandleDeploymentPositionRequest(responses){
+    InputState.value="neutral"
+    for(let response of responses){
+        if(response.permission){adjustUnitDeployPosition(response)}
+
+        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        renderer.domElement.removeEventListener( 'click',  onTileClick);
+    }
+}
+
 
 export function EmitBuildingPlacementRequest(RequestMetaData){//BuildingAssetName,
     socket.emit('BuildingPlacementRequest',{
@@ -995,11 +998,7 @@ export function EmitMovementCommand(RequestMetaData){
     })
 }
 
-export function setupSocketConnection(){
-    socket = io({auth:{token:localStorage.getItem('accessToken')}});
-    HandleSocketResponses(socket)
 
-}
 
 export function techTreeSetupEmit(){
     socket.emit('TechnologyTreeRequest');

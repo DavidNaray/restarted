@@ -2,6 +2,8 @@ import * as THREE from "three";
 import {scene,requestRenderIfNotRequested} from "../siteJS.js"
 import {OBJECTS} from "./TileClass.js"
 
+import {globalmanager} from "./GlobalInstanceMngr.js"
+
 export class TileInstancePool { 
     constructor(tile) {
         this.tile = tile; // 👈 Full reference to the Tile instance
@@ -85,9 +87,10 @@ export class TileInstancePool {
 
 
     createInstanceObjectOfCount(objectType,count,oldMesh = null){
-        const objectTypeMesh = OBJECTS.get(objectType);
-        const geometry = objectTypeMesh.Geometry;
-        const baseMat  = objectTypeMesh.material;
+        const objectTypeMesh = globalmanager.getAsset(objectType);
+        // OBJECTS.get(objectType);
+        const geometry = objectTypeMesh.geometry;
+        const baseMat  = objectTypeMesh.materials;
 
 
         const opacityAttr = new THREE.InstancedBufferAttribute(new Float32Array(count), 1);

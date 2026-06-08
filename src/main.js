@@ -584,9 +584,11 @@ io.on('connection', async (socket) => {
                 "tile":values.chunkCoords,
                 "owner":userId,
             }
-            socket.emit('CanYouDeployHere', responseObject);
+            TickManager.DeployPositionPermissionMessage(userId,responseObject);
+            // socket.emit('CanYouDeployHere', responseObject);
         }
-        else{socket.emit('CanYouDeployHere', {"permission":false});}
+        else{TickManager.DeployPositionPermissionMessage(userId,{"permission":false});}
+            // socket.emit('CanYouDeployHere', {"permission":false});}
 
 
     })
@@ -623,7 +625,6 @@ io.on('connection', async (socket) => {
                  
         }
 
-        // console.log("deploying units in pixel",chosenServerIndices,values.pixelCoords)
         const responseObject={
             "AssetClass":"Unit",
             "position":values.pixelCoords,//RequestMetaData.DeployPosition,
@@ -633,7 +634,8 @@ io.on('connection', async (socket) => {
             "owner":userId,
             "ServerIds":chosenServerIndices
         }
-        socket.emit('DeployAllUnitsHere', responseObject);
+
+        TickManager.DeploymentMessage(tileKey,responseObject)
     });
 
     socket.on('MovementCommand',async ({RequestMetaData}) => {
@@ -662,19 +664,6 @@ io.on('connection', async (socket) => {
             const obj=new MovementOrderClass(ActualUnits,Values,userId)
             await obj.orderSetup();
         }
-
-        
-        // await newOrder.calculateMedian();
-        // const cheapestPortal=await newOrder.getClosestAccessiblePortal()
-        // console.log("huh?", cheapestPortal)
-        // const pathnodesCentral=await newOrder.PathFromStartPortalToEndSubgrid(cheapestPortal)
-        // await newOrder.getCombinedSubgridsDataForPath(pathnodesCentral)
-        // await newOrder.orderSetup()
-
-        const responseObject={
-            hello:"hello"
-        }
-        socket.emit('MovementCommandResponse',responseObject);
     });
 
     // Handle disconnect

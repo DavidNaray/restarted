@@ -94,11 +94,10 @@ class GlobalInstanceManager {
         if (!data) return false;
 
         const gltf = await this.parseGLB(data);
-        const { Geometry, material } = this.mergeMeshes(gltf.scene);
+        const { geometry, materials } = this.mergeMeshes(gltf.scene);
+        if (!geometry || !materials) return false;
 
-        if (!geometry || !material) return false;
-
-        const asset = { AssetClass, Geometry, material };
+        const asset = { AssetClass, geometry, materials };
         this.OBJECTS.set(assetId, asset);
         return true;
     }
