@@ -1,80 +1,106 @@
-//track all tiles 
+import * as THREE from "three";
+import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/loaders/GLTFLoader.js';
+import { mergeGeometries } from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/utils/BufferGeometryUtils.js';
+
+import {Tile} from "./TileClass.js"
+
+//track all tiles and meshes
 class GlobalInstanceManager {
     constructor() {
+        this.OriginTile;
         this.tiles = new Map();//tiles have utility
         this.meshToTiles=new WeakMap();      //for mesh -> tile lookup
         this.allTileMeshes=[];          //for raycast intersects
-        this.divisions = new Map();     // divisionName → DivisionInfo (only *unassigned* divisions here)
-        this.armies = new Map();        // armyName => Map<divisionName, DivisionInfo>
+        
+        this.OBJECTS=new Map(); 
+        this.gltfLoader = new GLTFLoader();
+        this.fileLoader = new THREE.FileLoader(this.gltfLoader.manager);
+        this.fileLoader.setResponseType('arraybuffer'); // GLB is binary
+        this.fileLoader.setRequestHeader({'Authorization': `Bearer ${localStorage.getItem('accessToken')}`});
+        
     }
-    getTile(x, y) {
-        return this.tiles.get(`${x},${y}`);
-    }
+
+    setOrigin(Origin){this.OriginTile=Origin;}
+
+    getTile(x, y) {return this.tiles.get(`${x},${y}`);}
     
-    registerTile(tile) {
-        this.tiles.set(`${tile.x},${tile.y}`, tile);
-    }
+    registerTile(tile) {this.tiles.set(`${tile.x},${tile.y}`, tile);}
 
-    getTileByWorldPosition(x, z) {
-        const tileX = Math.floor(x / tileSize); // tileSize known
-        const tileY = Math.floor(z / tileSize);
-        return this.getTile(tileX, tileY);
-    }
-
-    createDivision(divisionName, metadata = {}) {
-        if (this.divisions.has(divisionName) || this.findDivisionInArmies(divisionName)) {
-            throw new Error(`Division '${divisionName}' already exists globally.`);
+    async CreateTile(TileInfo){
+        const CreatedTile=new Tile(
+            TileInfo.x,
+            TileInfo.y,
+            TileInfo.textures.texturemapUrl,
+            TileInfo.textures.heightmapUrl,
+            this.OriginTile
+        );
+        
+        const TilesMeshesMap=CreatedTile.BuildTileBase()
+        await CreatedTile.loadtextures();
+    
+        for(let [XYKey,mesh] of TilesMeshesMap){
+            this.meshToTiles.set(mesh,CreatedTile)
+            this.allTileMeshes.push(mesh)
         }
-        const division = {
-            name: divisionName,
-            instanceGroups: new Set(),
-            army: null,
-            metadata
+
+        this.registerTile(CreatedTile)
+    }
+
+    getAsset(AssetId){return this.OBJECTS.get(AssetId)}
+
+    async loadFile(path) {
+        return new Promise(resolve => {
+            this.fileLoader.load(path, resolve, undefined, () => resolve(null));
+        });
+    }
+
+    async parseGLB(data) {
+        return new Promise(resolve => {
+            this.gltfLoader.parse(data, '', resolve, () => resolve(null));
+        });
+    }
+
+    mergeMeshes(scene) {
+        const geometries = [];
+        const materials = [];
+
+        scene.traverse(child => {
+            if (!child.isMesh) return;
+
+            child.updateWorldMatrix(true, false);
+            const geo = child.geometry.clone();
+            geo.applyMatrix4(child.matrixWorld);
+            geometries.push(geo);
+
+            if (Array.isArray(child.material)) {
+                child.material.forEach(m => materials.push(m));
+            } else {
+                materials.push(child.material);
+            }
+        });
+
+        if (geometries.length === 0) return { geometry: null, materials: [] };
+
+        return {
+            geometry: mergeGeometries(geometries, true),
+            materials
         };
-        this.divisions.set(divisionName, division);
-        return division;
     }
 
-    assignDivisionToArmy(divisionName, armyName) {
-        const division = this.divisions.get(divisionName);
-        if (!division) throw new Error(`Division '${divisionName}' does not exist in unassigned divisions.`);
+    async objectLoad(assetId,MetaData,AssetClass,){
+        if(this.OBJECTS.has(assetId)){return true}
 
-        let army = this.armies.get(armyName);
-        if (!army) {
-            army = new Map();
-            this.armies.set(armyName, army);
-        }
+        const data = await this.loadFile(`Assets/GLB_Exports/${assetId}.glb`);
+        if (!data) return false;
 
-        division.army = armyName;
-        army.set(divisionName, division);
-        this.divisions.delete(divisionName); // REMOVE from unassigned
-    }
+        const gltf = await this.parseGLB(data);
+        const { Geometry, material } = this.mergeMeshes(gltf.scene);
 
-    findDivisionInArmies(divisionName) {
-        for (const army of this.armies.values()) {
-            if (army.has(divisionName)) return army.get(divisionName);
-        }
-        return null;
-    }
+        if (!geometry || !material) return false;
 
-    unassignDivisionFromArmy(armyName,divisionName) {
-        const army = this.armies.get(armyName);
-        if (!army) throw new Error(`Army '${armyName}' does not exist.`);
-    
-        const division = army.get(divisionName);
-        if (!division) throw new Error(`Division '${divisionName}' does not exist in Army '${armyName}'.`);
-    
-        if (this.divisions.has(divisionName)) {
-            throw new Error(`Cannot unassign division '${divisionName}' because an unassigned division with that name already exists.`);
-        }
-    
-        army.delete(divisionName);
-        division.army = null;
-        this.divisions.set(divisionName, division);
-    }
-
-    getDivisionAnywhere(divisionName) {
-        return this.divisions.get(divisionName) || this.findDivisionInArmies(divisionName);
+        const asset = { AssetClass, Geometry, material };
+        this.OBJECTS.set(assetId, asset);
+        return true;
     }
 
 }

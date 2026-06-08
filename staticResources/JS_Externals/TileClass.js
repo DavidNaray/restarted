@@ -6,7 +6,7 @@ import {TileInstancePool} from "./InstancePoolClass.js"
 import {scene,requestRenderIfNotRequested} from "../siteJS.js"
 import {superHeightMapTexture,superColourMapTexture,superWalkMapTexture} from "./SuperCanvas.js"
 
-const loader = new GLTFLoader();//new THREE.TextureLoader();
+const loader = new GLTFLoader();
 const fileLoader = new THREE.FileLoader(loader.manager);
 fileLoader.setResponseType('arraybuffer'); // GLB is binary
 fileLoader.setRequestHeader({'Authorization': `Bearer ${localStorage.getItem('accessToken')}`});
@@ -15,50 +15,31 @@ export var OBJECTS=new Map();
 
 // responsible for generating the tile and holding the instancePools objects that track units and buildings
 export class Tile{
-    constructor(x,y,GInstanceManager,texUrl,HeightUrl,WalkMapUrl,centralTile){//TileRelationship, 
-        this.instanceManager=GInstanceManager
+    constructor(x,y,texUrl,HeightUrl,centralTile){
         
         this.instancePooling=new TileInstancePool(this);
-        // this.UnitInstancePooling=new TileInstancePool(this);
         this.meshes=new Map();//what makes up the terrain tile, to allow frustrum cull
 
         this.x=x;
         this.y=y;
-
-        this.texUrl=texUrl;
-        this.HeightUrl=HeightUrl;
-        this.WalkMapUrl=WalkMapUrl;
-        this.texture;
-        this.heightmap;
-        this.walkMap;//used for building placement confirmation and pathfinding (its a canvas)
-
-        this.heightMapCanvas;
-        // this.walkMapCanvas;
-        this.TextureMapCanvas;
-        
-        this.PortalMap;
-        this.abstractMap=new Map();
-
-        this.loadtextures();
-        this.instanceManager.registerTile(this)
-    
         //get the difference between this tile and the central
         this.offSet=[centralTile[0]-x,centralTile[1]-y]
         
-        this.BuildTileBase()
+        this.HeightUrl=HeightUrl;
+        this.heightmap;
+        this.heightMapCanvas;
+
+        this.texUrl=texUrl;
+        this.texture;
+        this.TextureMapCanvas;
     }
 
     async loadtextures(){
-        // console.log("REQUEST THESE FILES",this.HeightUrl,this.texUrl)
-         
-        async function loadTextureWithAuth(url, token) {
-            const response = await fetch(url, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
 
-            if (!response.ok) {
-                throw new Error(`Failed to load texture: ${response.statusText}`);
-            }
+        async function loadTextureWithAuth(url, token) {
+
+            const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }});
+            if (!response.ok) {throw new Error(`Failed to load texture: ${response.statusText}`);}
 
             const blob = await response.blob();
             const imageBitmap = await createImageBitmap(blob);
@@ -66,61 +47,46 @@ export class Tile{
             const canvas = document.createElement('canvas');
             canvas.width = imageBitmap.width;
             canvas.height = imageBitmap.height;
-            // console.log("actual width",canvas.width)
+
 
             const ctx = canvas.getContext('2d');
             ctx.drawImage(imageBitmap, 0, 0);
 
-
-
-            const texture = new THREE.Texture(canvas )//imageBitmap);
-            // texture.flipY = true;
+            const texture = new THREE.Texture(canvas )
             texture.wrapS = THREE.ClampToEdgeWrapping;
             texture.wrapT = THREE.ClampToEdgeWrapping;
             texture.generateMipmaps = false;
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
             texture.needsUpdate = true;
-            return [texture,canvas,imageBitmap];
+            return {texture,canvas,imageBitmap};
         }
 
+        const [height, colour] = await Promise.all([
+            loadTextureWithAuth(this.HeightUrl, localStorage.getItem('accessToken')),
+            loadTextureWithAuth(this.texUrl, localStorage.getItem('accessToken'))
+        ]);
 
-        // Usage:
-        try{
-            const texCanv=await loadTextureWithAuth(this.HeightUrl, localStorage.getItem('accessToken'))
-            // .then(texCanv => {
-            this.heightmap = texCanv[0];
-            this.heightMapCanvas =texCanv[1];
-            await superHeightMapTexture.addTile(-this.offSet[0],-this.offSet[1],texCanv[2],this)
-            // console.log(superHeightMapTexture.canvas.width, "canvas width!",superHeightMapTexture.canvas.height)
-            // this.BuildTileBase();
-        }catch(p){console.error('Texture load error:')}
-        // .catch(err => {console.error('Texture load error:', err);});
+        // Assign heightmap
+        this.heightmap = height.texture;
+        this.heightMapCanvas = height.canvas;
+        // Assign colourmap
+        this.texture = colour.texture;
+        this.TextureMapCanvas = colour.canvas;
 
-        // -------------------------------//
-        try{
-            const texture=await loadTextureWithAuth(this.texUrl, localStorage.getItem('accessToken'))
-
-            this.texture = texture[0];
-            this.TextureMapCanvas=texture[1];
-            //negated parameter of offset since "to the right", -1 for offset so yeah...
-            await superColourMapTexture.addTile(-this.offSet[0],-this.offSet[1],texture[2],this)
-
-        }catch(pp){console.error('Texture load error:')}
-        // .catch(err => {console.error('Texture load error:', err);});
-
-        // -------------------------------//
-        // loadWalkMapWithAuth(this.WalkMapUrl, localStorage.getItem('accessToken'))
-        // .then(texture => {
-        //     this.walkMap=texture;
-
-        // })
-        // .catch(err => {console.error('Texture load error:', err);});
+        // Wait for BOTH superTexture operations to finish
+        await Promise.all([
+            new Promise(resolve => superHeightMapTexture.addTile(
+                -this.offSet[0], -this.offSet[1], height.imageBitmap, this, resolve
+            )),
+            new Promise(resolve => superColourMapTexture.addTile(
+                -this.offSet[0], -this.offSet[1], colour.imageBitmap, this, resolve
+            ))
+        ]);
+        return true;
     }
     
     BuildTileBase(){
-        // if (this.heightmap && this.texture) {
-
         const TERRAIN_SIZE = 30; // World size for scaling
         const totalTiles=16
 
@@ -149,14 +115,10 @@ export class Tile{
                 // mesh.matrixAutoUpdate = false;
 
                 this.meshes.set(`${x},${y}`,mesh);
-                this.instanceManager.meshToTiles.set(mesh,this)
-                this.instanceManager.allTileMeshes.push(mesh)
                 scene.add(mesh);
-
-            }
-                  
-            // requestRenderIfNotRequested();
+            }          
         }
+        return this.meshes
     }
 
     //called by the supercanvas to adjust the offsets and scaling the tile picks from the supercanvas

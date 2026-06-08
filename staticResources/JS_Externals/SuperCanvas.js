@@ -72,7 +72,7 @@ class SuperTextureManager{
         }
     }
 
-    async addTile(x, y, tileImageBitmap,TileClassObject) {
+    async addTile(x, y, tileImageBitmap,TileClassObject,resolve) {
 
         // console.log(x,y, "TILEEEEEEEEE")
         await this.resizeIfNeeded(x, y);
@@ -122,6 +122,7 @@ class SuperTextureManager{
 
 
         this.tiles.forEach((tileObj)=>{tileObj.obj.BuildMaterials();})
+        resolve()
     }
 
     getUVOffset(x, y) {

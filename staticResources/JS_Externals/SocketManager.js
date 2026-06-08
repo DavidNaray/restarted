@@ -1,0 +1,6 @@
+
+class SocketManager{
+    constructor(){
+        
+    }
+}

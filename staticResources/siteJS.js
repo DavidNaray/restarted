@@ -28,10 +28,10 @@ class Template{
     }
 }
 
-function sceneSetup(SetupInformation){
+async function sceneSetup(SetupInformation){
     const tiles=SetupInformation[0]
     const OriginTile=SetupInformation[1]
-    console.log(OriginTile,"OriginTile")
+    globalmanager.setOrigin(OriginTile)
     scene.background = new THREE.Color('hsl(194, 100%, 71%)');
     
     renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true,powerPreference: "high-performance" });
@@ -60,44 +60,8 @@ function sceneSetup(SetupInformation){
     let ambientLight = new THREE.AmbientLight(new THREE.Color('hsl(0, 100%, 100%)'), 3);
     scene.add(ambientLight);
 
-    // console.log(OriginTile)
-    // const userData=tiles["owner"][0];
-    
-    
-    // const tileyay=new Tile(userData.x,userData.y,globalmanager,userData.textures.texturemapUrl,userData.textures.heightmapUrl,userData.textures.WalkMapURL);
-
-    // // loop over the buildings
-    // userData.buildings.forEach(buildingEntry =>{
-    //     const assetID=buildingEntry.assetId;
-    //     const userID=buildingEntry.userId;
-    //     buildingEntry.instances.forEach(instanceEntry =>{
-        
-    //         const newMetaData={
-    //             "position":instanceEntry.position,
-    //             "userId":userID,
-    //             "health":instanceEntry.health,
-    //             "state":instanceEntry.state,
-    //         }
-
-    //         tileyay.objectLoad(assetID,newMetaData);
-
-    //     });
-    // })
-
     for (const category of Object.values(tiles)) {
-        //category is like "owner", "allies", "involvedUsers"
-        // console.log(category,"cat")
-        for (const userData of category) {
-            // console.log(userData)
-            const CreatedTile=new Tile(
-                userData.x,userData.y,
-                globalmanager,
-                userData.textures.texturemapUrl,userData.textures.heightmapUrl,userData.textures.WalkMapURL,
-                OriginTile
-                // category,
-                
-            );
-        }
+        for (const TileData of category) {await globalmanager.CreateTile(TileData)}
     }
 
 }
@@ -140,8 +104,6 @@ window.onload=async function(){
             localStorage.setItem('accessToken', data.accessToken);
             const token = localStorage.getItem('accessToken');
             const decoded = decodeJWT(token);
-            // console.log(decoded.username); // ✅
-            // console.log(decoded.id);       // ✅
             username=decoded.username
             UserId=decoded.id
             console.log("Access token refreshed.");
@@ -153,8 +115,6 @@ window.onload=async function(){
                 localStorage.setItem('accessToken', data.accessToken);
                 const token = localStorage.getItem('accessToken');
                 const decoded = decodeJWT(token);
-                // console.log(decoded.username); // ✅
-                // console.log(decoded.id);       // ✅
                 username=decoded.username
                 UserId=decoded.id
                 console.log("Access token refreshed.");
@@ -173,7 +133,7 @@ window.onload=async function(){
     setupSocketConnection();
     
     //run the function that sets up the three.js scene, traverses the UserTileData and populates the scene with it
-    sceneSetup(UserTileData)
+    await sceneSetup(UserTileData)
     
     //the resource bar needs an overlay with some functionality, calling an emit for whichever resource
     //  and creating a display box for the user to see details about that resource
