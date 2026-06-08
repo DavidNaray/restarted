@@ -269,26 +269,6 @@ function HandleSocketResponses(socket){
         renderer.domElement.removeEventListener( 'click',  onTileClick);
     });
 
-    socket.on('rewardUpdate', (response) => {
-        console.log("reward update",response)
-        if(response){
-            
-            const msgDiv=document.getElementById("DailyRewardText");
-            const imgDiv=document.getElementById("DailyRewardImage");
-
-            msgDiv.innerText=response.Message;
-            imgDiv.style.backgroundImage=`url('${response.ImageLocation}')`;//"url("+response.ImageLocation+")";
-
-            const bruhTwo=document.getElementById("bruhTwo");
-            bruhTwo.style.display="flex"; // Show the reward box
-        }
-    });
-
-    socket.on('testingResponse', (response) => {
-        // console.log(response)
-        console.log("if this runs then the abstract map was made")
-    })
-
     socket.on('DeployAllUnitsHere', async (response) => {
         console.log("deploying units",response.position)
 
@@ -322,6 +302,7 @@ function HandleSocketResponses(socket){
         const replacements=response.replacements
         const positions=response.positions
         const resources=response.resources
+        const DailyReward=response.DailyReward
 
         //move units across chunks
         try{
@@ -372,6 +353,18 @@ function HandleSocketResponses(socket){
             if(resources){makeResourceUpdate(resources)}
         }catch(rerr){}
 
+        try{
+            if(DailyReward){
+                const msgDiv=document.getElementById("DailyRewardText");
+                const imgDiv=document.getElementById("DailyRewardImage");
+
+                msgDiv.innerText=DailyReward.Message;
+                imgDiv.style.backgroundImage=`url('${DailyReward.ImageLocation}')`;//"url("+response.ImageLocation+")";
+
+                const bruhTwo=document.getElementById("bruhTwo");
+                bruhTwo.style.display="flex"; // Show the reward box
+            }
+        }catch(DRErr){}
     })
 
     socket.on('TechnologyTreeResponse', (response) => {
@@ -973,11 +966,6 @@ function makeResourceUpdate(resources){
     }catch(g){}
 }
 
-function HandleInitialEmits(socket){
-    socket.emit('requestResourceUpdate');
-    socket.emit('requestRewards')
-    // socket.emit('testing');
-}
 
 export function EmitBuildingPlacementRequest(RequestMetaData){//BuildingAssetName,
     socket.emit('BuildingPlacementRequest',{
@@ -1010,7 +998,6 @@ export function EmitMovementCommand(RequestMetaData){
 export function setupSocketConnection(){
     socket = io({auth:{token:localStorage.getItem('accessToken')}});
     HandleSocketResponses(socket)
-    HandleInitialEmits(socket)
 
 }
 
@@ -1026,10 +1013,6 @@ export function ProductionSetupEmit(){
     // console.log("should be emitting?")
     socket.emit('ProductionSetupRequest');
 }
-
-
-
-// setInterval(EmitResourceUpdate, 10000);// Emit resource updates every 10 seconds
 
 
 function ChangeProdsFactories(e){

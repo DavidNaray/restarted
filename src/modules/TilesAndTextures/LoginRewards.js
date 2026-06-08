@@ -1,3 +1,11 @@
+const ChunkManager=require("../CacheChunkInfo.js")
+const TickManager=require("../TickManager.js")
+
+function getTodayDateString() {
+  const now = new Date();
+  return now.toISOString().slice(0, 10); // e.g. "2025-08-16"
+}
+
 function calculateReward(user){
 
     const population= user.Resources.ManPower.TotalPopulation;
@@ -48,4 +56,21 @@ function calculateReward(user){
     }
     return {Message:Message,ImageLocation:ImageLocation};
 }
-module.exports={calculateReward};
+
+async function LoginRewardCheckup(userId){
+    const today = getTodayDateString();
+
+    const user=await ChunkManager.getUser(userId)
+    if (!user) {console.log(`No user found for playerId: ${userId}`);return;}
+    
+    if (user.lastClaimDate !== today) {  
+        const rewardToSend= calculateReward(user)
+
+        TickManager.LoginRewardMessage(userId,rewardToSend)
+
+        user.lastClaimDate = today;
+    }
+}
+
+
+module.exports={LoginRewardCheckup};

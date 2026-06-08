@@ -57,14 +57,19 @@ class TickManager {
             for (const [userId, socket] of UsersAndSockets) {
                 const UsersResources=await ResourceManager.getUserResources(userId)
                 const currentMessage=this.messages.get(userId)
-                // this.messages.get(userId).
-                if(currentMessage){
-                    currentMessage.resources=UsersResources
-                }
+
+                if(currentMessage){currentMessage.resources=UsersResources}
                 else{this.messages.set(userId,{resources:UsersResources})}
 
             }
         }catch(huh){console.log("error somehow",huh)}
+    }
+
+    LoginRewardMessage(userId,UpdateMessage){
+        const currentMessage=this.messages.get(userId)
+        
+        if(currentMessage){currentMessage.DailyReward=UpdateMessage}
+        else{this.messages.set(userId,{DailyReward:UpdateMessage})}
     }
 }
 

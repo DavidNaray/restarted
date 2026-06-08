@@ -9,13 +9,13 @@ const cookieParser = require('cookie-parser');
 
 const {authenticateTokenImport,RefreshTokenImport,AccessTokenImport,verifyImport,socketUtilImport}=require("./modules/Verification")
 const {SharpImgBuildingPlacementVerification,getPosWithHeight,BuildingPlacement}=require("./modules/PlacementValidation.js")
-const {calculateReward}=require("./modules/RewardCalculating.js")
 
 const {HandleReg}=require("./modules/RegistrationLogin/HandleReg.js")
 const {HandleLogin}=require("./modules/RegistrationLogin/HandleLogin.js")
 const {HandleTiles}=require("./modules/TilesAndTextures/HandleTiles.js")
 const {validateclickedPoint,SpecificChunkPoint}=require("./modules/Verification/Positioning.js")
 const {ProgressOrders}=require("./modules/UnitsAndMovement/OrderTracking.js")
+const {LoginRewardCheckup}=require("./modules/TilesAndTextures/LoginRewards.js")
 
 const ChunkManager=require("./modules/CacheChunkInfo.js")
 const TickManager=require("./modules/TickManager.js")
@@ -192,34 +192,6 @@ app.get('/{*any}',(req,res)=>{//handles urls not the explicitly defined, wanted 
 })
 
 
-async function updateResourceForUser(user){
-    // console.log("updating resources for user",user.id,user.Resources.lastUpdated)
-    const now = Date.now();
-    const elapsedSeconds = (now - user.Resources.lastUpdated.getTime()) / 1000;
-    // console.log("elapsedSeconds",elapsedSeconds)
-
-    if (elapsedSeconds <= 0) return user;
-
-    for (const key of ["Gold", "Stone", "Wood", "Political"]) {
-        const resource = user.Resources[key];
-        if (resource.Rate !== 0) {
-            resource.Total += resource.Rate * elapsedSeconds;
-        }
-    }
-
-    const mp = user.Resources.ManPower;
-    if (mp.PopulationRate !== 0) {
-        mp.TotalPopulation += mp.PopulationRate * elapsedSeconds;
-        if (mp.TotalPopulation > mp.MaxPopulation) {
-            mp.TotalPopulation = mp.MaxPopulation;
-        }
-        mp.TotalManPower = Math.floor(mp.TotalPopulation * mp.RecruitableFactor);
-    }
-    user.Resources.lastUpdated = new Date(now);
-    // await user.save();
-    return user;
-}
-
 io.use((socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) return next(new Error('No token provided'));
@@ -227,9 +199,12 @@ io.use((socket, next) => {
     socketUtilImport(socket,token,next);
 });
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
 
+    //Track their socket
     ChunkManager.setUserSocket(socket.userId,socket.id)
+    //see if they need a Daily Login reward
+    await LoginRewardCheckup(socket.userId)
 
     socket.on('TechnologyTreeRequest', async () => {    
         try{
@@ -240,7 +215,6 @@ io.on('connection', (socket) => {
                 return;
             }
 
-            // await updateResourceForUser(user);
             socket.emit("TechnologyTreeResponse", user.Technology);
         }catch(err){
         }
@@ -294,7 +268,6 @@ io.on('connection', (socket) => {
                     toSend.push(key);
                 } else {}
             }
-            // await updateResourceForUser(user);
             // console.log("ProductionSetupResponse",toSend)
             socket.emit("ProductionSetupResponse", {ProductionLines:user.ProductionLines,Products:toSend});
         }catch(err){
@@ -342,7 +315,6 @@ io.on('connection', (socket) => {
                 // console.log("no more lines bro")
                 socket.emit("ProductionResponse", false);
             }
-            // await updateResourceForUser(user);
             // console.log("ProductionSetupResponse",toSend)
             
         }catch(err){
@@ -495,22 +467,6 @@ io.on('connection', (socket) => {
         }catch(p){}
     });
 
-    socket.on('requestRewards',  async () => {
-        const today = getTodayDateString();
-        const user=await ChunkManager.getUser(socket.userId)
-        if (!user) {
-            console.log(`No user found for playerId: ${socket.userId}`);
-            return;
-        }
-        if (user.lastClaimDate !== today) {  
-            const rewardToSend= calculateReward(user)
-            socket.emit('rewardUpdate', rewardToSend);
-
-            user.lastClaimDate = today;
-        }
-
-    })
-
     socket.on('StopConstruction',async ({RequestMetaData}) =>{
         try{
             const user=await ChunkManager.getUser(socket.userId)
@@ -634,11 +590,6 @@ io.on('connection', (socket) => {
 
 
     })
-
-    socket.on('testing',async () => {//relevant to seeing if the abstractMap code worked
-        // const WalkMapLocation=path.join(__dirname,'../Tiles/WalkMaps/')+"0"+"0"+".png"
-        socket.emit('testingResponse', "hello");
-    });
 
     socket.on('DeployAllUnits',async ({RequestMetaData}) => {
         const userId=socket.userId
