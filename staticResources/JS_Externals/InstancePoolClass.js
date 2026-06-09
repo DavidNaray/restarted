@@ -13,30 +13,20 @@ export class TileInstancePool {
 
     }
 
-    getTileCoord() {
-        return [this.tile.x,this.tile.y]; // or directly access this.tile.x, this.tile.y, etc.
-    }
+    getTileCoord() {return [this.tile.x,this.tile.y];}
 
     GeneralAddInstance(objectType, transform,meta={}){
-        console.log("METAAAAAA: ",meta)
 
         let mesh=this.instanceGroups.get(objectType);
         if(!mesh){
-            console.log("didnt exist, make it!")
             //if there was no key of objectType then there wont be a value
             mesh=this.createInstanceObjectOfCount(objectType,3);
-            // mesh.freeIndices=new Set([0,1,2])//every index is free 
-            // mesh.scale.set(0.2,0.2,0.2)
             this.instanceGroups.set(objectType,mesh)
             scene.add(mesh);
-        }else{//exists, 
-            console.log("exists")
-
+        }else{
             const trueMax=mesh.instanceMatrix.count
 
             if(mesh.count >= trueMax){
-                console.log("need to make bigger!")
-                //create a new instanceObject that is larger
                 const newMesh=this.createInstanceObjectOfCount(objectType,trueMax+16,mesh);
                 newMesh.metadata=mesh.metadata;
                 //need to copy over the information from the current mesh, +16 so it doesnt replace too often
@@ -46,40 +36,21 @@ export class TileInstancePool {
                 this.instanceGroups.set(objectType,mesh);
             }
         }
-
-
         let index;
-
-        // if (mesh.freeIndices.size > 0) {
-            
-        //     index = mesh.freeIndices.values().next().value; // Reuse a free index
-        //     console.log("woah, free indice!", index)
-        //     mesh.freeIndices.delete(index);
-        // } else {
-            
-
-        // }
         index = mesh.count++;
 
         this.ServerId_To_ObjTypeAndInstId_Mapping.set(meta.ServerId,[objectType,index]);
-        // console.log("lets see the tile total instance tracking state:",this.ServerId_To_ObjTypeAndInstId_Mapping)
+
         mesh.setMatrixAt(index, transform);
         meta.parentTile=[this.tile.x,this.tile.y]
         mesh.metadata.set(index,meta);
         mesh.instanceMatrix.needsUpdate = true;
 
         if (!meta.underConstruction) {
-            console.log("UNDER CONSTRUCTION")
-            // mesh.setOpacityAt(index,0.5)
-            // this.markUnderConstruction(mesh, index, true);
-            // mesh.material.needsUpdate = true;
             mesh.geometry.getAttribute("instanceOpacity").setX(index, 0.5);
             mesh.geometry.getAttribute("instanceOpacity").needsUpdate = true;
         }
-        if (index >= mesh.count) {
-            mesh.count = index + 1;
-        }
-        // console.log(mesh.freeIndices)
+        if (index >= mesh.count) {mesh.count = index + 1;}
         mesh.computeBoundingSphere();
         requestRenderIfNotRequested();
     }

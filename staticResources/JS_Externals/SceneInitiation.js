@@ -4,35 +4,13 @@ import {onPointerMove,intersectsTileMeshes,suppressPlacement} from "./RaycasterH
 import {makeToolTipTechnology} from "./ResourceTips.js"
 import {adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
-import {OBJECTS} from "./TileClass.js"
+
 import {buildWallSegments,trySnapPoint} from "./WallPlacementFuncs.js"
 import {superHeightMapTexture} from "./SuperCanvas.js"
 
 let socket;
 var userPoints = [];
 const previewGroup = new THREE.Group();
-export async function getUserTileData(accessToken){
-    try {
-        const res = await fetch('/tiles', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${accessToken}`
-            }
-        });
-
-        const data = await res.json();
-
-        if (data.success) {
-            return [data.tiles,data.OriginTile];  // Now this gets properly returned to the caller
-        } else {
-            console.error(data.message);
-            return null;
-        }
-    } catch (err) {
-        console.error('Error fetching tiles:', err);
-        return null;
-    }
-}
 
 export function setupSocketConnection(){
     socket = io({auth:{token:localStorage.getItem('accessToken')}});
@@ -47,45 +25,10 @@ export function setupSocketConnection(){
         const DailyReward=response.DailyReward
 
         //move units across chunks
-        if(replacements){
-            for(const replace of replacements){
-                const [oldId,newId,oldchunk,newchunk,pixel,owner,unitType,AssetClass]=replace.split("|")
-                const [oChunkX,oChunkY]=oldchunk.split(",").map(Number)
-                const [nchunkX,nchunkY]=newchunk.split(",").map(Number)
-
-                const RemoveFrom=globalmanager.getTile(oChunkX,oChunkY)
-                if(RemoveFrom){RemoveFrom.removeUnit(Number(oldId))}
-                else{/*user does not have the tile loaded to delete the unit */}
-                
-                const LoadTo=globalmanager.getTile(nchunkX,nchunkY)
-                if(LoadTo){
-                    const Meta={
-                        "position":pixel.split(",").map(Number),//in pixel values for the chunk its to be deployed in!
-                        "UnitType":unitType,
-                        "AssetClass":AssetClass,
-                        "owner":owner,
-                        "ServerId":Number(newId)
-                    }
-                    const objLoad=await globalmanager.objectLoad(unitType,Meta,AssetClass)
-                    if(objLoad){LoadTo.addToScene(unitType, Meta)}
-                }
-                else{/*user does not have the tile loaded to create the unit */}
-            }
-        }
+        if(replacements){await HandleUnitReplacements(replacements)}
 
         //change unit positions within a chunk
-        if(positions){
-            for(const position of positions){
-                const brokenpos=position.split("|")
-                const [ChunkX,ChunkY]=brokenpos[1].split(",").map(Number)
-                const [x,y]=brokenpos[2].split(",").map(Number)
-                const UnitServerId=Number(brokenpos[0])
-
-                const whichTileUnits=globalmanager.getTile(ChunkX,ChunkY)
-
-                whichTileUnits.moveUnit([x,y],UnitServerId)
-            }
-        }
+        if(positions){HandleUnitPosition(positions)}
 
         //deploy units at position
         if(Deployments){await HandleDeployments(Deployments)}
@@ -97,22 +40,155 @@ export function setupSocketConnection(){
         if(resources){makeResourceUpdate(resources)}
 
         //alert user of daily reward
-        if(DailyReward){
-            const msgDiv=document.getElementById("DailyRewardText");
-            const imgDiv=document.getElementById("DailyRewardImage");
-
-            msgDiv.innerText=DailyReward.Message;
-            imgDiv.style.backgroundImage=`url('${DailyReward.ImageLocation}')`;//"url("+response.ImageLocation+")";
-
-            const bruhTwo=document.getElementById("bruhTwo");
-            bruhTwo.style.display="flex"; // Show the reward box
-        }
+        if(DailyReward){HandleDailyReward(DailyReward)}
 
     })
     
     HandleSocketResponses(socket)
 
 }
+
+function makeResourceUpdate(resources){
+    const political={Rate:resources.Political.Rate,Total:Math.floor(resources.Political.Total)};
+    const gold={Rate:resources.Gold.Rate,Total:Math.floor(resources.Gold.Total)};
+    const stone={Rate:resources.Stone.Rate,Total:Math.floor(resources.Stone.Total)};
+    const wood={Rate:resources.Wood.Rate,Total:Math.floor(resources.Wood.Total)};
+    const stability={Total:Math.floor(resources.Stability.Total)};  
+    const warSupport={Total:Math.floor(resources.WarSupport.Total)};
+    const manpower={
+        TotalManPower:Math.floor(resources.ManPower.TotalManPower),
+        TotalPopulation:Math.floor(resources.ManPower.TotalPopulation),
+        PopulationRate:resources.ManPower.PopulationRate,
+        RecruitableFactor:resources.ManPower.RecruitableFactor,
+        MaxPopulation:resources.ManPower.MaxPopulation
+    };
+    
+    document.getElementById("PPRTxt").innerText=political.Total;
+    try{
+        document.getElementById("ToolTipPPRate").innerText=political.Rate;
+        document.getElementById("ToolTipPPSurplus").innerText=political.Total;    
+    }catch(a){}
+
+    document.getElementById("GoldRTxt").innerText=gold.Total;
+    try{
+        document.getElementById("ToolTipGoldRate").innerText=gold.Rate;
+        document.getElementById("ToolTipGoldSurplus").innerText=gold.Total;
+    }catch(b){}
+
+    document.getElementById("StoneRTxt").innerText=stone.Total;
+    try{
+        document.getElementById("ToolTipStoneRate").innerText=stone.Rate;
+        document.getElementById("ToolTipStoneSurplus").innerText=stone.Total;
+    }catch(c){}
+
+    document.getElementById("WoodRTxt").innerText=wood.Total;
+    try{
+        document.getElementById("ToolTipWoodRate").innerText=wood.Rate;
+        document.getElementById("ToolTipWoodSurplus").innerText=wood.Total;
+    }catch(d){}
+
+    document.getElementById("StabilityRTxt").innerText=stability.Total;
+    try{
+        document.getElementById("ToolTipStability").innerText=stability.Total;
+    }catch(e){}
+
+    document.getElementById("WarSupportRTxt").innerText=warSupport.Total;
+    try{
+        document.getElementById("ToolTipWarSupport").innerText=warSupport.Total;
+    }catch(f){}
+
+    document.getElementById("ManPowerRTxt").innerText=manpower.TotalManPower;
+    try{
+        document.getElementById("ToolTipTotalManPower").innerText=manpower.TotalManPower;
+        document.getElementById("ToolTipTotalPop").innerText=manpower.TotalPopulation;
+        document.getElementById("ToolTipMonthlyPopGain").innerText=manpower.PopulationRate;
+        document.getElementById("ToolTipRecrtuitableFac").innerText="Recruitable: "+manpower.RecruitableFactor+"%";
+        document.getElementById("ToolTipMaxPop").innerText=manpower.MaxPopulation;
+    }catch(g){}
+}
+
+async function HandleDeployments(Deployments){
+    for(let Deploy of Deployments){
+        const whichTileUnits=globalmanager.getTile(Deploy.tile[0],Deploy.tile[1]);
+        
+        for(var i=0;i<Deploy.UnitCount;i++){
+            const metaDataUnits={
+                "position":Deploy.position,//in pixel values for the chunk its to be deployed in!
+                "UnitType":Deploy.UnitType,
+                "AssetClass":Deploy.AssetClass,
+                "owner":Deploy.owner,
+                "ServerId":Deploy.ServerIds[i]
+            }
+            // console.log(Deploy.ServerIds[i], "placing units, this is the serverId of one")
+            const objLoad=await globalmanager.objectLoad(Deploy.UnitType,metaDataUnits,Deploy.AssetClass)
+
+            if(objLoad){
+                whichTileUnits.addToScene(Deploy.UnitType, metaDataUnits)
+            }
+        }
+    }
+}
+
+function HandleDeploymentPositionRequest(responses){
+    InputState.value="neutral"
+    for(let response of responses){
+        if(response.permission){adjustUnitDeployPosition(response)}
+
+        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
+        renderer.domElement.removeEventListener( 'click',  onTileClick);
+    }
+}
+
+function HandleUnitPosition(positions){
+    for(const position of positions){
+        const brokenpos=position.split("|")
+        const [ChunkX,ChunkY]=brokenpos[1].split(",").map(Number)
+        const [x,y]=brokenpos[2].split(",").map(Number)
+        const UnitServerId=Number(brokenpos[0])
+
+        const whichTileUnits=globalmanager.getTile(ChunkX,ChunkY)
+
+        whichTileUnits.moveUnit([x,y],UnitServerId)
+    }
+}
+
+function HandleDailyReward(DailyReward){
+    const msgDiv=document.getElementById("DailyRewardText");
+    const imgDiv=document.getElementById("DailyRewardImage");
+
+    msgDiv.innerText=DailyReward.Message;
+    imgDiv.style.backgroundImage=`url('${DailyReward.ImageLocation}')`;//"url("+response.ImageLocation+")";
+
+    const bruhTwo=document.getElementById("bruhTwo");
+    bruhTwo.style.display="flex"; // Show the reward box
+}
+
+async function HandleUnitReplacements(replacements){
+    for(const replace of replacements){
+        const [oldId,newId,oldchunk,newchunk,pixel,owner,unitType,AssetClass]=replace.split("|")
+        const [oChunkX,oChunkY]=oldchunk.split(",").map(Number)
+        const [nchunkX,nchunkY]=newchunk.split(",").map(Number)
+
+        const RemoveFrom=globalmanager.getTile(oChunkX,oChunkY)
+        if(RemoveFrom){RemoveFrom.removeUnit(Number(oldId))}
+        else{/*user does not have the tile loaded to delete the unit */}
+        
+        const LoadTo=globalmanager.getTile(nchunkX,nchunkY)
+        if(LoadTo){
+            const Meta={
+                "position":pixel.split(",").map(Number),//in pixel values for the chunk its to be deployed in!
+                "UnitType":unitType,
+                "AssetClass":AssetClass,
+                "owner":owner,
+                "ServerId":Number(newId)
+            }
+            const objLoad=await globalmanager.objectLoad(unitType,Meta,AssetClass)
+            if(objLoad){LoadTo.addToScene(unitType, Meta)}
+        }
+        else{/*user does not have the tile loaded to create the unit */}
+    }
+}
+
 
 function HandleSocketResponses(socket){
 
@@ -878,96 +954,8 @@ function HandleSocketResponses(socket){
     });
 }
 
-function makeResourceUpdate(resources){
-    const political={Rate:resources.Political.Rate,Total:Math.floor(resources.Political.Total)};
-    const gold={Rate:resources.Gold.Rate,Total:Math.floor(resources.Gold.Total)};
-    const stone={Rate:resources.Stone.Rate,Total:Math.floor(resources.Stone.Total)};
-    const wood={Rate:resources.Wood.Rate,Total:Math.floor(resources.Wood.Total)};
-    const stability={Total:Math.floor(resources.Stability.Total)};  
-    const warSupport={Total:Math.floor(resources.WarSupport.Total)};
-    const manpower={
-        TotalManPower:Math.floor(resources.ManPower.TotalManPower),
-        TotalPopulation:Math.floor(resources.ManPower.TotalPopulation),
-        PopulationRate:resources.ManPower.PopulationRate,
-        RecruitableFactor:resources.ManPower.RecruitableFactor,
-        MaxPopulation:resources.ManPower.MaxPopulation
-    };
-    
-    document.getElementById("PPRTxt").innerText=political.Total;
-    try{
-        document.getElementById("ToolTipPPRate").innerText=political.Rate;
-        document.getElementById("ToolTipPPSurplus").innerText=political.Total;    
-    }catch(a){}
 
-    document.getElementById("GoldRTxt").innerText=gold.Total;
-    try{
-        document.getElementById("ToolTipGoldRate").innerText=gold.Rate;
-        document.getElementById("ToolTipGoldSurplus").innerText=gold.Total;
-    }catch(b){}
 
-    document.getElementById("StoneRTxt").innerText=stone.Total;
-    try{
-        document.getElementById("ToolTipStoneRate").innerText=stone.Rate;
-        document.getElementById("ToolTipStoneSurplus").innerText=stone.Total;
-    }catch(c){}
-
-    document.getElementById("WoodRTxt").innerText=wood.Total;
-    try{
-        document.getElementById("ToolTipWoodRate").innerText=wood.Rate;
-        document.getElementById("ToolTipWoodSurplus").innerText=wood.Total;
-    }catch(d){}
-
-    document.getElementById("StabilityRTxt").innerText=stability.Total;
-    try{
-        document.getElementById("ToolTipStability").innerText=stability.Total;
-    }catch(e){}
-
-    document.getElementById("WarSupportRTxt").innerText=warSupport.Total;
-    try{
-        document.getElementById("ToolTipWarSupport").innerText=warSupport.Total;
-    }catch(f){}
-
-    document.getElementById("ManPowerRTxt").innerText=manpower.TotalManPower;
-    try{
-        document.getElementById("ToolTipTotalManPower").innerText=manpower.TotalManPower;
-        document.getElementById("ToolTipTotalPop").innerText=manpower.TotalPopulation;
-        document.getElementById("ToolTipMonthlyPopGain").innerText=manpower.PopulationRate;
-        document.getElementById("ToolTipRecrtuitableFac").innerText="Recruitable: "+manpower.RecruitableFactor+"%";
-        document.getElementById("ToolTipMaxPop").innerText=manpower.MaxPopulation;
-    }catch(g){}
-}
-
-async function HandleDeployments(Deployments){
-    for(let Deploy of Deployments){
-        const whichTileUnits=globalmanager.getTile(Deploy.tile[0],Deploy.tile[1]);
-        
-        for(var i=0;i<Deploy.UnitCount;i++){
-            const metaDataUnits={
-                "position":Deploy.position,//in pixel values for the chunk its to be deployed in!
-                "UnitType":Deploy.UnitType,
-                "AssetClass":Deploy.AssetClass,
-                "owner":Deploy.owner,
-                "ServerId":Deploy.ServerIds[i]
-            }
-            // console.log(Deploy.ServerIds[i], "placing units, this is the serverId of one")
-            const objLoad=await globalmanager.objectLoad(Deploy.UnitType,metaDataUnits,Deploy.AssetClass)
-
-            if(objLoad){
-                whichTileUnits.addToScene(Deploy.UnitType, metaDataUnits)
-            }
-        }
-    }
-}
-
-function HandleDeploymentPositionRequest(responses){
-    InputState.value="neutral"
-    for(let response of responses){
-        if(response.permission){adjustUnitDeployPosition(response)}
-
-        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-        renderer.domElement.removeEventListener( 'click',  onTileClick);
-    }
-}
 
 
 export function EmitBuildingPlacementRequest(RequestMetaData){//BuildingAssetName,

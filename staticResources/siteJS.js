@@ -1,32 +1,20 @@
 import * as THREE from "three";
 import {OrbitControls} from 'https://cdn.jsdelivr.net/npm/three@0.176.0/examples/jsm/controls/OrbitControls.js';
 
-import {getUserTileData,setupSocketConnection} from "./JS_Externals/SceneInitiation.js"
+import {setupSocketConnection} from "./JS_Externals/SceneInitiation.js"
 import {MakeToolTips} from "./JS_Externals/ResourceTips.js"
 import {addEventListenersToButtons} from "./JS_Externals/DropDownUI.js"
 import {updateGridColumns} from "./JS_Externals/Utils.js"
 import {raycaster,pointer,MouseDownHandling,MouseMovingHandling,MouseUpHandling} from "./JS_Externals/RaycasterHandling.js"
 
 import {globalmanager} from "./JS_Externals/GlobalInstanceMngr.js"
-import {Tile} from "./JS_Externals/TileClass.js"
+import {InputManager} from "./JS_Externals/UserInputState.js"
 
 export var renderer,camera,username,UserId,controls;
 export const scene = new THREE.Scene();
 export const InputState={value:"neutral"};
 
-var renderRequested
-
-
-
-class Template{
-    constructor(name, structure = {}) {
-        this.id = generateUniqueId();
-        this.name = name;
-        this.structure = structure; // { infantry: 20, artillery: 5 }
-        this.instanceGroups = new Set(); // All instance groups (from many tiles)
-        this.division = null;            // Assigned division (optional)
-    }
-}
+var renderRequested;
 
 async function sceneSetup(SetupInformation){
     const tiles=SetupInformation[0]
@@ -41,7 +29,10 @@ async function sceneSetup(SetupInformation){
     renderer.setPixelRatio(window.devicePixelRatio * 0.75); // Half the normal pixel ratio
 
     document.getElementById("ThreeBlock").appendChild(renderer.domElement)
-    
+
+    InputManager.SetupListeners()
+
+
     //add eventlisteners to allow object selection
     renderer.domElement.addEventListener("mousedown",MouseDownHandling)
     renderer.domElement.addEventListener("mousemove",MouseMovingHandling)
@@ -66,12 +57,34 @@ async function sceneSetup(SetupInformation){
 
 }
 
+async function getUserTileData(accessToken){
+    try {
+        const res = await fetch('/tiles', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
 
+        const data = await res.json();
+
+        if (data.success) {
+            return [data.tiles,data.OriginTile];  // Now this gets properly returned to the caller
+        } else {
+            console.error(data.message);
+            return null;
+        }
+    } catch (err) {
+        console.error('Error fetching tiles:', err);
+        return null;
+    }
+}
 
 function render(){
     renderRequested = false;
-    raycaster.setFromCamera( pointer, camera );
+    // raycaster.setFromCamera( pointer, camera );
     controls.update();
+    InputManager.Action();
     renderer.render(scene, camera);
 }
 
@@ -86,6 +99,7 @@ window.onresize=function(){//resize the canvas
     renderer.setSize( window.innerWidth, window.innerHeight );
     camera.aspect = renderer.domElement.width/renderer.domElement.height;
     camera.updateProjectionMatrix();
+    InputManager.UpdateBoxArea(window.innerWidth, window.innerHeight);
     updateGridColumns();
     requestRenderIfNotRequested();
 }
@@ -123,6 +137,7 @@ window.onload=async function(){
             }
         }, 14 * 60 * 1000); // Every 14 minutes (if access token expires in 15m)
     }
+
     //if you refresh it asks to check the accesstoken, restart that timer so the user should be set
     await startAutoRefresh()
 
