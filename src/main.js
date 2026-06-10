@@ -643,12 +643,11 @@ io.on('connection', async (socket) => {
         const TheUser = await ChunkManager.getUser(userId)
         // console.log("TheUser",TheUser)
         const destinationPoint=RequestMetaData.position
-        // const UserIdCommandee=RequestMetaData.userOwner
         const selectedUnits=RequestMetaData.SelectedUnits
 
         //units that are actually moveable
-        //chunkID -> unitType -> serverIds -> []
-        const ActualUnits=selectedUnits["Unit"]
+        //chunkID -> serverIds
+        const ActualUnits=selectedUnits
 
         // const CHEATER=//confirm unit ownership
 
@@ -657,7 +656,7 @@ io.on('connection', async (socket) => {
         // }
         
         const Values= SpecificChunkPoint(TheUser.OriginTile,destinationPoint);
-
+        // console.log("Values",Values)
         const response= validateclickedPoint(Values.pixelCoords,Values.chunkCoords)
         if(response=="ValidPoint"){
             // console.log("userId",userId)

@@ -129,7 +129,7 @@ export class RendererUserInputState{
             const instanced=hit.instanceId !== undefined
             if (instanced) {
                 UnitSelectionDisplay([hit])
-                this.SelectedItems=[{chunk:[foundTile.x, foundTile.y],instanceId:hit.instanceId,obj:hit.object}];
+                this.SelectedItems=[{chunk:`${foundTile.x},${foundTile.y}`,instanceId:hit.instanceId,obj:hit.object}];
             }
         }
     }
@@ -145,12 +145,18 @@ export class RendererUserInputState{
         if (intersectTerrain.length > 0) {
             const MoveToTargetPoint=intersectTerrain[0].point 
             const processedPoint=[MoveToTargetPoint.x,MoveToTargetPoint.y,MoveToTargetPoint.z]
+            const processSelected=this.SelectedItems.map(item => ({sid:item.instanceId,chunk:item.chunk}))
+            const grouped = processSelected.reduce((acc, {sid, chunk}) => {
+                (acc[chunk] ||= []).push(sid);
+                return acc;
+            }, {});
+
             const RequestMetaData={
                 "position":processedPoint,
-                "SelectedUnits":this.SelectedItems.map(item => ({sid:item.instanceId,chunk:item.chunk}))
+                "SelectedUnits":grouped
             }
-            // console.log("RequestMetaData, FROM INPUT",RequestMetaData)
-            // socket.emit('MovementCommand',{"RequestMetaData":RequestMetaData})
+            console.log("RequestMetaData, FROM INPUT",RequestMetaData)
+            socket.emit('MovementCommand',{"RequestMetaData":RequestMetaData})
         }
     }
 

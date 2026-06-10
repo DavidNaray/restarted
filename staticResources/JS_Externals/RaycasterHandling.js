@@ -2,7 +2,6 @@ import * as THREE from "three";
 import {camera,InputState,scene,controls,UserId} from "../siteJS.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {UnitSelectionDisplay,moveableSelected} from "./DropDownUI.js"
-import {EmitMovementCommand} from "./SceneInitiation.js"
 
 let isDragging = false;
 let dragStart = { x: 0, y: 0 };
@@ -131,46 +130,6 @@ export function MouseUpHandling(e) {
 
 
         //note i could probably combine these two variable but cba.. it works rn
-    }else if(e.button === 2){//right click
-        //send moveableSelected over to the server to the point mouse is raycasting on at mouseup
-        console.log(moveableSelected)
-        if(Object.keys(moveableSelected.value).length>0){//Object.keys(moveableSelected).length>0){//Object.keys(obj).length
-            console.log("sending over, movement command for:", moveableSelected)
-            onPointerMove(e)
-
-            const intersectTerrain=intersectsTileMeshes()
-            if (intersectTerrain.length > 0) {
-                const intersectedMesh = intersectTerrain[0].object;
-                const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
-                if (foundTile) {
-                    // const IntersectPoint=intersects[0].point
-                    const MoveToTargetPoint=intersectTerrain[0].point 
-                    const processedPoint=[MoveToTargetPoint.x,MoveToTargetPoint.y,MoveToTargetPoint.z]
-
-                    //problem is units can be selected over multiple tiles
-                        //each instance carries info about their parent tile, meaning now we have target tile and can every tile
-                        //a unit that is selected belongs to
-                    //processedPoint and unit positions are still in global coordinates, not adjusted to the tile
-                        //-> figure it out on the server
-
-                    //need to send position data also for each instance so that the server can check for manipulation
-                        //but thats part of its metadata
-                    const RequestMetaData={
-                        "TargetTile":[foundTile.x, foundTile.y],
-                        "position":processedPoint,//clicked on point
-                        "userOwner":UserId,//whos performing this command
-                        "SelectedUnits":moveableSelected.value[UserId],
-                    }
-
-                    EmitMovementCommand(RequestMetaData);
-                }
-            }
-        }else{
-            console.log("nothing to send")
-        }
-
-
-
     }
 }
 

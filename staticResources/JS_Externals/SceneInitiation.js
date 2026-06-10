@@ -980,13 +980,6 @@ export function EmitUnitsBeingDeployed(RequestMetaData){
     })
 }
 
-export function EmitMovementCommand(RequestMetaData){
-    // if(Object.keys(RequestMetaData).length >) 
-    socket.emit('MovementCommand',{
-        "RequestMetaData":RequestMetaData
-    })
-}
-
 
 
 export function techTreeSetupEmit(){

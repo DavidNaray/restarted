@@ -42,17 +42,12 @@ class MovementOrder{
             const offsetX = chunkX * 1536;
             const offsetY = chunkY * 1536;
 
-            const unitTypes = this.UnitsInvolved[chunkID];
-
-            for (const unitType in unitTypes) {
-                const serverIds = unitTypes[unitType].ServerIds;
-                for (const id of serverIds) {
-                    const pos = ChunkManager.GetUnitPosition(chunkID,id,this.owner)
-                    // console.log("bro:", pos)
-                    newMapping.get(chunkID).set(id,[])
-                    // console.log("[unitType,pos]",[unitType,pos])
-                    pixelPositions.push({ x: pos[0] +offsetX, y: pos[1] +offsetY});
-                }
+            const serverIds=this.UnitsInvolved[chunkID]
+            for (const id of serverIds) {
+                // console.log("supposed id",id,chunkID)
+                const pos = ChunkManager.GetUnitPosition(chunkID,id,this.owner)
+                newMapping.get(chunkID).set(id,[])
+                pixelPositions.push({ x: pos[0] +offsetX, y: pos[1] +offsetY});
             }
         }
 
