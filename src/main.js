@@ -643,7 +643,7 @@ io.on('connection', async (socket) => {
         const TheUser = await ChunkManager.getUser(userId)
         // console.log("TheUser",TheUser)
         const destinationPoint=RequestMetaData.position
-        const UserIdCommandee=RequestMetaData.userOwner
+        // const UserIdCommandee=RequestMetaData.userOwner
         const selectedUnits=RequestMetaData.SelectedUnits
 
         //units that are actually moveable

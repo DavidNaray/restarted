@@ -8,7 +8,7 @@ import {globalmanager} from "./GlobalInstanceMngr.js"
 import {buildWallSegments,trySnapPoint} from "./WallPlacementFuncs.js"
 import {superHeightMapTexture} from "./SuperCanvas.js"
 
-let socket;
+export let socket;
 var userPoints = [];
 const previewGroup = new THREE.Group();
 
@@ -188,6 +188,7 @@ async function HandleUnitReplacements(replacements){
         else{/*user does not have the tile loaded to create the unit */}
     }
 }
+
 
 
 function HandleSocketResponses(socket){

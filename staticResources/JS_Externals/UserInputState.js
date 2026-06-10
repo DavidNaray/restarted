@@ -1,6 +1,10 @@
 import * as THREE from "three";
-import {renderer,camera,scene,requestRenderIfNotRequested} from "../siteJS.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
+import {socket} from "./SceneInitiation.js"
+import {renderer,
+        camera,
+        scene,
+        requestRenderIfNotRequested} from "../siteJS.js"
 
 import {UnitSelectionDisplay} from "./DropDownUI.js"
 
@@ -29,16 +33,20 @@ export class RendererUserInputState{
 
         //Mouse Dealings
         this.LastState="";
+        this.LastRightState="";
         this.MoveTimer;
         this.isMoving;
-        this.isDown;
+        this.isDown;//LeftClick
+        this.RightisDown;
 
         this.dragStart={ x: null, y: null };
         this.dragEnd={ x: null, y: null };
         this.FinalMouseState;//whether button is up/down/dragging
+        this.FinalrightMouseState;//right mouse button
 
-        this.SelectedItems;//what has the user selected
+        this.SelectedItems=[];//what has the user selected
     }
+
     selectCanvasSetup(){
         this.selectionCanvas.width = window.innerWidth;
         this.selectionCanvas.height = window.innerHeight;
@@ -48,26 +56,6 @@ export class RendererUserInputState{
         this.selectionCanvas.style.pointerEvents = "none";
 
         document.body.appendChild(this.selectionCanvas);
-    }
-
-    RaycastSelect(){
-        console.log("trying to raycast select?")
-        const intersectsAll = this.raycaster.intersectObjects(scene.children, true);
-        const intersects = intersectsAll.filter(i => !globalmanager.allTileMeshes.includes(i.object));
-        if (intersects.length > 0) {
-            const hit = intersects[0];
-
-            const instanced=hit.instanceId !== undefined
-            if (instanced) {console.log('Base mesh!!!!:', hit.object);UnitSelectionDisplay([hit])}
-
-            else {console.log('Non-instanced object hit:', hit.object);}
-        }
-        else{
-            var UnitInfoDispContentBox=document.getElementById("UnitInfoDispContentBox");
-            if(UnitInfoDispContentBox && UnitInfoDispContentBox.style.display=="block"){
-                document.getElementById("Button_Dropdown").style.display="none";
-            }
-        }
     }
 
     UpdateBoxArea(newW, newH) {
@@ -87,7 +75,6 @@ export class RendererUserInputState{
             this.dragEnd.y   *= scaleY;
         }
     }
-
 
     DrawBoxSelectArea() {
         const ctx = this.selectionCtx;
@@ -120,14 +107,59 @@ export class RendererUserInputState{
         ctx.strokeRect(x, y, w, h);
     }
 
+    RaycastSelect(){
+        const intersectsTerrain=this.raycaster.intersectObjects(globalmanager.allTileMeshes, true);
 
+        const intersectsAll = this.raycaster.intersectObjects(scene.children, true);
+        const intersects = intersectsAll.filter(i => !globalmanager.allTileMeshes.includes(i.object));
+        
+        const intersectedTerrain = intersectsTerrain[0].object;
+        if (!intersectedTerrain) {//hide the UI for selected units (if there was one selected)
+            this.SelectedItems=[];
+            var UnitInfoDispContentBox=document.getElementById("UnitInfoDispContentBox");
+            if(UnitInfoDispContentBox && UnitInfoDispContentBox.style.display=="block"){
+                document.getElementById("Button_Dropdown").style.display="none";
+            }
+            return;
+        }
+
+        const foundTile =  globalmanager.meshToTiles.get(intersectedTerrain);
+        const hit = intersects[0];
+        if(foundTile && hit){
+            const instanced=hit.instanceId !== undefined
+            if (instanced) {
+                UnitSelectionDisplay([hit])
+                this.SelectedItems=[{chunk:[foundTile.x, foundTile.y],instanceId:hit.instanceId,obj:hit.object}];
+            }
+        }
+    }
 
     BoxSelect(){
+        this.SelectedItems=[];
+        if (this.dragStart.x === null || this.dragEnd.x === null) return;
 
     }
 
+    EmitMovementOrder(){
+        const intersectTerrain=this.raycaster.intersectObjects(globalmanager.allTileMeshes, true);
+        if (intersectTerrain.length > 0) {
+            const MoveToTargetPoint=intersectTerrain[0].point 
+            const processedPoint=[MoveToTargetPoint.x,MoveToTargetPoint.y,MoveToTargetPoint.z]
+            const RequestMetaData={
+                "position":processedPoint,
+                "SelectedUnits":this.SelectedItems.map(item => ({sid:item.instanceId,chunk:item.chunk}))
+            }
+            // console.log("RequestMetaData, FROM INPUT",RequestMetaData)
+            // socket.emit('MovementCommand',{"RequestMetaData":RequestMetaData})
+        }
+    }
+
     Action(){
-        if(this.FinalMouseState=="Click"){this.RaycastSelect()}/*make a raycast selection*/
+        if(this.FinalMouseState=="Click"){
+            this.FinalMouseState="Up"
+            this.isDown=false
+            this.RaycastSelect()/*make a raycast selection*/
+        }
         
         else if(this.boxSelect){
             //box is maintained when dragging or if mouse is down
@@ -143,9 +175,17 @@ export class RendererUserInputState{
             }
             else{this.selectionCanvas.style.visibility = "hidden";}
         }
+
+        if(this.FinalrightMouseState=="Click"){
+            this.FinalrightMouseState="Up"
+            this.RightisDown=false
+            this.EmitMovementOrder()
+        }
+
     }
 
     CheckFinalState(e){
+        //LeftSide
         if(!this.isDown &&  this.LastState=="Down"){this.FinalMouseState="Click";}
 
         else if(this.isDown && this.isMoving){
@@ -169,10 +209,18 @@ export class RendererUserInputState{
             this.dragStart={ x: null, y: null };
             this.dragEnd={ x: null, y: null };
         }
+
+        //Rightside
+        if(!this.RightisDown &&  this.LastRightState=="Down"){this.FinalrightMouseState="Click";}
+        else if(this.RightisDown){this.FinalrightMouseState="Down";}
+        else{this.FinalrightMouseState="Up";}
+
+        //yeah
+        const req=this.LastState!=this.FinalMouseState || this.LastRightState!=this.FinalrightMouseState
+        if(req){requestRenderIfNotRequested()}        
         
-        const req=this.LastState!=this.FinalMouseState
         this.LastState=this.FinalMouseState
-        if(req){requestRenderIfNotRequested()}
+        this.LastRightState=this.FinalrightMouseState
         
         // console.log(this.dragStart, this.dragEnd)
         // console.log(this.FinalMouseState)
@@ -194,13 +242,17 @@ export class RendererUserInputState{
 
     onMouseDown(event){
         const LeftClick=event.button === 0
+        const RightClick=event.button === 2
         if (LeftClick) {this.isDown=true;}
+        if (RightClick){this.RightisDown=true;}
         this.CheckFinalState(event)
     }
 
     onMouseUp(event){
         const LeftClick=event.button === 0
+        const RightClick=event.button === 2
         if (LeftClick) {this.isDown=false;}
+        if (RightClick){this.RightisDown=false;}
         this.CheckFinalState(event);
     }
 
