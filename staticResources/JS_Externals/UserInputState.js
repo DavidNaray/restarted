@@ -2,6 +2,7 @@ import * as THREE from "three";
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {socket} from "./SceneInitiation.js"
 import {renderer,
+        controls,
         camera,
         scene,
         requestRenderIfNotRequested} from "../siteJS.js"
@@ -14,6 +15,8 @@ export class RendererUserInputState{
         this.onPointerMove = this.onPointerMove.bind(this);
         this.onMouseDown = this.onMouseDown.bind(this);
         this.onMouseUp = this.onMouseUp.bind(this);
+        this.onKeyDown = this.onKeyDown.bind(this);
+        this.onKeyUp = this.onKeyUp.bind(this);
 
         /*--------------OverlayUI--------------*/
         this.selectionCanvas = document.createElement("canvas");
@@ -29,7 +32,7 @@ export class RendererUserInputState{
         this.HeldButtons=[]//3 latest  current held
         this.lastPressed=[]//3 last unique presses (there is a time limit)
         
-        this.boxSelect=true;
+        this.boxSelect;
 
         //Mouse Dealings
         this.LastState="";
@@ -145,6 +148,7 @@ export class RendererUserInputState{
         if (intersectTerrain.length > 0) {
             const MoveToTargetPoint=intersectTerrain[0].point 
             const processedPoint=[MoveToTargetPoint.x,MoveToTargetPoint.y,MoveToTargetPoint.z]
+            
             const processSelected=this.SelectedItems.map(item => ({sid:item.instanceId,chunk:item.chunk}))
             const grouped = processSelected.reduce((acc, {sid, chunk}) => {
                 (acc[chunk] ||= []).push(sid);
@@ -155,12 +159,12 @@ export class RendererUserInputState{
                 "position":processedPoint,
                 "SelectedUnits":grouped
             }
-            console.log("RequestMetaData, FROM INPUT",RequestMetaData)
             socket.emit('MovementCommand',{"RequestMetaData":RequestMetaData})
         }
     }
 
     Action(){
+        // console.log(this.boxSelect)
         if(this.FinalMouseState=="Click"){
             this.FinalMouseState="Up"
             this.isDown=false
@@ -211,7 +215,8 @@ export class RendererUserInputState{
 
         else{this.FinalMouseState="Up";}
 
-        if(!this.boxSelect ||this.FinalMouseState=="UpMoving" || this.FinalMouseState=="Up"){
+        //make sure the drawn box select is reset the moment its up
+        if(this.FinalMouseState=="UpMoving" || this.FinalMouseState=="Up"){
             this.dragStart={ x: null, y: null };
             this.dragEnd={ x: null, y: null };
         }
@@ -222,7 +227,9 @@ export class RendererUserInputState{
         else{this.FinalrightMouseState="Up";}
 
         //yeah
-        const req=this.LastState!=this.FinalMouseState || this.LastRightState!=this.FinalrightMouseState
+        const req=  this.LastState!=this.FinalMouseState 
+                    || this.LastRightState!=this.FinalrightMouseState
+                    || this.FinalMouseState=="Dragging"
         if(req){requestRenderIfNotRequested()}        
         
         this.LastState=this.FinalMouseState
@@ -262,6 +269,20 @@ export class RendererUserInputState{
         this.CheckFinalState(event);
     }
 
+    onKeyDown(event){
+        if (event.key === 'Shift') {
+            this.boxSelect=true
+            controls.enabled=false
+        }
+    }
+
+    onKeyUp(event){
+        if (event.key === 'Shift') {
+            this.boxSelect=false
+            controls.enabled=true
+        }
+    }
+
     SetupListeners(){
         function MouseMove(parent,remove=false){
             if(remove){renderer.domElement.removeEventListener( 'mousemove', parent.onPointerMove );}
@@ -281,6 +302,20 @@ export class RendererUserInputState{
         MouseMove(this);
         MouseDown(this)
         MouseUp(this)
+
+        function KeyUp(parent,remove=false){
+            if(remove){document.removeEventListener( 'keyup', parent.onKeyUp );}
+            else{document.addEventListener('keyup',parent.onKeyUp)}
+        }
+        
+        function KeyDown(parent,remove=false){
+            if(remove){document.removeEventListener( 'keydown', parent.onKeyDown );}
+            else{document.addEventListener('keydown',parent.onKeyDown)}
+        }
+
+        KeyUp(this)
+        KeyDown(this)
+
     }
 
 
