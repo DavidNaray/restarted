@@ -205,20 +205,7 @@ io.on('connection', async (socket) => {
     ChunkManager.setUserSocket(socket.userId,socket.id)
     //see if they need a Daily Login reward
     await LoginRewardCheckup(socket.userId)
-
-    socket.on('TechnologyTreeRequest', async () => {    
-        try{
-            // const user=await User.findOne({ _id: socket.userId })
-            const user=await ChunkManager.getUser(socket.userId)
-            if(!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-
-            socket.emit("TechnologyTreeResponse", user.Technology);
-        }catch(err){
-        }
-    });
+    await TickManager.TechTreeMessage(socket.userId)
 
     socket.on('ConstructionSetupRequest', async () => { 
         const validBuilings = new Set([

@@ -28,6 +28,8 @@ export function setupSocketConnection(){
         const resources=response.resources
         const DailyReward=response.DailyReward
 
+        const TechTree=response.TechTree
+
         //move units across chunks
         if(replacements){await HandleUnitReplacements(replacements)}
 
@@ -46,6 +48,7 @@ export function setupSocketConnection(){
         //alert user of daily reward
         if(DailyReward){HandleDailyReward(DailyReward)}
 
+        if(TechTree){HandleTechTree(TechTree)}
     })
     
     HandleSocketResponses(socket)
@@ -174,6 +177,32 @@ function HandleDailyReward(DailyReward){
 
     const bruhTwo=document.getElementById("bruhTwo");
     bruhTwo.style.display="flex"; // Show the reward box
+}
+
+function HandleTechTree(TechTree){
+    function stringintoURL(str){return `Icons/TechTree/${str}.png`;}
+    
+    const To=UImanager.getRBody();
+    To.replaceChildren();
+
+    for (let key in TechTree) {
+        const strURL=stringintoURL(key);
+
+        let option=document.createElement("img");
+        option.style.width="100%"
+        option.style.height="100%"
+        option.src=strURL;
+        option.style.objectFit="contain"
+        option.style.display="block"
+        option.style.aspectRatio="1/1"
+
+        if(TechTree[key].Unlocked){
+            option.style.outline="lightgray dashed 0.1vw"; 
+            option.style.backgroundColor="rgba(216,216,216,0.2)"; 
+        }
+        To.appendChild(option)
+        makeToolTipTechnology(option,TechTree[key]);
+    }
 }
 
 async function HandleUnitReplacements(replacements){
@@ -427,44 +456,6 @@ function HandleSocketResponses(socket){
 
 
     })
-
-    socket.on('TechnologyTreeResponse', (response) => {
-        function stringintoURL(str){
-            return `url('Icons/TechTree/${str}.png')`;
-        }
-        console.log("Technology Tree Response",response)
-        if(response){
-            const appendTo=document.getElementById("TechBox");
-            for (let key in response) {
-                const strURL=stringintoURL(key);
-
-                const option=document.createElement("div");
-                {
-                    option.style.aspectRatio="1/1";
-                    option.style.padding="0.75vw 0.75vw 0.75vw 0.75vw";
-                } 
-                const optionInner=document.createElement("div");
-                {
-                    // option.style.innerHTML=optionTags[i];
-                    optionInner.className="IconGeneral"
-                    optionInner.style.width="100%";
-                    optionInner.style.height="100%";
-                    optionInner.style.backgroundImage=strURL;
-                    if(response[key].Unlocked){
-                        optionInner.style.outline="lightgray dashed 0.1vw"; // green for researched
-                        optionInner.style.backgroundColor="rgba(216,216,216,0.2)"; // green for researched
-                    }
-
-                } 
-
-                makeToolTipTechnology(optionInner,response[key]);
-                option.appendChild(optionInner)
-                appendTo.appendChild(option)
-
-            }
-            
-        }
-    });
 
     socket.on('ConstructionSetupResponse', (response) => {
         function stringintoURL(str){
@@ -991,12 +982,6 @@ export function EmitUnitsBeingDeployed(RequestMetaData){
     socket.emit('DeployAllUnits',{
         "RequestMetaData":RequestMetaData
     })
-}
-
-
-
-export function techTreeSetupEmit(){
-    socket.emit('TechnologyTreeRequest');
 }
 
 export function ConstructionSetupEmit(){

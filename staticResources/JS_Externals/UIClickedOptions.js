@@ -1,11 +1,13 @@
 import {UImanager} from "./UIManager.js"
 
-function hideBoxes(){
+function hideBoxes(id){
     UImanager.showAppropriateDropDown(true)
 
     const elems=UImanager.getBoxes()
     for(let elem of elems){
-        elem.style.visibility="hidden"
+        if(elem.id!=id){elem.style.display="none"}
+        else{elem.style.display="block"}
+        
         const hasOverflow = elem.scrollHeight > elem.clientHeight;
         elem.style.scrollbarGutter = hasOverflow ? 'stable' : 'auto';
         //important, prevents glitching by providing gap between content and the scrollbar, do not remove
@@ -15,40 +17,37 @@ function hideBoxes(){
 
 
 export function DecisionElements(){
-    hideBoxes()
-    const el = document.getElementById('DecisionBox');
-    el.style.visibility="visible"
-
+    hideBoxes('DecisionBox')
     UImanager.getDDTitle().innerHTML="Decisions"
 
 }
 
 export function ResearchElements(){
-    hideBoxes()
+    hideBoxes("ResearchBox")
     UImanager.getDDTitle().innerHTML="Research"
 }
 
 export function FinanceElements(){
-    hideBoxes()
+    hideBoxes("CommunityBox")
     UImanager.getDDTitle().innerHTML="Community"
 }
 
 export function ConstructionElements(){
-    hideBoxes()
+    hideBoxes("ConstructionBox")
     UImanager.getDDTitle().innerHTML="Construction"
 }
 
 export function ProductionElements(){
-    hideBoxes()
+    hideBoxes("ProductionBox")
     UImanager.getDDTitle().innerHTML="Production"
 }
 
 export function TrainElements(){
-    hideBoxes()
+    hideBoxes("TrainingBox")
     UImanager.getDDTitle().innerHTML="Recruitment"
 }
 
 export function SecurityElements(){
-    hideBoxes()
+    hideBoxes("SecurityBox")
     UImanager.getDDTitle().innerHTML="Security"
 }

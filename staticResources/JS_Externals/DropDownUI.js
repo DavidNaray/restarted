@@ -2,7 +2,7 @@ import {updateGridColumns} from "./Utils.js"
 import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {renderer,UserId,InputState} from "../siteJS.js"
-import {EmitUnitPlacementRequest,EmitUnitsBeingDeployed,techTreeSetupEmit,
+import {EmitUnitPlacementRequest,EmitUnitsBeingDeployed,
     ConstructionSetupEmit,ProductionSetupEmit,openProductionTab,closeProductionTab} from "./SceneInitiation.js"
 
 export var moveableSelected={value:{}};
@@ -1103,7 +1103,7 @@ function ResearchElements(){
         }
         creatingRCB.appendChild(TechBox)
 
-        techTreeSetupEmit()
+        // techTreeSetupEmit()
     }else{
         ResearchcontentBox.style.display="block"
     }

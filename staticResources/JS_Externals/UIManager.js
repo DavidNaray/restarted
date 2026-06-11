@@ -19,8 +19,9 @@ class UIManager {
         this.BottomSecStyles();
 
         this.DDTitle=document.getElementById("DDTitle")
-
         this.boxes=document.getElementsByClassName("DDChild")
+
+        this.RBody=document.getElementById("RBody")
 
         this.widthFlag;
         this.heightFlag;
@@ -34,6 +35,7 @@ class UIManager {
     getBoxes(){return this.boxes}
     getDDTitle(){return this.DDTitle}
     getDropDown(){return this.DropDown}
+    getRBody(){return this.RBody}
 
     showAppropriateDropDown(override=false){
         const active=override || this.DropDown.style.display=="flex" || this.BottomSec.style.display=="block"
@@ -79,7 +81,6 @@ class UIManager {
         this.DropDown.style.backgroundColor="gray"
         this.DropDown.style.pointerEvents="auto"
         this.DropDown.style.padding="0 max(4px, 0.3vw) max(4px, 0.3vw) max(4px, 0.3vw)"
-        this.DropDown.style.flexGrow=1
         this.DropDown.style.maxHeight="70%"
         this.DropDown.style.flexDirection="column"
         this.DropDown.style.display="none"

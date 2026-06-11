@@ -95,6 +95,14 @@ class TickManager {
         if(currentMessage){currentMessage.DailyReward=UpdateMessage}
         else{this.messages.set(userId,{DailyReward:UpdateMessage})}
     }
+
+    async TechTreeMessage(userId){
+        const user=await ChunkManager.getUser(userId)
+        const currentMessage=this.messages.get(userId)
+
+        if(currentMessage){currentMessage.TechTree=user.Technology}
+        else{this.messages.set(userId,{TechTree:user.Technology})}
+    }
 }
 
 module.exports=new TickManager()
