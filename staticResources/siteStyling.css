@@ -17,6 +17,100 @@ html, body {
   z-index: 0;
 }
 
+#UIRoot {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;     /* full-screen overlay */
+  pointer-events: none; /* let clicks go through unless overridden */
+  z-index: 999;
+ 
+  display:flex;
+  flex-direction: column;
+  /* align-items: stretch; */
+  /* display:none */
+  
+}
+
+#DDParent{
+  flex-grow: 1;
+  width:100%;
+  background-color: aqua;
+}
+
+#CountryIcon{
+  height:100%;
+  aspect-ratio: 1.7/1;
+  background: rgb(98, 98, 98);
+  border-radius: max(4px, 0.3vw)
+}
+
+#Rightside{
+  display: grid;
+  grid-template-rows: 0.9fr 1.2fr;
+}
+
+#ResourceBar{
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  column-gap: max(4px, 0.3vw);
+  padding-left: max(4px, 0.3vw);
+  margin-bottom: max(4px, 0.3vw);
+}
+
+#ButtonsBar{
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  column-gap: max(4px, 0.3vw);
+  margin-left: max(4px, 0.3vw);
+  background-color: rgb(98, 98, 98);
+  border-radius: max(4px, 0.3vw);
+  padding: max(4px, 0.3vw);
+}
+
+.ResourcePiece{
+  display: grid;
+  width:100%;
+  height:100%;
+
+  background-color: rgb(98, 98, 98);
+  border-radius: max(4px, 0.3vw);
+  grid-template-columns: 1fr 3fr;
+
+  container-type: size;
+}
+
+.IconGeneral{
+  height:100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+}
+
+.resourceText{
+  font-size: clamp(8px, 60cqh, 32px);
+  line-height: 0;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;  
+  
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.BBarElem{
+  background-color: rgb(188, 187, 187);
+  border-radius: max(4px, 0.3vw);
+}
+
+
+
+
+
+
+
 #bruhTwo {
   position: absolute;
   top: 0;
@@ -25,7 +119,7 @@ html, body {
   height: 100%;     /* full-screen overlay */
   background-color: transparent;
   pointer-events: none; /* let clicks go through unless overridden */
-  z-index: 999;
+  z-index: 1;
 
   display: none;
   flex-direction: column;
@@ -72,7 +166,7 @@ html, body {
   pointer-events: none; /* let clicks go through unless overridden */
   z-index: 1;
 
-  display: flex;
+  display: none;
   flex-direction: column;
 }
 
@@ -204,21 +298,7 @@ canvas {
   border-radius: 6px;
 }
 
-.IconGeneral{
-  /* height: 100%; */
-  /* background-size: cover; */
-  /* background-position: center; */
-  height:100%;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-}
 
-.resourceText{
-  /* background-color: transparent; */
-  text-overflow: clip;
-  overflow: hidden;
-}
 
 p{
   margin:0;

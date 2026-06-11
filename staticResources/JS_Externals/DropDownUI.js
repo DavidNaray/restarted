@@ -2,7 +2,7 @@ import {updateGridColumns} from "./Utils.js"
 import {onPointerMove,intersectsTileMeshes} from "./RaycasterHandling.js"
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {renderer,UserId,InputState} from "../siteJS.js"
-import {EmitBuildingPlacementRequest,EmitUnitPlacementRequest,EmitUnitsBeingDeployed,techTreeSetupEmit,
+import {EmitUnitPlacementRequest,EmitUnitsBeingDeployed,techTreeSetupEmit,
     ConstructionSetupEmit,ProductionSetupEmit,openProductionTab,closeProductionTab} from "./SceneInitiation.js"
 
 export var moveableSelected={value:{}};

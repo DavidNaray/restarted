@@ -9,6 +9,7 @@ import {raycaster,pointer,MouseDownHandling,MouseMovingHandling,MouseUpHandling}
 
 import {globalmanager} from "./JS_Externals/GlobalInstanceMngr.js"
 import {InputManager} from "./JS_Externals/UserInputState.js"
+import {UImanager} from "./JS_Externals/UIManager.js"
 
 export var renderer,camera,username,UserId,controls;
 export const scene = new THREE.Scene();
@@ -31,7 +32,7 @@ async function sceneSetup(SetupInformation){
     document.getElementById("ThreeBlock").appendChild(renderer.domElement)
 
     InputManager.SetupListeners()
-
+    UImanager.AddListeners()
 
     //add eventlisteners to allow object selection
     renderer.domElement.addEventListener("mousedown",MouseDownHandling)
@@ -100,6 +101,7 @@ window.onresize=function(){//resize the canvas
     camera.aspect = renderer.domElement.width/renderer.domElement.height;
     camera.updateProjectionMatrix();
     InputManager.UpdateBoxArea(window.innerWidth, window.innerHeight);
+    UImanager.onResize();
     updateGridColumns();
     requestRenderIfNotRequested();
 }

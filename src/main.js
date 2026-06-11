@@ -641,11 +641,10 @@ io.on('connection', async (socket) => {
     socket.on('MovementCommand',async ({RequestMetaData}) => {
         const userId=socket.userId
         const TheUser = await ChunkManager.getUser(userId)
-        // console.log("TheUser",TheUser)
+
         const destinationPoint=RequestMetaData.position
         const selectedUnits=RequestMetaData.SelectedUnits
 
-        //units that are actually moveable
         //chunkID -> serverIds
         const ActualUnits=selectedUnits
 
@@ -656,10 +655,9 @@ io.on('connection', async (socket) => {
         // }
         
         const Values= SpecificChunkPoint(TheUser.OriginTile,destinationPoint);
-        // console.log("Values",Values)
         const response= validateclickedPoint(Values.pixelCoords,Values.chunkCoords)
         if(response=="ValidPoint"){
-            // console.log("userId",userId)
+            
             const obj=new MovementOrderClass(ActualUnits,Values,userId)
             await obj.orderSetup();
         }

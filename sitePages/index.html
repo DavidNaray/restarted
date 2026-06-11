@@ -136,12 +136,9 @@
             </div>
         </div> 
 
-        <!-- dropdown for when Buttons activate  -->
-        <div id="Button_Dropdown" style="  display: none;">
-            <!-- title box and the close button for the dropdown -->
+        <!-- <div id="Button_Dropdown" style="  display: none;">
             <div style="width: 100%;aspect-ratio: 9/1;background-color: rgb(98, 98, 98);overflow-x: hidden;flex-shrink: 0;margin-bottom: 4px;">
                 <div style="height: calc(100% - 1vw);aspect-ratio: 1/1;float: right;padding: 0.5vw;">
-                    <!-- x button -->
                      <div id="close_Dropdown" style="background-color: black;width: 100%;height: 100%;"></div>
                 </div>
 
@@ -155,11 +152,72 @@
                 <div id="Dropdown_Content_Box" style="width: 100%;;background-color: rgb(98, 98, 98);overflow-x: hidden;"></div>
             </div>
 
-        </div>
+        </div> -->
 
         
     </div>
     
+    <div id="UIRoot">
+        <div id="SB">
+            <div id="CountryIcon"></div>
+            <div id="Rightside">
+                <div id="ResourceBar">
+                    <div class="ResourcePiece">
+                        <div class="IconGeneral" style="background-image: url('Icons/PoliticalPower.png')"></div>
+                        <div class="resourceText" id="PPblock">N.A</div>
+                    </div>
+
+                    <div class="ResourcePiece">
+                        <div class="IconGeneral" style="background-image: url('Icons/Stability.png')"></div>
+                        <div class="resourceText" id="Stabblock">N.A</div>
+                    </div>
+
+                    <div class="ResourcePiece">
+                        <div class="IconGeneral" style="background-image: url('Icons/WarSupport.png')"></div>
+                        <div class="resourceText" id="Warblock">N.A</div>
+                    </div>
+
+                    <div class="ResourcePiece">
+                        <div class="IconGeneral" style="background-image: url('Icons/ManPower.png')"></div>
+                        <div class="resourceText" id="Manblock">N.A</div>
+                    </div>
+
+                    <div class="ResourcePiece">
+                        <div class="IconGeneral" style="background-image: url('Icons/Gold.png')"></div>
+                        <div class="resourceText" id="GoldBlock">N.A</div>
+                    </div>
+
+                    <div class="ResourcePiece">
+                        <div class="IconGeneral" style="background-image: url('Icons/Stone.png')"></div>
+                        <div class="resourceText" id="StoneBlock">N.A</div>
+                    </div>
+
+                    <div class="ResourcePiece">
+                        <div class="IconGeneral" style="background-image: url('Icons/Wood.png')"></div>
+                        <div class="resourceText" id="WoodBlock">N.A</div>
+                    </div>
+                </div>
+
+                <div id="ButtonsBar">
+                    <div id="BD" class="IconGeneral BBarElem" style="background-image: url('Icons/Decisions.png');"></div>
+                    <div id="BR" class="IconGeneral BBarElem" style="background-image: url('Icons/Research.png');"></div>
+                    <div id="BF" class="IconGeneral BBarElem" style="background-image: url('Icons/Finance.png');"></div>
+                    <div id="BC" class="IconGeneral BBarElem" style="background-image: url('Icons/Construction.png');"></div>
+                    <div id="BP" class="IconGeneral BBarElem" style="background-image: url('Icons/Production.png');"></div>
+                    <div id="BRc"class="IconGeneral BBarElem" style="background-image: url('Icons/Recruitment.png');"></div>
+                    <div id="BS" class="IconGeneral BBarElem" style="background-image: url('Icons/Security.png');"></div>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="DropDown"></div>
+
+
+        <div id="BottomSec"></div>
+
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="siteJS.js"></script>    
 

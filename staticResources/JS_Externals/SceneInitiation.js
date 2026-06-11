@@ -3,7 +3,7 @@ import {renderer,InputState,scene,requestRenderIfNotRequested} from "../siteJS.j
 import {onPointerMove,intersectsTileMeshes,suppressPlacement} from "./RaycasterHandling.js"
 import {makeToolTipTechnology} from "./ResourceTips.js"
 import {adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
-import {globalmanager} from "./GlobalInstanceMngr.js"
+
 
 import {buildWallSegments,trySnapPoint} from "./WallPlacementFuncs.js"
 import {superHeightMapTexture} from "./SuperCanvas.js"
@@ -11,6 +11,10 @@ import {superHeightMapTexture} from "./SuperCanvas.js"
 export let socket;
 var userPoints = [];
 const previewGroup = new THREE.Group();
+
+import {globalmanager} from "./GlobalInstanceMngr.js"
+import {UImanager} from "./UIManager.js"
+
 
 export function setupSocketConnection(){
     socket = io({auth:{token:localStorage.getItem('accessToken')}});
@@ -63,6 +67,15 @@ function makeResourceUpdate(resources){
         MaxPopulation:resources.ManPower.MaxPopulation
     };
     
+    //update ResourcePieces
+    document.getElementById("PPblock").innerText=political.Total;
+    document.getElementById("Stabblock").innerText=stability.Total;
+    document.getElementById("Warblock").innerText=warSupport.Total;
+    document.getElementById("Manblock").innerText=manpower.TotalManPower;
+    document.getElementById("GoldBlock").innerText=gold.Total;
+    document.getElementById("StoneBlock").innerText=stone.Total;
+    document.getElementById("WoodBlock").innerText=wood.Total;
+
     document.getElementById("PPRTxt").innerText=political.Total;
     try{
         document.getElementById("ToolTipPPRate").innerText=political.Rate;

@@ -116,7 +116,8 @@ export class RendererUserInputState{
         const intersectsAll = this.raycaster.intersectObjects(scene.children, true);
         const intersects = intersectsAll.filter(i => !globalmanager.allTileMeshes.includes(i.object));
         
-        const intersectedTerrain = intersectsTerrain[0].object;
+        let intersectedTerrain
+        try{intersectedTerrain = intersectsTerrain[0].object;}catch(pooh){}
         if (!intersectedTerrain) {//hide the UI for selected units (if there was one selected)
             this.SelectedItems=[];
             var UnitInfoDispContentBox=document.getElementById("UnitInfoDispContentBox");
@@ -127,7 +128,8 @@ export class RendererUserInputState{
         }
 
         const foundTile =  globalmanager.meshToTiles.get(intersectedTerrain);
-        const hit = intersects[0];
+        let hit;
+        try{hit = intersects[0];}catch(bleugh){}
         if(foundTile && hit){
             const instanced=hit.instanceId !== undefined
             if (instanced) {
@@ -317,8 +319,6 @@ export class RendererUserInputState{
         KeyDown(this)
 
     }
-
-
 
 }
 
