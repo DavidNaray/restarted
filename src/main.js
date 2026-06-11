@@ -205,7 +205,8 @@ io.on('connection', async (socket) => {
     ChunkManager.setUserSocket(socket.userId,socket.id)
     //see if they need a Daily Login reward
     await LoginRewardCheckup(socket.userId)
-    await TickManager.TechTreeMessage(socket.userId)
+    await TickManager.TechTreeMessage(socket.userId);
+    await TickManager.RecruitableMessage(socket.userId);
 
     socket.on('ConstructionSetupRequest', async () => { 
         const validBuilings = new Set([
@@ -648,6 +649,17 @@ io.on('connection', async (socket) => {
             const obj=new MovementOrderClass(ActualUnits,Values,userId)
             await obj.orderSetup();
         }
+    });
+
+    socket.on('NewTraining',async ({RequestMetaData}) => {
+        const userId=socket.userId
+        const TheUser = await ChunkManager.getUser(userId)
+        const UnitType=RequestMetaData
+
+        //confirm or deny
+        const confirmed=true
+        TickManager.NewRegimenMessage(userId,confirmed,UnitType)
+
     });
 
     // Handle disconnect

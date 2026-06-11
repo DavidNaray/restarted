@@ -28,7 +28,6 @@ html, body {
  
   display:flex;
   flex-direction: column;
-  /* align-items: stretch; */
   /* display:none */
   
 }
@@ -83,7 +82,7 @@ html, body {
 }
 
 .resourceText{
-  font-size: clamp(8px, 60cqh, 32px);
+  font-size: clamp(4px, 60cqh, 32px);
   line-height: 0;
 
   display: flex;
@@ -141,7 +140,7 @@ html, body {
   padding:max(4px, 0.3vw);
 }
 
-#RTxt{
+.RTxt{
   display:flex;
   padding:max(4px, 0.3vw);
   width:calc(100% - max(12px, 0.9vw));
@@ -151,7 +150,7 @@ html, body {
 }
 
 #RBody{
-  width:calc(100% - max(16px, 1.2vw));
+  width:calc(100% - max(20px, 1.5vw));
   border-radius: 0 0 max(2px, 0.15vw) max(2px, 0.15vw);
 
   display: grid;
@@ -163,6 +162,34 @@ html, body {
   padding:max(8px, 0.6vw);
   padding-bottom:max(4px, 0.3vw)
 }
+
+#TBBody{
+  width:calc(100% - max(20px, 1.5vw));
+  border-radius: 0 0 max(2px, 0.15vw) max(2px, 0.15vw);
+
+  display: grid;
+  grid-template-columns: repeat(8,1fr);
+  column-gap:max(12px, 0.8vw);
+  grid-auto-rows:1fr;
+  row-gap: max(8px, 0.6vw);;
+
+  padding:max(8px, 0.6vw);
+  /* padding-bottom:max(4px, 0.3vw) */
+}
+
+#TBRegBody{
+  width:calc(100% - max(20px, 1.5vw));
+  border-radius: 0 0 max(2px, 0.15vw) max(2px, 0.15vw);
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill,1fr);
+  row-gap: max(8px, 0.6vw);;
+
+  padding:max(8px, 0.6vw);
+  padding-bottom: max(4px, 0.3vw);;
+}
+
+
 
 
 

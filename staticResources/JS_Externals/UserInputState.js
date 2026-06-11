@@ -146,6 +146,8 @@ export class RendererUserInputState{
     }
 
     EmitMovementOrder(){
+        if(this.SelectedItems.length==0){return};
+        console.log(this.SelectedItems,"what?")
         const intersectTerrain=this.raycaster.intersectObjects(globalmanager.allTileMeshes, true);
         if (intersectTerrain.length > 0) {
             const MoveToTargetPoint=intersectTerrain[0].point 

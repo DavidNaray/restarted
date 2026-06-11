@@ -8,6 +8,11 @@ class TickManager {
         this.TICK_RATE = 1000 / 15; //10 updates a second //(1000 / 60)/2;//
         this.ResourceTickRate=1000;//update every 1 second
         this.messages=new Map()
+
+        this.indiUnits={
+            "archer":'Icons/ArcherIcon.png',
+            "spearman":'Icons/SpearManIcon.png'
+        }
     }
 
     GetTickRate(){return this.TICK_RATE;}
@@ -102,6 +107,27 @@ class TickManager {
 
         if(currentMessage){currentMessage.TechTree=user.Technology}
         else{this.messages.set(userId,{TechTree:user.Technology})}
+    }
+
+    async RecruitableMessage(userId){
+        const user=await ChunkManager.getUser(userId)
+        const myUnlockedUnits={
+            "archer":'Icons/ArcherIcon.png',
+            "spearman":'Icons/SpearManIcon.png'
+        }
+        
+        const currentMessage=this.messages.get(userId)
+        if(currentMessage){currentMessage.Recruitable=myUnlockedUnits}
+        else{this.messages.set(userId,{Recruitable:myUnlockedUnits})}
+    }
+
+    async NewRegimenMessage(userId,permission,UnitType){
+        const TheUser = await ChunkManager.getUser(userId)
+
+        const message={permission,UnitType,img:this.indiUnits[UnitType]}
+        const currentMessage=this.messages.get(userId)
+        if(currentMessage){currentMessage.NewRegimen=message}
+        else{this.messages.set(userId,{NewRegimen:message})}
     }
 }
 

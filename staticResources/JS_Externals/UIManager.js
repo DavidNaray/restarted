@@ -7,6 +7,8 @@ import {DecisionElements,
         TrainElements,
         SecurityElements} from "./UIClickedOptions.js"
 
+import {socket} from "./SceneInitiation.js"
+
 class UIManager {
     constructor() {
         this.UIRoot=document.getElementById("UIRoot")
@@ -23,6 +25,9 @@ class UIManager {
 
         this.RBody=document.getElementById("RBody")
 
+        this.TBBody=document.getElementById("TBBody")
+        this.TBRegBody=document.getElementById("TBRegBody")
+
         this.widthFlag;
         this.heightFlag;
 
@@ -36,6 +41,8 @@ class UIManager {
     getDDTitle(){return this.DDTitle}
     getDropDown(){return this.DropDown}
     getRBody(){return this.RBody}
+    getTBBody(){return this.TBBody}
+    getTBRegBody(){return this.TBRegBody}
 
     showAppropriateDropDown(override=false){
         const active=override || this.DropDown.style.display=="flex" || this.BottomSec.style.display=="block"
@@ -131,6 +138,13 @@ class UIManager {
         }
         this.showAppropriateDropDown()
 
+    }
+
+
+    //---------------------------------
+    RecruitButtonClicked(event){
+        const WhichUnit=event.currentTarget.myParam
+        socket.emit('NewTraining',{"RequestMetaData":WhichUnit})
     }
 }
 

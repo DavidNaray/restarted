@@ -29,6 +29,9 @@ export function setupSocketConnection(){
         const DailyReward=response.DailyReward
 
         const TechTree=response.TechTree
+        const Recruitable=response.Recruitable
+
+        const NewRegimen=response.NewRegimen
 
         //move units across chunks
         if(replacements){await HandleUnitReplacements(replacements)}
@@ -49,6 +52,10 @@ export function setupSocketConnection(){
         if(DailyReward){HandleDailyReward(DailyReward)}
 
         if(TechTree){HandleTechTree(TechTree)}
+
+        if(Recruitable){HandleRecruitable(Recruitable)}
+
+        if(NewRegimen){HandleNewRegimen(NewRegimen)}
     })
     
     HandleSocketResponses(socket)
@@ -229,6 +236,184 @@ async function HandleUnitReplacements(replacements){
         }
         else{/*user does not have the tile loaded to create the unit */}
     }
+}
+
+function HandleRecruitable(Recruitable){
+    
+    const To=UImanager.getTBBody()
+    To.replaceChildren();
+    for(let [RType,strURL] of Object.entries(Recruitable)){
+        let option=document.createElement("img");
+        option.style.width="100%"
+        option.style.height="100%"
+        option.src=strURL;
+        option.style.objectFit="contain"
+        option.style.display="block"
+        option.style.aspectRatio="1/1"
+        option.style.outline="rgb(188, 187, 187) dashed 0.1vw"; 
+        option.style.backgroundColor="rgba(216,216,216,0.2)"; 
+
+        option.myParam=RType
+
+        option.addEventListener("click",UImanager.RecruitButtonClicked)
+        To.appendChild(option)
+    }
+}
+
+function HandleNewRegimen(NewRegimen){
+    if(!NewRegimen.permission){return}//no permission
+
+    function TopSec(elem){
+        let TopContainer=document.createElement("div");
+        TopContainer.style.display="grid"
+        TopContainer.style.gridTemplateColumns="10% 90%"
+        TopContainer.style.columnGap="max(4px, 0.3vw)"
+        
+        let Imgsec=document.createElement("img");
+        Imgsec.style.width="100%"
+        Imgsec.src=NewRegimen.img;
+        Imgsec.style.backgroundColor="rgb(188, 187, 187)";
+        Imgsec.style.objectFit="contain"
+        Imgsec.style.display="block"
+        Imgsec.style.aspectRatio="1/1"
+
+        TopContainer.appendChild(Imgsec)
+        
+        let TopNextContainer=document.createElement("div");
+        TopNextContainer.style.width="calc(100% - max(4px, 0.3vw))"
+        TopNextContainer.style.display="grid"
+        TopNextContainer.style.gridTemplateRows="40% calc(60% - max(4px, 0.3vw))"
+        TopNextContainer.style.rowGap="max(4px, 0.3vw)"
+
+        // ------------------------------------------------------------------------
+        let TNTContainer=document.createElement("div");
+        TNTContainer.style.display="grid"
+        TNTContainer.style.gridTemplateColumns="calc(70% - max(4px, 0.3vw)) 30%"
+        TNTContainer.style.columnGap="max(4px, 0.3vw)"
+
+        let TopTitle=document.createElement("div");
+        TopTitle.innerHTML=NewRegimen.UnitType
+        TopTitle.className="resourceText"
+        TopTitle.style.fontSize="max(20px,1vw)";
+        TopTitle.style.backgroundColor="rgb(188, 187, 187)";
+        
+        TNTContainer.appendChild(TopTitle)
+
+        let LastTopContainer=document.createElement("div");
+        LastTopContainer.style.display="flex"
+
+        let LeftFill = document.createElement("div");
+        LeftFill.style.flex = "1"; // takes remaining width
+        LeftFill.style.marginRight = "max(4px, 0.3vw)";
+        LeftFill.style.backgroundColor="rgb(188, 187, 187)";
+        LeftFill.style.gap = "max(4px, 0.3vw)";
+        LeftFill.style.display = "flex";
+
+        // LEFT square
+        let BotLeft = document.createElement("div");
+        BotLeft.style.height = "100%";
+        BotLeft.style.aspectRatio = "1 / 1";
+        BotLeft.style.backgroundImage="url('Icons/Subtract.png')"
+        BotLeft.className="IconGeneral"
+
+        // MIDDLE filler
+        let BotMiddle = document.createElement("div");
+        BotMiddle.style.flex = "1";
+        BotMiddle.style.backgroundColor = "blue";
+
+        // RIGHT square
+        let BotRight = document.createElement("div");
+        BotRight.style.height = "100%";
+        BotRight.style.aspectRatio = "1 / 1";
+        BotRight.style.backgroundImage="url('Icons/Add.png')"
+        BotRight.className="IconGeneral"
+
+        LeftFill.appendChild(BotLeft);
+        LeftFill.appendChild(BotMiddle);
+        LeftFill.appendChild(BotRight);
+
+        LastTopContainer.appendChild(LeftFill)
+
+        let DestroyRegimen=document.createElement("div");
+        DestroyRegimen.style.height="100%"
+        DestroyRegimen.style.aspectRatio="1/1"
+        DestroyRegimen.style.backgroundColor="rgb(188, 187, 187)";
+        DestroyRegimen.style.marginLeft = "auto";
+        DestroyRegimen.style.backgroundImage="url('Icons/Cross.png')"
+        DestroyRegimen.className="IconGeneral"
+
+        LastTopContainer.appendChild(DestroyRegimen)
+        TNTContainer.appendChild(LastTopContainer)
+
+        TopNextContainer.appendChild(TNTContainer)
+
+        TopContainer.appendChild(TopNextContainer)
+
+        //--------------------------------------------------------------------------
+
+        let BotNext=document.createElement("div");
+        BotNext.style.display="flex"
+
+        let Deploy=document.createElement("div");
+        Deploy.style.height="100%"
+        Deploy.style.aspectRatio="1/1"
+        Deploy.style.backgroundColor="rgb(188, 187, 187)";
+        Deploy.style.marginLeft = "auto";
+        Deploy.style.backgroundImage="url('Icons/Deploy.png')"
+        Deploy.className="IconGeneral"
+
+        let LastBotContainer=document.createElement("div");
+        LastBotContainer.style.display="flex";
+
+        let LeftFillBot = document.createElement("div");
+        LeftFillBot.style.flex = "1";
+        LeftFillBot.style.marginRight = "max(4px, 0.3vw)";
+        // LeftFillBot.style.backgroundColor="rgb(188, 187, 187)";
+        LeftFillBot.style.display="grid"
+        LeftFillBot.style.gridTemplateColumns="1fr 1fr"
+        LeftFillBot.style.columnGap="max(4px, 0.3vw)"
+
+        let from = document.createElement("div");
+        from.innerHTML="Deploy To:"
+        from.className="resourceText"
+        from.style.fontSize="max(15px,1vw)"
+        from.style.justifyContent="left"
+        from.style.padding="0 max(4px, 0.3vw) 0 max(4px, 0.3vw)"
+        from.style.backgroundColor="rgb(188, 187, 187)";
+        LeftFillBot.appendChild(from)
+
+        let to = document.createElement("div");
+        to.innerHTML="Target Position:"
+        to.className="resourceText"
+        to.style.fontSize="max(15px,1vw)"
+        to.style.justifyContent="left"
+        to.style.padding="0 max(4px, 0.3vw) 0 max(4px, 0.3vw)"
+        to.style.backgroundColor="rgb(188, 187, 187)";
+        LeftFillBot.appendChild(to)
+
+
+        BotNext.appendChild(LeftFillBot)
+        BotNext.appendChild(Deploy)
+        TopNextContainer.appendChild(BotNext)
+
+
+
+        elem.appendChild(TopContainer)
+    }
+
+
+    const To=UImanager.getTBRegBody()
+
+    let option=document.createElement("div");
+    option.style.width="calc(100% - max(8px, 0.6vw))"
+    option.style.minHeight="10px"
+    option.style.outline="lightgray dashed 0.1vw"; 
+    option.style.backgroundColor="rgba(216,216,216,0.2)"
+    option.style.padding="max(4px, 0.3vw)"
+
+    TopSec(option)
+
+    To.appendChild(option);
 }
 
 
