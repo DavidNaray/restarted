@@ -18,6 +18,10 @@ class UIManager {
         this.BottomSec=document.getElementById("BottomSec")
         this.BottomSecStyles();
 
+        this.DDTitle=document.getElementById("DDTitle")
+
+        this.boxes=document.getElementsByClassName("DDChild")
+
         this.widthFlag;
         this.heightFlag;
 
@@ -25,6 +29,23 @@ class UIManager {
         this.heightswap=700
         
         this.onResize();
+    }
+
+    getBoxes(){return this.boxes}
+    getDDTitle(){return this.DDTitle}
+    getDropDown(){return this.DropDown}
+
+    showAppropriateDropDown(override=false){
+        const active=override || this.DropDown.style.display=="flex" || this.BottomSec.style.display=="block"
+        if(!active){return}
+
+        if(this.widthFlag){
+            this.DropDown.style.display="flex"
+            this.BottomSec.style.display="none"
+        }else{
+            this.BottomSec.style.display="block"
+            this.DropDown.style.display="none"
+        }
     }
 
     AddListeners(){
@@ -55,11 +76,13 @@ class UIManager {
     }
 
     DropDownStyles(){
-        this.DropDown.style.backgroundColor="pink"
+        this.DropDown.style.backgroundColor="gray"
         this.DropDown.style.pointerEvents="auto"
-        this.DropDown.style.padding="max(4px, 0.3vw)"
+        this.DropDown.style.padding="0 max(4px, 0.3vw) max(4px, 0.3vw) max(4px, 0.3vw)"
         this.DropDown.style.flexGrow=1
         this.DropDown.style.maxHeight="70%"
+        this.DropDown.style.flexDirection="column"
+        this.DropDown.style.display="none"
     }
 
     BottomSecStyles(){
@@ -69,9 +92,8 @@ class UIManager {
         this.BottomSec.style.bottom=0;
         this.BottomSec.style.backgroundColor="white"
         this.BottomSec.style.padding="max(4px, 0.3vw)"
+        this.BottomSec.style.display="none"
     }
-
-    getResourceBar(){return this.ResourceBar}
 
     setFlags(){
         if (this.width<this.widthswap){this.widthFlag=false}
@@ -91,21 +113,22 @@ class UIManager {
 
     updateLayout(){
         this.selectionBase.style.height=`max(7%,${this.heightswap/10}px)`
-
+        
         if(this.widthFlag){
             this.selectionBase.style.width=`max(50%,${this.widthswap}px)`
             this.selectionBase.style.borderRadius=" 0 0 max(4px, 0.3vw) 0"
 
-            this.DropDown.style.display="flex"//wide enough
+            // this.DropDown.style.display="flex"//wide enough
             this.DropDown.style.width = `max(40%,${this.widthswap*0.75}px)`
-            this.BottomSec.style.display="none"
+            // this.BottomSec.style.display="none"
         }
         else{
             this.selectionBase.style.borderRadius="0"
             this.selectionBase.style.width="calc(100% - max(8px, 0.6vw) )"
-            this.BottomSec.style.display="block"
-            this.DropDown.style.display="none"
+            // this.BottomSec.style.display="block"
+            // this.DropDown.style.display="none"
         }
+        this.showAppropriateDropDown()
 
     }
 }

@@ -33,12 +33,6 @@ html, body {
   
 }
 
-#DDParent{
-  flex-grow: 1;
-  width:100%;
-  background-color: aqua;
-}
-
 #CountryIcon{
   height:100%;
   aspect-ratio: 1.7/1;
@@ -105,8 +99,47 @@ html, body {
   border-radius: max(4px, 0.3vw);
 }
 
+#DDTitleParent{
+  display:grid;
+  grid-template-columns: 11fr 1fr;
+}
 
+#closeDDBtnParent{
+  width: 100%;
+  height:100%;
+}
 
+#closeDDBtn{
+  height:100%;
+  aspect-ratio: 1/1;
+  float: right;
+  border-radius: max(4px, 0.3vw);
+  background-color: rgb(188, 187, 187);
+}
+
+#DDTitle{
+  width:calc(100% - max(8px, 0.6vw));
+  aspect-ratio: 13/1;
+  background-color: rgb(188, 187, 187);
+  border-radius: max(4px, 0.3vw);
+
+  justify-content: left;
+  padding-left: max(4px, 0.3vw);
+  padding-right: max(4px, 0.3vw);
+}
+
+.DDChild{
+  flex: 1 1 auto;
+  min-width: 0;
+  background-color: rgb(98, 98, 98);
+  border-radius: max(4px, 0.3vw);
+  margin-top: max(4px, 0.3vw);
+  
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-color: rgb(188, 187, 187) gray;
+  scrollbar-width: thin;  
+}
 
 
 
@@ -190,7 +223,6 @@ html, body {
 
 #Button_Dropdown{
   width:  min(550px,40%);
-  /* height: 90%; */
   max-height: 90%;
 
   background-color: gray;
@@ -199,7 +231,6 @@ html, body {
   flex-direction: column;
 
   padding:min(0.75vw,0.75vh);
-  /* padding-bottom: 0; */
   padding-top: 0;
   overflow: hidden;
 }
