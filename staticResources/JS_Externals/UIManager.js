@@ -8,6 +8,7 @@ import {DecisionElements,
         SecurityElements} from "./UIClickedOptions.js"
 
 import {socket} from "./SceneInitiation.js"
+import {InputManager} from "./UserInputState.js"
 
 class UIManager {
     constructor() {
@@ -162,6 +163,7 @@ class UIManager {
     RecruitButtonClicked(event){
         const WhichUnit=event.currentTarget.myParam
         socket.emit('NewTraining',{"RequestMetaData":WhichUnit})
+        InputManager.setPlacementMode(false)
     }
     RegimenCountAdjust(event){
         const UpDown=event.currentTarget.myParam
@@ -169,11 +171,20 @@ class UIManager {
 
         const RequestMetaData={UpDown,Rid}
         socket.emit('AdjustRegimen',{RequestMetaData})
+        InputManager.setPlacementMode(false)
     }
 
-    DestroyRegimen(){
+    DestroyRegimen(event){
         const Rid = event.currentTarget.parentElement.parentElement.parentElement.parentElement.myParam;
         socket.emit('DestroyRegimen',{RequestMetaData:Rid})
+        InputManager.setPlacementMode(false)
+    }
+
+    DeployPosition(event){
+        // console.log("erm...")
+        const Rid = event.currentTarget.parentElement.parentElement.parentElement.parentElement.myParam;
+        // console.log("i want to get a point",Rid)
+        InputManager.setPlacementMode({Rid})
     }
 }
 

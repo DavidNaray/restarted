@@ -549,6 +549,10 @@ io.on('connection', async (socket) => {
         // socket.emit('CanYouPlaceBuilding', false)//responseObject);
     })
 
+
+
+
+
     socket.on('UnitDeploymentPositionRequest',async ({RequestMetaData}) => {
 
         const userId=socket.userId
@@ -666,11 +670,40 @@ io.on('connection', async (socket) => {
     socket.on('AdjustRegimen',async ({RequestMetaData}) => {
         const userId=socket.userId
         const TheUser = await ChunkManager.getUser(userId)
-        console.log("bruh",RequestMetaData)
+
         const direction=RequestMetaData.UpDown
         const Rid=RequestMetaData.Rid
 
         TickManager.Adjustregimentcounts(userId,Rid,direction)
+    });
+
+    socket.on('unitdeploymentposition',async ({RequestMetaData}) => {
+        const userId=socket.userId
+        const TheUser = await ChunkManager.getUser(userId)
+
+        const pos=RequestMetaData.position
+        const Rid=RequestMetaData.Rid
+
+        const values= SpecificChunkPoint(TheUser.OriginTile,pos);
+        const response= validateclickedPoint(values.pixelCoords,values.chunkCoords)
+
+        if(response=="ValidPoint"){
+            const [tileX,tileY]=values.chunkCoords
+            const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
+
+            console.log("values",values)
+            const position=await getPosWithHeight(pos,HeighMapLocation);
+
+            const responseObject={
+                "permission":true,
+                "position":values.pixelCoords,
+                "tile":values.chunkCoords,
+                Rid
+            }
+            TickManager.DeployPositionPermissionMessage(userId,responseObject);
+        }
+        else{TickManager.DeployPositionPermissionMessage(userId,{"permission":false,Rid});}
+        
     });
 
     socket.on('DestroyRegimen',async ({RequestMetaData}) => {

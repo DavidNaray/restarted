@@ -158,14 +158,26 @@ async function HandleDeployments(Deployments){
     }
 }
 
-function HandleDeploymentPositionRequest(responses){
-    InputState.value="neutral"
-    for(let response of responses){
-        if(response.permission){adjustUnitDeployPosition(response)}
-
-        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-        renderer.domElement.removeEventListener( 'click',  onTileClick);
+function HandleDeploymentPositionRequest(DeployPosRequestResponse){
+    
+    const Rid=DeployPosRequestResponse.Rid
+    const To=UImanager.getTBRegBody()
+    
+    // console.log("RID RID,",Rid,DeployPosRequestResponse)
+    let targElem;
+    for (const elem of To.children) {
+        if(elem.myParam!=Rid){continue}
+        targElem=elem
     }
+    // console.log("targElem",targElem)
+    const from =targElem.children[1].children[1].children[0].children[0];
+
+    if(DeployPosRequestResponse.permission){
+        const chunk=DeployPosRequestResponse.tile
+        const pixel=DeployPosRequestResponse.position
+        from.innerHTML=`Deploy To: Chunk:${chunk},Pixel:${pixel}`
+    }
+    else{from.innerHTML="Deploy To: Invalid Location"}
 }
 
 function HandleUnitPosition(positions){
@@ -322,7 +334,7 @@ function HandleNewRegimen(NewRegimen){
         // MIDDLE filler
         let BotMiddle = document.createElement("div");
         BotMiddle.style.flex = "1";
-        BotMiddle.innerHTML="0/1"
+        BotMiddle.innerHTML="1/1"
         BotMiddle.className="resourceText"
         BotMiddle.style.fontSize="max(15px,1vw)"
 
@@ -384,14 +396,14 @@ function HandleNewRegimen(NewRegimen){
         from.style.backgroundColor="rgb(188, 187, 187)";
         LeftFillBot.appendChild(from)
 
-        let to = document.createElement("div");
-        to.innerHTML="Target Position:"
-        to.className="resourceText"
-        to.style.fontSize="max(15px,1vw)"
-        to.style.justifyContent="left"
-        to.style.padding="0 max(4px, 0.3vw) 0 max(4px, 0.3vw)"
-        to.style.backgroundColor="rgb(188, 187, 187)";
-        LeftFillBot.appendChild(to)
+        let Status = document.createElement("div");
+        Status.innerHTML="Status: Ready"
+        Status.className="resourceText"
+        Status.style.fontSize="max(15px,1vw)"
+        Status.style.justifyContent="left"
+        Status.style.padding="0 max(4px, 0.3vw) 0 max(4px, 0.3vw)"
+        Status.style.backgroundColor="rgb(188, 187, 187)";
+        LeftFillBot.appendChild(Status)
 
 
         BotNext.appendChild(LeftFillBot)
@@ -406,8 +418,7 @@ function HandleNewRegimen(NewRegimen){
         DestroyRegimen.addEventListener("click",UImanager.DestroyRegimen)//delete the regimen
         // Deploy.addEventListener("click",)//deploy ready units
 
-        // from.addEventListener("click",)//set a deploy point
-        // to.addEventListener("click",)//set a target point
+        from.addEventListener("click",UImanager.DeployPosition)//set a deploy point
 
     }
 
@@ -430,7 +441,7 @@ function HandleNewRegimen(NewRegimen){
 
     To.appendChild(option);
 
-    UImanager.hideBoxes("TrainingBox")
+    UImanager.hideBoxes("TrainingBox")//can overflow the box, this makes sure it catches that moment
 }
 
 function HandleAdjustRegimenCount(AdjustRegimenCount){
@@ -456,7 +467,7 @@ function HandleAdjustRegimenCount(AdjustRegimenCount){
 }
 
 function HandleDelRegimen(HandleDelRegimen){
-    console.log("HandleDelRegimen",HandleDelRegimen)
+    // console.log("HandleDelRegimen",HandleDelRegimen)
     if(!HandleDelRegimen.Rid){return}
     const Rid=HandleDelRegimen.Rid
 

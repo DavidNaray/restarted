@@ -75,9 +75,9 @@ class TickManager {
         if(currentMessage){
             const permission=currentMessage.DeployPosRequestResponse
             if(permission){currentMessage.DeployPosRequestResponse.push(UpdateMessage)}
-            else{currentMessage.DeployPosRequestResponse=[UpdateMessage]}
+            else{currentMessage.DeployPosRequestResponse=UpdateMessage}
         }
-        else{this.messages.set(userId,{DeployPosRequestResponse:[UpdateMessage]})}
+        else{this.messages.set(userId,{DeployPosRequestResponse:UpdateMessage})}
     }
 
     async ResourceMessage(){
@@ -155,7 +155,7 @@ class TickManager {
 
         const success=ChunkManager.deleteRegiment(userId,Rid)
         if(!success){return}
-        console.log("should be sending?",Rid)
+        // console.log("should be sending?",Rid)
         const message={Rid}
         const currentMessage=this.messages.get(userId)
         if(currentMessage){currentMessage.DelRegimen=message}

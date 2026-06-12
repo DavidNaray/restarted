@@ -1,22 +1,5 @@
 import {UImanager} from "./UIManager.js"
 
-// function hideBoxes(id){
-//     UImanager.showAppropriateDropDown(true)
-
-//     const elems=UImanager.getBoxes()
-//     let him;
-//     for(let elem of elems){
-//         if(elem.id!=id){elem.style.display="none"}
-//         else{him=elem;}//elem.style.display="block"}
-//         // elem.style.display="none"
-//         const hasOverflow = elem.scrollHeight > elem.clientHeight;
-//         elem.style.scrollbarGutter = hasOverflow ? 'stable' : 'auto';
-//         //important, prevents glitching by providing gap between content and the scrollbar, do not remove
-//         elem.style.paddingRight = hasOverflow ? '1px' : '0px';
-//     }
-//     him.style.display="block"
-// }
-
 
 export function DecisionElements(){
     UImanager.hideBoxes('DecisionBox')

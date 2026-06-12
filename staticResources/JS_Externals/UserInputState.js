@@ -23,6 +23,8 @@ export class RendererUserInputState{
         this.selectCanvasSetup()
         this.selectionCtx = this.selectionCanvas.getContext("2d");
 
+        this.PlacementMode=false
+
         /*---------------UI-game---------------*/
         //raycaster
         this.raycaster = new THREE.Raycaster();
@@ -49,6 +51,8 @@ export class RendererUserInputState{
 
         this.SelectedItems=[];//what has the user selected
     }
+
+    setPlacementMode(val){this.PlacementMode=val}
 
     selectCanvasSetup(){
         this.selectionCanvas.width = window.innerWidth;
@@ -110,6 +114,9 @@ export class RendererUserInputState{
         ctx.strokeRect(x, y, w, h);
     }
 
+
+
+
     RaycastSelect(){
         const intersectsTerrain=this.raycaster.intersectObjects(globalmanager.allTileMeshes, true);
 
@@ -137,6 +144,14 @@ export class RendererUserInputState{
                 this.SelectedItems=[{chunk:`${foundTile.x},${foundTile.y}`,instanceId:hit.instanceId,obj:hit.object}];
             }
         }
+    }
+
+    getRaycastPosition(){
+        const intersectsTerrain=this.raycaster.intersectObjects(globalmanager.allTileMeshes, true);
+        let intersectedTerrain
+        try{intersectedTerrain = intersectsTerrain[0].object;}catch(pooh){return false}
+        const pos = intersectsTerrain[0].point;
+        return [pos.x,pos.y,pos.z]
     }
 
     BoxSelect(){
@@ -167,8 +182,7 @@ export class RendererUserInputState{
         }
     }
 
-    Action(){
-        // console.log(this.boxSelect)
+    NonPlacementMode(){
         if(this.FinalMouseState=="Click"){
             this.FinalMouseState="Up"
             this.isDown=false
@@ -195,6 +209,32 @@ export class RendererUserInputState{
             this.RightisDown=false
             this.EmitMovementOrder()
         }
+    }
+
+    PlacementModeAction(){
+        // console.log("placementmode...",this.FinalMouseState)
+        if(this.FinalMouseState=="Click"){
+            this.FinalMouseState="Up"
+            this.isDown=false
+
+            if(this.PlacementMode.Rid){
+                //emit a unitdeploymentposition for Rid
+                const position=this.getRaycastPosition()
+                if(position){
+                    const RequestMetaData={Rid:this.PlacementMode.Rid,position}
+                    socket.emit('unitdeploymentposition',{RequestMetaData})
+                    this.PlacementMode=false
+                }
+                
+            }
+            
+        }
+    }
+    
+    Action(){
+
+        if(this.PlacementMode){this.PlacementModeAction()}
+        else{this.NonPlacementMode()}
 
     }
 
@@ -247,7 +287,7 @@ export class RendererUserInputState{
     onPointerMove(event) {
         clearTimeout(this.MoveTimer);
 
-        this.MoveTimer = setTimeout(() => {this.isMoving=false;}, 100);
+        this.MoveTimer = setTimeout(() => {this.isMoving=false;}, 70);
         this.isMoving=true;
         this.CheckFinalState(event)
 
