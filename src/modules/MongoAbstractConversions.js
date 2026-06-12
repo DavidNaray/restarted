@@ -101,6 +101,7 @@ async function toCachedUser(userDoc) {
       FreeBlocks:userDoc.ProductBlocks?.FreeBlocks ??[],
       Values: userDoc.ProductBlocks?.Values ? Object.fromEntries(userDoc.ProductBlocks.Values) : {}
     },
+    
     Construction:{
       Values: userDoc.Construction?.Values? Object.fromEntries(userDoc.Construction.Values) : {}
     },
@@ -142,6 +143,7 @@ async function toCachedUser(userDoc) {
         ? new Date(userDoc.Resources.lastUpdated)
         : new Date(),
     },
+    
     Technology: {
       Bows: userDoc.Technology.Bows ?? true,
       Swords: userDoc.Technology.Swords ?? true,
@@ -189,7 +191,27 @@ async function toCachedUser(userDoc) {
       CropRotation: userDoc.Technology.CropRotation ?? false,
 
     },
+    
     Inventory:userDoc.Inventory ? Object.fromEntries(userDoc.Inventory) : {},
+
+    nextRegimenId:userDoc.nextRegimenId,
+
+    Regimens: userDoc.Regimens ? Object.fromEntries([...userDoc.Regimens.entries()].map(([id, reg]) => [
+      id,
+      {
+        units: reg.units ? Object.fromEntries([...reg.units.entries()].map(([type, data]) => [
+          type,
+          {
+            progress: data.progress ?? 0,
+            finish: data.finish ?? 0
+          }
+        ])): {},
+        count: reg.count ?? 1,
+        deployPos: reg.deployPos ? [...reg.deployPos] : null,
+        targetPos: reg.targetPos ? [...reg.targetPos] : null
+      }
+    ])): {},
+
     lastClaimDate: userDoc.lastClaimDate ?? null,
   };
 }

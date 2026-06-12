@@ -32,6 +32,8 @@ export function setupSocketConnection(){
         const Recruitable=response.Recruitable
 
         const NewRegimen=response.NewRegimen
+        const AdjustRegimenCount=response.AdjustRegimenCount
+        const DelRegimen=response.DelRegimen
 
         //move units across chunks
         if(replacements){await HandleUnitReplacements(replacements)}
@@ -56,6 +58,10 @@ export function setupSocketConnection(){
         if(Recruitable){HandleRecruitable(Recruitable)}
 
         if(NewRegimen){HandleNewRegimen(NewRegimen)}
+
+        if(AdjustRegimenCount){HandleAdjustRegimenCount(AdjustRegimenCount)}
+
+        if(DelRegimen){HandleDelRegimen(DelRegimen)}
     })
     
     HandleSocketResponses(socket)
@@ -261,13 +267,9 @@ function HandleRecruitable(Recruitable){
 }
 
 function HandleNewRegimen(NewRegimen){
-    if(!NewRegimen.permission){return}//no permission
+    if(!NewRegimen.Rid){return}//no permission
 
     function TopSec(elem){
-        let TopContainer=document.createElement("div");
-        TopContainer.style.display="grid"
-        TopContainer.style.gridTemplateColumns="10% 90%"
-        TopContainer.style.columnGap="max(4px, 0.3vw)"
         
         let Imgsec=document.createElement("img");
         Imgsec.style.width="100%"
@@ -277,7 +279,7 @@ function HandleNewRegimen(NewRegimen){
         Imgsec.style.display="block"
         Imgsec.style.aspectRatio="1/1"
 
-        TopContainer.appendChild(Imgsec)
+        elem.appendChild(Imgsec)
         
         let TopNextContainer=document.createElement("div");
         TopNextContainer.style.width="calc(100% - max(4px, 0.3vw))"
@@ -315,11 +317,14 @@ function HandleNewRegimen(NewRegimen){
         BotLeft.style.aspectRatio = "1 / 1";
         BotLeft.style.backgroundImage="url('Icons/Subtract.png')"
         BotLeft.className="IconGeneral"
+        BotLeft.myParam=-1
 
         // MIDDLE filler
         let BotMiddle = document.createElement("div");
         BotMiddle.style.flex = "1";
-        BotMiddle.style.backgroundColor = "blue";
+        BotMiddle.innerHTML="0/1"
+        BotMiddle.className="resourceText"
+        BotMiddle.style.fontSize="max(15px,1vw)"
 
         // RIGHT square
         let BotRight = document.createElement("div");
@@ -327,6 +332,7 @@ function HandleNewRegimen(NewRegimen){
         BotRight.style.aspectRatio = "1 / 1";
         BotRight.style.backgroundImage="url('Icons/Add.png')"
         BotRight.className="IconGeneral"
+        BotRight.myParam=1
 
         LeftFill.appendChild(BotLeft);
         LeftFill.appendChild(BotMiddle);
@@ -347,9 +353,6 @@ function HandleNewRegimen(NewRegimen){
 
         TopNextContainer.appendChild(TNTContainer)
 
-        TopContainer.appendChild(TopNextContainer)
-
-        //--------------------------------------------------------------------------
 
         let BotNext=document.createElement("div");
         BotNext.style.display="flex"
@@ -368,7 +371,6 @@ function HandleNewRegimen(NewRegimen){
         let LeftFillBot = document.createElement("div");
         LeftFillBot.style.flex = "1";
         LeftFillBot.style.marginRight = "max(4px, 0.3vw)";
-        // LeftFillBot.style.backgroundColor="rgb(188, 187, 187)";
         LeftFillBot.style.display="grid"
         LeftFillBot.style.gridTemplateColumns="1fr 1fr"
         LeftFillBot.style.columnGap="max(4px, 0.3vw)"
@@ -396,9 +398,17 @@ function HandleNewRegimen(NewRegimen){
         BotNext.appendChild(Deploy)
         TopNextContainer.appendChild(BotNext)
 
+        elem.appendChild(TopNextContainer)
 
+        BotLeft.addEventListener("click",UImanager.RegimenCountAdjust)//decrement
+        BotRight.addEventListener("click",UImanager.RegimenCountAdjust)//increment
 
-        elem.appendChild(TopContainer)
+        DestroyRegimen.addEventListener("click",UImanager.DestroyRegimen)//delete the regimen
+        // Deploy.addEventListener("click",)//deploy ready units
+
+        // from.addEventListener("click",)//set a deploy point
+        // to.addEventListener("click",)//set a target point
+
     }
 
 
@@ -410,13 +420,55 @@ function HandleNewRegimen(NewRegimen){
     option.style.outline="lightgray dashed 0.1vw"; 
     option.style.backgroundColor="rgba(216,216,216,0.2)"
     option.style.padding="max(4px, 0.3vw)"
+    option.style.display="grid"
+    option.style.gridTemplateColumns="10% 90%"
+    option.style.columnGap="max(4px, 0.3vw)"
+
+    option.myParam=NewRegimen.Rid //reference to the appropriate regimen record on server
 
     TopSec(option)
 
     To.appendChild(option);
+
+    UImanager.hideBoxes("TrainingBox")
 }
 
+function HandleAdjustRegimenCount(AdjustRegimenCount){
+    if(!AdjustRegimenCount.Rid){return}
+    const Rid=AdjustRegimenCount.Rid
+    const Count=AdjustRegimenCount.Count
 
+    const To=UImanager.getTBRegBody()
+    //go through the children until the element that has myParam be Rid
+
+    for (const elem of To.children) {
+        if(elem.myParam!=Rid){continue}
+
+        //then go to the element that has the count and make the adjustment
+        const BotMiddle =elem.children[1].children[0].children[1].children[0].children[1];
+        const txt=BotMiddle.innerHTML.split("/")
+        // const newTxt=`${txt[0]}/${Count}` //if there was training involved, i cba rn
+        const newTxt=`${Count}/${Count}`
+        BotMiddle.innerHTML=newTxt
+
+    }
+
+}
+
+function HandleDelRegimen(HandleDelRegimen){
+    console.log("HandleDelRegimen",HandleDelRegimen)
+    if(!HandleDelRegimen.Rid){return}
+    const Rid=HandleDelRegimen.Rid
+
+    const To=UImanager.getTBRegBody()
+
+    for (const elem of To.children) {
+        if(elem.myParam!=Rid){continue}
+
+        //destroy the element
+        elem.remove()
+    }
+}
 
 function HandleSocketResponses(socket){
 

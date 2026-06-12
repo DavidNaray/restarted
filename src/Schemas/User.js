@@ -151,6 +151,27 @@ const userSchema = new mongoose.Schema({
       lastUpdated:{ type: String, default: null }
     }
   },
+
+  nextRegimenId: { type: Number, default: 1 },
+  Regimens: {
+    type: Map,
+    of:{
+      id: { type: Number, required: true }, 
+      count: { type: Number, default: 0 },  // how many to train   
+             
+      units: {
+        type: Map, // "Archer", "Spearman", etc.
+        of:{        
+          progress: { type: Number, default: 0 },     // how much time has passed
+          finish: { type: Number, default: 0 }        // total time required (ms or seconds)
+        },
+        default:{}
+      },
+      deployPos: { type: [Number], default: null },      // [x, y]
+      targetPos: { type: [Number], default: null },      // [x, y]
+    },default:{}
+  },
+
   lastClaimDate: { type: String, default: null }, // e.g. "2025-08-16"
 });
 

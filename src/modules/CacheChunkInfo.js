@@ -182,11 +182,51 @@ class GlobalChunkManager {
     }
 
     async getUser(userId){
-        if(this.users.has(userId)){
-            return this.users.get(userId);
-        }
+        if(this.users.has(userId)){return this.users.get(userId);}
         return false;
     }
+
+    CreateNewRegimen(userId,UnitType){
+        const content=this.users.get(userId)
+        if(!content){return false}
+
+        const Rid = content.nextRegimenId++;
+
+        const RUnits={
+            UnitType:{
+                progress:0,
+                finish:500  // seconds
+            }
+        }
+
+        const newRegimen={
+            units:RUnits,
+            count:1,
+            deployPos:null,
+            targetPos:null
+        }
+
+        // console.log("CURRENT REGIMENS",content.Regimens,Rid)
+        content.Regimens[Rid]=newRegimen
+        return Rid
+    }
+
+    getRegiment(userId,Rid){
+        const content=this.users.get(userId)
+        if(!content){return false}
+        
+        return content.Regimens[Rid]
+    }
+
+    deleteRegiment(userId,Rid){
+        const content=this.users.get(userId)
+        if(!content){return false}
+
+        delete content.Regimens[Rid]
+        return true
+    }
+
+
 }
 
 module.exports=new GlobalChunkManager()

@@ -121,13 +121,46 @@ class TickManager {
         else{this.messages.set(userId,{Recruitable:myUnlockedUnits})}
     }
 
-    async NewRegimenMessage(userId,permission,UnitType){
+    async NewRegimenMessage(userId,Rid,UnitType){
+
         const TheUser = await ChunkManager.getUser(userId)
 
-        const message={permission,UnitType,img:this.indiUnits[UnitType]}
+        const message={Rid,UnitType,img:this.indiUnits[UnitType]}
         const currentMessage=this.messages.get(userId)
         if(currentMessage){currentMessage.NewRegimen=message}
         else{this.messages.set(userId,{NewRegimen:message})}
+    }
+
+    async Adjustregimentcounts(userId,Rid,direction){
+        const TheUser = await ChunkManager.getUser(userId)
+        const regiment=ChunkManager.getRegiment(userId,Rid)
+        if(!regiment){return}
+
+        regiment.count+=direction
+        if(regiment.count<=0){regiment.count=1}
+
+        //everything in that direction
+        for(let [unit,CPF] of Object.entries(regiment.units)){
+            //adjust the finish accordingly....
+        }
+
+        const message={Rid,Count:regiment.count}
+        const currentMessage=this.messages.get(userId)
+        if(currentMessage){currentMessage.AdjustRegimenCount=message}
+        else{this.messages.set(userId,{AdjustRegimenCount:message})}
+    }
+
+    async DestroyRegimen(userId,Rid){
+        const TheUser = await ChunkManager.getUser(userId)
+
+        const success=ChunkManager.deleteRegiment(userId,Rid)
+        if(!success){return}
+        console.log("should be sending?",Rid)
+        const message={Rid}
+        const currentMessage=this.messages.get(userId)
+        if(currentMessage){currentMessage.DelRegimen=message}
+        else{this.messages.set(userId,{DelRegimen:message})}
+
     }
 }
 

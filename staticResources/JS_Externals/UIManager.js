@@ -44,6 +44,23 @@ class UIManager {
     getTBBody(){return this.TBBody}
     getTBRegBody(){return this.TBRegBody}
 
+    hideBoxes(id){
+        this.showAppropriateDropDown(true)
+
+        const elems=this.getBoxes()
+        let him;
+        for(let elem of elems){
+            if(elem.id!=id){elem.style.display="none"}
+            else{him=elem;}//elem.style.display="block"}
+            // elem.style.display="none"
+            const hasOverflow = elem.scrollHeight > elem.clientHeight;
+            elem.style.scrollbarGutter = hasOverflow ? 'stable' : 'auto';
+            //important, prevents glitching by providing gap between content and the scrollbar, do not remove
+            elem.style.paddingRight = hasOverflow ? '1px' : '0px';
+        }
+        him.style.display="block"
+    }
+
     showAppropriateDropDown(override=false){
         const active=override || this.DropDown.style.display=="flex" || this.BottomSec.style.display=="block"
         if(!active){return}
@@ -145,6 +162,18 @@ class UIManager {
     RecruitButtonClicked(event){
         const WhichUnit=event.currentTarget.myParam
         socket.emit('NewTraining',{"RequestMetaData":WhichUnit})
+    }
+    RegimenCountAdjust(event){
+        const UpDown=event.currentTarget.myParam
+        const Rid=event.currentTarget.parentElement.parentElement.parentElement.parentElement.parentElement.myParam
+
+        const RequestMetaData={UpDown,Rid}
+        socket.emit('AdjustRegimen',{RequestMetaData})
+    }
+
+    DestroyRegimen(){
+        const Rid = event.currentTarget.parentElement.parentElement.parentElement.parentElement.myParam;
+        socket.emit('DestroyRegimen',{RequestMetaData:Rid})
     }
 }
 

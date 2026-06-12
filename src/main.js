@@ -626,6 +626,7 @@ io.on('connection', async (socket) => {
         TickManager.DeploymentMessage(tileKey,responseObject)
     });
 
+
     socket.on('MovementCommand',async ({RequestMetaData}) => {
         const userId=socket.userId
         const TheUser = await ChunkManager.getUser(userId)
@@ -656,11 +657,30 @@ io.on('connection', async (socket) => {
         const TheUser = await ChunkManager.getUser(userId)
         const UnitType=RequestMetaData
 
-        //confirm or deny
-        const confirmed=true
-        TickManager.NewRegimenMessage(userId,confirmed,UnitType)
+        //create the Regimen
+        const Rid=ChunkManager.CreateNewRegimen(userId,UnitType)
 
+        TickManager.NewRegimenMessage(userId,Rid,UnitType)
     });
+
+    socket.on('AdjustRegimen',async ({RequestMetaData}) => {
+        const userId=socket.userId
+        const TheUser = await ChunkManager.getUser(userId)
+        console.log("bruh",RequestMetaData)
+        const direction=RequestMetaData.UpDown
+        const Rid=RequestMetaData.Rid
+
+        TickManager.Adjustregimentcounts(userId,Rid,direction)
+    });
+
+    socket.on('DestroyRegimen',async ({RequestMetaData}) => {
+        const userId=socket.userId
+        const TheUser = await ChunkManager.getUser(userId)
+        const Rid=RequestMetaData
+
+        TickManager.DestroyRegimen(userId,Rid)
+    });
+    
 
     // Handle disconnect
     socket.on("disconnect", () => {ChunkManager.RemoveUserSocket(socket.userId,socket.id)});
