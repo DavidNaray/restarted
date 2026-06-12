@@ -2,7 +2,6 @@ import * as THREE from "three";
 import {renderer,InputState,scene,requestRenderIfNotRequested} from "../siteJS.js"
 import {onPointerMove,intersectsTileMeshes,suppressPlacement} from "./RaycasterHandling.js"
 import {makeToolTipTechnology} from "./ResourceTips.js"
-import {adjustUnitDeployPosition,onTileClick} from "./DropDownUI.js"
 
 
 import {buildWallSegments,trySnapPoint} from "./WallPlacementFuncs.js"
