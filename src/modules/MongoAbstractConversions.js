@@ -207,8 +207,8 @@ async function toCachedUser(userDoc) {
           }
         ])): {},
         count: reg.count ?? 1,
-        deployPos: reg.deployPos ? [...reg.deployPos] : null,
-        targetPos: reg.targetPos ? [...reg.targetPos] : null
+        deployTile: reg.deployTile ? [...reg.deployTile] : null,
+        deployPixel: reg.deployPixel ? [...reg.deployPixel] : null
       }
     ])): {},
 

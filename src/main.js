@@ -585,6 +585,32 @@ io.on('connection', async (socket) => {
 
     })
 
+
+    socket.on('MovementCommand',async ({RequestMetaData}) => {
+        const userId=socket.userId
+        const TheUser = await ChunkManager.getUser(userId)
+
+        const destinationPoint=RequestMetaData.position
+        const selectedUnits=RequestMetaData.SelectedUnits
+
+        //chunkID -> serverIds
+        const ActualUnits=selectedUnits
+
+        // const CHEATER=//confirm unit ownership
+
+        // if(CHEATER){
+        //     //perform kicking and ban basically, manipulating info is egregious offense
+        // }
+        
+        const Values= SpecificChunkPoint(TheUser.OriginTile,destinationPoint);
+        const response= validateclickedPoint(Values.pixelCoords,Values.chunkCoords)
+        if(response=="ValidPoint"){
+            
+            const obj=new MovementOrderClass(ActualUnits,Values,userId)
+            await obj.orderSetup();
+        }
+    });
+
     socket.on('DeployAllUnits',async ({RequestMetaData}) => {
         const userId=socket.userId
         var chosenServerIndices=[];
@@ -630,37 +656,11 @@ io.on('connection', async (socket) => {
         TickManager.DeploymentMessage(tileKey,responseObject)
     });
 
-
-    socket.on('MovementCommand',async ({RequestMetaData}) => {
-        const userId=socket.userId
-        const TheUser = await ChunkManager.getUser(userId)
-
-        const destinationPoint=RequestMetaData.position
-        const selectedUnits=RequestMetaData.SelectedUnits
-
-        //chunkID -> serverIds
-        const ActualUnits=selectedUnits
-
-        // const CHEATER=//confirm unit ownership
-
-        // if(CHEATER){
-        //     //perform kicking and ban basically, manipulating info is egregious offense
-        // }
-        
-        const Values= SpecificChunkPoint(TheUser.OriginTile,destinationPoint);
-        const response= validateclickedPoint(Values.pixelCoords,Values.chunkCoords)
-        if(response=="ValidPoint"){
-            
-            const obj=new MovementOrderClass(ActualUnits,Values,userId)
-            await obj.orderSetup();
-        }
-    });
-
     socket.on('NewTraining',async ({RequestMetaData}) => {
         const userId=socket.userId
         const TheUser = await ChunkManager.getUser(userId)
         const UnitType=RequestMetaData
-
+        console.log("how bruh",RequestMetaData)
         //create the Regimen
         const Rid=ChunkManager.CreateNewRegimen(userId,UnitType)
 
@@ -700,10 +700,76 @@ io.on('connection', async (socket) => {
                 "tile":values.chunkCoords,
                 Rid
             }
+            ChunkManager.setDeplotRegimen(userId,Rid,values.chunkCoords,values.pixelCoords)
             TickManager.DeployPositionPermissionMessage(userId,responseObject);
         }
-        else{TickManager.DeployPositionPermissionMessage(userId,{"permission":false,Rid});}
+        else{
+            ChunkManager.setDeplotRegimen(userId,Rid,null,null)
+            TickManager.DeployPositionPermissionMessage(userId,{"permission":false,Rid});
+        }
         
+    });
+
+    socket.on('RegimenDeploy',async ({RequestMetaData}) => {
+        const userId=socket.userId
+        const Rid=RequestMetaData
+
+        try{
+            const regimen=ChunkManager.getRegiment(userId,Rid)
+            // console.log("regimen",regimen)
+            const pxpos=regimen.deployPixel
+            const [chunkX,chunkY]=regimen.deployTile
+            const Count=regimen.count
+            
+            const tile = await ChunkManager.getTile(chunkX,chunkY);
+            const tileKey=`${chunkX},${chunkY}`
+
+            for (let [UnitType,details] of Object.entries(regimen.units)){
+                
+                if(details.progress <details.finish){continue}
+
+                //i know there is the count but it must be based on specific training times of units *count =finish
+                //so its progress that really defines how many are actually ready
+                //this is just to deploy something so its just 1 rn
+
+                const ready=Count
+
+                var chosenServerIndices=[];
+                for(let i=0;i<ready;i++){
+                    if(tile.freeIndices.length>0){
+                        const freeIndice=tile.freeIndices.shift().toString();//pops first element in array
+                        ChunkManager.AddUnitToTile(tileKey,pxpos,freeIndice,userId,UnitType,null)
+                        chosenServerIndices.push(freeIndice)
+                    }
+                    else{
+                        //add to chosenServerIndices to notify user of development
+                        ChunkManager.AddUnitToTile(tileKey,pxpos,tile.topIndice,userId,UnitType,null)
+                        chosenServerIndices.push(tile.topIndice)
+                        tile.topIndice+=1
+                    }    
+                }
+
+                const responseObject={
+                    // "AssetClass":"Unit",
+                    "position":pxpos,
+                    "UnitType":UnitType,
+                    "tile":regimen.deployTile,
+                    "UnitCount":ready,
+                    "owner":userId,
+                    "ServerIds":chosenServerIndices
+                }
+                TickManager.DeploymentMessage(tileKey,responseObject)
+
+            }
+
+            //need to figure out if its actually worthy of deletionn but yeah:)
+            TickManager.DestroyRegimen(userId,Rid)
+        }
+        catch(er){
+            console.log("need a deplot position silly")
+        }
+        
+
     });
 
     socket.on('DestroyRegimen',async ({RequestMetaData}) => {

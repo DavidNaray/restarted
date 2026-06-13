@@ -143,16 +143,13 @@ async function HandleDeployments(Deployments){
             const metaDataUnits={
                 "position":Deploy.position,//in pixel values for the chunk its to be deployed in!
                 "UnitType":Deploy.UnitType,
-                "AssetClass":Deploy.AssetClass,
+                "AssetClass":"Unit",//Deploy.AssetClass,
                 "owner":Deploy.owner,
                 "ServerId":Deploy.ServerIds[i]
             }
-            // console.log(Deploy.ServerIds[i], "placing units, this is the serverId of one")
-            const objLoad=await globalmanager.objectLoad(Deploy.UnitType,metaDataUnits,Deploy.AssetClass)
 
-            if(objLoad){
-                whichTileUnits.addToScene(Deploy.UnitType, metaDataUnits)
-            }
+            const objLoad=await globalmanager.objectLoad(Deploy.UnitType,metaDataUnits,Deploy.AssetClass)
+            if(objLoad){whichTileUnits.addToScene(Deploy.UnitType, metaDataUnits)}
         }
     }
 }
@@ -415,7 +412,7 @@ function HandleNewRegimen(NewRegimen){
         BotRight.addEventListener("click",UImanager.RegimenCountAdjust)//increment
 
         DestroyRegimen.addEventListener("click",UImanager.DestroyRegimen)//delete the regimen
-        // Deploy.addEventListener("click",)//deploy ready units
+        Deploy.addEventListener("click",UImanager.DeployReadyUnits)//deploy ready units
 
         from.addEventListener("click",UImanager.DeployPosition)//set a deploy point
 
@@ -1213,20 +1210,6 @@ function HandleSocketResponses(socket){
 export function EmitBuildingPlacementRequest(RequestMetaData){//BuildingAssetName,
     socket.emit('BuildingPlacementRequest',{
         // "BuildingAssetName":BuildingAssetName,
-        "RequestMetaData":RequestMetaData
-    })
-}
-
-export function EmitUnitPlacementRequest(RequestMetaData){
-    console.log(RequestMetaData, "before unit deploy emit")
-    socket.emit('UnitDeploymentPositionRequest',{
-        "RequestMetaData":RequestMetaData
-    })
-}
-
-export function EmitUnitsBeingDeployed(RequestMetaData){
-    console.log(RequestMetaData)
-    socket.emit('DeployAllUnits',{
         "RequestMetaData":RequestMetaData
     })
 }

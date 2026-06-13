@@ -167,8 +167,8 @@ const userSchema = new mongoose.Schema({
         },
         default:{}
       },
-      deployPos: { type: [Number], default: null },      // [x, y]
-      targetPos: { type: [Number], default: null },      // [x, y]
+      deployTile: { type: [Number], default: null },      // [x, y]
+      deployPixel: { type: [Number], default: null },      // [x, y]
     },default:{}
   },
 

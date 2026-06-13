@@ -192,9 +192,10 @@ class GlobalChunkManager {
 
         const Rid = content.nextRegimenId++;
 
+        console.log("i want to make it:", UnitType)
         const RUnits={
-            UnitType:{
-                progress:0,
+            [UnitType]:{
+                progress:500,
                 finish:500  // seconds
             }
         }
@@ -202,8 +203,8 @@ class GlobalChunkManager {
         const newRegimen={
             units:RUnits,
             count:1,
-            deployPos:null,
-            targetPos:null
+            deployTile:null,
+            deployPixel:null
         }
 
         // console.log("CURRENT REGIMENS",content.Regimens,Rid)
@@ -216,6 +217,14 @@ class GlobalChunkManager {
         if(!content){return false}
         
         return content.Regimens[Rid]
+    }
+    setDeplotRegimen(userId,Rid,chunk,pixels){
+        const content=this.users.get(userId)
+        if(!content){return false}
+        
+        const reg=content.Regimens[Rid]
+        reg.deployTile=chunk
+        reg.deployPixel=pixels
     }
 
     deleteRegiment(userId,Rid){

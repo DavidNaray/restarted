@@ -186,6 +186,12 @@ class UIManager {
         // console.log("i want to get a point",Rid)
         InputManager.setPlacementMode({Rid})
     }
+
+    DeployReadyUnits(event){
+        const Rid = event.currentTarget.parentElement.parentElement.parentElement.myParam;
+        // console.log("please bruh",Rid)
+        socket.emit('RegimenDeploy',{RequestMetaData:Rid})
+    }
 }
 
 export const UImanager=new UIManager();
