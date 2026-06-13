@@ -22,7 +22,11 @@ class UIManager {
         this.BottomSecStyles();
 
         this.DDTitle=document.getElementById("DDTitle")
+        this.closeDDBtn=document.getElementById("closeDDBtn")
+        this.closeDDBtn.addEventListener("click",()=>{this.DropDown.style.display="none"})
+
         this.boxes=document.getElementsByClassName("DDChild")
+
 
         this.RBody=document.getElementById("RBody")
 
@@ -70,7 +74,7 @@ class UIManager {
             this.DropDown.style.display="flex"
             this.BottomSec.style.display="none"
         }else{
-            this.BottomSec.style.display="block"
+            this.BottomSec.style.display="block"//cant be bothered with it rn
             this.DropDown.style.display="none"
         }
     }
@@ -116,7 +120,7 @@ class UIManager {
         this.BottomSec.style.aspectRatio="4/1"
         this.BottomSec.style.position="absolute"
         this.BottomSec.style.bottom=0;
-        this.BottomSec.style.backgroundColor="white"
+        this.BottomSec.style.backgroundColor="transparent"
         this.BottomSec.style.padding="max(4px, 0.3vw)"
         this.BottomSec.style.display="none"
     }

@@ -114,6 +114,7 @@ html, body {
   float: right;
   border-radius: max(4px, 0.3vw);
   background-color: rgb(188, 187, 187);
+  background-image:url('Icons/Cross.png')
 }
 
 #DDTitle{
