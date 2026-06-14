@@ -25,6 +25,7 @@ export class RendererUserInputState{
 
         this.PlacementMode=false
 
+        this.placementBuilding;
         /*---------------UI-game---------------*/
         //raycaster
         this.raycaster = new THREE.Raycaster();
@@ -51,6 +52,9 @@ export class RendererUserInputState{
 
         this.SelectedItems=[];//what has the user selected
     }
+
+    getPlacementBuilding(){return this.placementBuilding}
+    setPlacementBuilding(obj){this.placementBuilding=obj}
 
     setPlacementMode(val){this.PlacementMode=val}
 
@@ -212,7 +216,6 @@ export class RendererUserInputState{
     }
 
     PlacementModeAction(){
-        // console.log("placementmode...",this.FinalMouseState)
         if(this.FinalMouseState=="Click"){
             this.FinalMouseState="Up"
             this.isDown=false
@@ -224,10 +227,24 @@ export class RendererUserInputState{
                     const RequestMetaData={Rid:this.PlacementMode.Rid,position}
                     socket.emit('unitdeploymentposition',{RequestMetaData})
                     this.PlacementMode=false
-                }
-                
+                }   
             }
-            
+            else if(this.PlacementMode.whichBuilding){
+                //place the building
+                const position=this.getRaycastPosition()
+                this.PlacementMode=false
+            }
+        }else if(this.FinalMouseState=="Dragging" || this.FinalMouseState=="UpMoving"){
+            //adjust the building position
+            const position=this.getRaycastPosition()
+
+            //emit to the server about that position
+            //server responds with yes/no and position which will change the buildings colour and position
+            if(position){
+                // console.log("position?",position)
+                const RequestMetaData={pos:position,Building:this.PlacementMode.whichBuilding}
+                socket.emit('BuildingPlacementMovement',{RequestMetaData})
+            }
         }
     }
     
@@ -271,9 +288,10 @@ export class RendererUserInputState{
         else{this.FinalrightMouseState="Up";}
 
         //yeah
-        const req=  this.LastState!=this.FinalMouseState 
+        let req=  this.LastState!=this.FinalMouseState 
                     || this.LastRightState!=this.FinalrightMouseState
                     || this.FinalMouseState=="Dragging"
+        if(this.PlacementMode && this.FinalMouseState=="UpMoving"){req=true}
         if(req){requestRenderIfNotRequested()}        
         
         this.LastState=this.FinalMouseState

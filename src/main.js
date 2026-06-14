@@ -207,34 +207,9 @@ io.on('connection', async (socket) => {
     await LoginRewardCheckup(socket.userId)
     await TickManager.TechTreeMessage(socket.userId);
     await TickManager.RecruitableMessage(socket.userId);
+    await TickManager.ConstructableMessage(socket.userId);
 
-    socket.on('ConstructionSetupRequest', async () => { 
-        const validBuilings = new Set([
-            "CivilianFactory", "MilitaryFactory", "Farm", "Quarry", "LumberMill",
-            "Barracks", "Market", "TownHall", "Warehouse","WoodHouse","StoneHouse",
-            "WoodenKeep", "StoneKeep", "WoodenTower", "StoneTower","WoodWall",
-            "StoneWall","Pavement","WoodGate","StoneGate"
-        ]);
-        try{
-            // const user=await User.findOne({ _id: socket.userId })
-            const user=await ChunkManager.getUser(socket.userId)
-            if(!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-            const toSend=[];
-            for (let key in user.Technology) {
-                if (validBuilings.has(key) && user.Technology[key].Unlocked) {
-                    // user.Technology[key].Unlocked = true; // Set Unlocked to true
-                    toSend.push(key);
-                } else {}
-            }
-            
-            socket.emit("ConstructionSetupResponse", {Buildings:toSend,MilCount:user.ProductionLines.Total,CivCount:user.ProductionLines.TotalCiv});
-        }catch(err){
-        }
-
-    });
+    //sockets pertaining to production
 
     socket.on('ProductionSetupRequest',async() => {
         const validToProduce=new Set([
@@ -455,30 +430,14 @@ io.on('connection', async (socket) => {
         }catch(p){}
     });
 
-    socket.on('StopConstruction',async ({RequestMetaData}) =>{
-        try{
-            const user=await ChunkManager.getUser(socket.userId)
-            if(!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
-            const key=`${RequestMetaData.chunk[0]},${RequestMetaData.chunk[1]},${RequestMetaData.ServerId}`
 
-            delete user.Construction.Values[key]
 
-            socket.emit("removeConstResponse", RequestMetaData)
-
-        }catch(p){}
-    });
-
+    //sockets pertaining to building creation
     socket.on('BuildingPlacementRequest',async ({RequestMetaData}) =>{//BuildingAssetName,
         // console.log("BuildingPlacementRequest",RequestMetaData)
         try{
             const user=await ChunkManager.getUser(socket.userId)
-            if(!user) {
-                console.log(`No user found for playerId: ${socket.userId}`);
-                return;
-            }
+
             const values= SpecificChunkPoint(user.OriginTile,RequestMetaData.position)
             
             const buildingToPlace=RequestMetaData.BuildingType
@@ -549,42 +508,88 @@ io.on('connection', async (socket) => {
         // socket.emit('CanYouPlaceBuilding', false)//responseObject);
     })
 
-
-
-
-
-    socket.on('UnitDeploymentPositionRequest',async ({RequestMetaData}) => {
-
-        const userId=socket.userId
-        const passIn=RequestMetaData.position//need to localise for the tile
-        
-        const TheUser = await ChunkManager.getUser(userId)
-
-        const values= SpecificChunkPoint(TheUser.OriginTile,passIn);
-        const response= validateclickedPoint(values.pixelCoords,values.chunkCoords)
-
-        if(response=="ValidPoint"){
-            const tileX=values.chunkCoords[0]
-            const tileY=values.chunkCoords[1]
-            const HeighMapLocation=path.join(__dirname,'../Tiles/HeightMaps/')+tileX+tileY+".png"
-
-            const position=await getPosWithHeight(RequestMetaData.position,HeighMapLocation);
-
-            const responseObject={
-                "permission":true,
-                "position":position,
-                "tile":values.chunkCoords,
-                "owner":userId,
+    socket.on('ConstructionSetupRequest', async () => { 
+        const validBuilings = new Set([
+            "CivilianFactory", "MilitaryFactory", "Farm", "Quarry", "LumberMill",
+            "Barracks", "Market", "TownHall", "Warehouse","WoodHouse","StoneHouse",
+            "WoodenKeep", "StoneKeep", "WoodenTower", "StoneTower","WoodWall",
+            "StoneWall","Pavement","WoodGate","StoneGate"
+        ]);
+        try{
+            // const user=await User.findOne({ _id: socket.userId })
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
             }
-            TickManager.DeployPositionPermissionMessage(userId,responseObject);
-            // socket.emit('CanYouDeployHere', responseObject);
+            const toSend=[];
+            for (let key in user.Technology) {
+                if (validBuilings.has(key) && user.Technology[key].Unlocked) {
+                    // user.Technology[key].Unlocked = true; // Set Unlocked to true
+                    toSend.push(key);
+                } else {}
+            }
+            
+            socket.emit("ConstructionSetupResponse", {Buildings:toSend,MilCount:user.ProductionLines.Total,CivCount:user.ProductionLines.TotalCiv});
+        }catch(err){
         }
-        else{TickManager.DeployPositionPermissionMessage(userId,{"permission":false});}
-            // socket.emit('CanYouDeployHere', {"permission":false});}
+
+    });
+
+    socket.on('StopConstruction',async ({RequestMetaData}) =>{
+        try{
+            const user=await ChunkManager.getUser(socket.userId)
+            if(!user) {
+                console.log(`No user found for playerId: ${socket.userId}`);
+                return;
+            }
+            const key=`${RequestMetaData.chunk[0]},${RequestMetaData.chunk[1]},${RequestMetaData.ServerId}`
+
+            delete user.Construction.Values[key]
+
+            socket.emit("removeConstResponse", RequestMetaData)
+
+        }catch(p){}
+    });
 
 
-    })
+    socket.on('BuildingPlacementMovement',async ({RequestMetaData}) =>{
+        const user=await ChunkManager.getUser(socket.userId)
+        let values;
+        let response;
+        try{
+            values= SpecificChunkPoint(user.OriginTile,RequestMetaData.pos)
+            response= validateclickedPoint(values.pixelCoords,values.chunkCoords)
+        }catch(err){return }
+        
+        const buildingToMove=RequestMetaData.Building
+        const pixelPoint=values.pixelCoords
+        const ChunkPlaced=values.chunkCoords
+        
+        let message;
+        //the object that gets moved is an actual object, not related to chunks
+        if(response=="ValidPoint"){
+            //valid so green :)
+            message={
+                buildingToMove,
+                pixelPoint,
+                ChunkPlaced,
+                valid:true
+            }
+        }
+        else{
+            //not valid so make building red
+            message={
+                buildingToMove,
+                pixelPoint,
+                ChunkPlaced,
+                valid:false
+            }
+        }
+        TickManager.AdjustPlacementBuildingPosition(socket.userId,message)
+    });
 
+    //sockets pertaining to unit movement and creation
 
     socket.on('MovementCommand',async ({RequestMetaData}) => {
         const userId=socket.userId
@@ -609,51 +614,6 @@ io.on('connection', async (socket) => {
             const obj=new MovementOrderClass(ActualUnits,Values,userId)
             await obj.orderSetup();
         }
-    });
-
-    socket.on('DeployAllUnits',async ({RequestMetaData}) => {
-        const userId=socket.userId
-        var chosenServerIndices=[];
-        const UnitType=RequestMetaData.UnitType;
-        
-        const TheUser = await ChunkManager.getUser(userId)
-        const values= SpecificChunkPoint(TheUser.OriginTile,RequestMetaData.DeployPosition);
-
-        const chunkX=values.chunkCoords[0]
-        const chunkY=values.chunkCoords[1]
-        const tile = await ChunkManager.getTile(chunkX,chunkY);
-        const tileKey=`${chunkX},${chunkY}`
-        
-        for(let i=0;i<RequestMetaData.UnitCount;i++){
-            if(tile.freeIndices.length>0){
-                const freeIndice=tile.freeIndices.shift().toString();//pops first element in array
-
-                ChunkManager.AddUnitToTile(tileKey,values.pixelCoords,freeIndice,userId,UnitType,null)
-
-                //add to chosenServerIndices to notify user of development
-                chosenServerIndices.push(freeIndice)
-            }else{
-
-                //add to chosenServerIndices to notify user of development
-                ChunkManager.AddUnitToTile(tileKey,values.pixelCoords,tile.topIndice,userId,UnitType,null)
-                chosenServerIndices.push(tile.topIndice)
-                
-                tile.topIndice+=1
-            }
-                 
-        }
-
-        const responseObject={
-            "AssetClass":"Unit",
-            "position":values.pixelCoords,//RequestMetaData.DeployPosition,
-            "UnitType":RequestMetaData.UnitType,
-            "tile":values.chunkCoords,
-            "UnitCount":RequestMetaData.UnitCount,
-            "owner":userId,
-            "ServerIds":chosenServerIndices
-        }
-
-        TickManager.DeploymentMessage(tileKey,responseObject)
     });
 
     socket.on('NewTraining',async ({RequestMetaData}) => {

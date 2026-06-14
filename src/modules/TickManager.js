@@ -121,6 +121,18 @@ class TickManager {
         else{this.messages.set(userId,{Recruitable:myUnlockedUnits})}
     }
 
+    async ConstructableMessage(userId){
+        const user=await ChunkManager.getUser(userId)
+        const myUnlockedBuildings={
+            "Civilian Factory":['Icons/CivilianFactoryIcon.png',"CivilianFactory"],
+            "House":['Icons/HouseIcon.png',"FeudalHouse"]
+        }
+        
+        const currentMessage=this.messages.get(userId)
+        if(currentMessage){currentMessage.Constructable=myUnlockedBuildings}
+        else{this.messages.set(userId,{Constructable:myUnlockedBuildings})}
+    }
+
     async NewRegimenMessage(userId,Rid,UnitType){
 
         const TheUser = await ChunkManager.getUser(userId)
@@ -161,6 +173,15 @@ class TickManager {
         if(currentMessage){currentMessage.DelRegimen=message}
         else{this.messages.set(userId,{DelRegimen:message})}
 
+    }
+
+    //--------------------------
+    async AdjustPlacementBuildingPosition(userId,message){
+        const TheUser = await ChunkManager.getUser(userId)
+
+        const currentMessage=this.messages.get(userId)
+        if(currentMessage){currentMessage.MovePlacementBuilding=message}
+        else{this.messages.set(userId,{MovePlacementBuilding:message})}
     }
 }
 

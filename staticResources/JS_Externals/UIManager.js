@@ -9,6 +9,7 @@ import {DecisionElements,
 
 import {socket} from "./SceneInitiation.js"
 import {InputManager} from "./UserInputState.js"
+import {globalmanager} from "./GlobalInstanceMngr.js"
 
 class UIManager {
     constructor() {
@@ -33,6 +34,8 @@ class UIManager {
         this.TBBody=document.getElementById("TBBody")
         this.TBRegBody=document.getElementById("TBRegBody")
 
+        this.CBody=document.getElementById("CBody")
+
         this.widthFlag;
         this.heightFlag;
 
@@ -48,6 +51,7 @@ class UIManager {
     getRBody(){return this.RBody}
     getTBBody(){return this.TBBody}
     getTBRegBody(){return this.TBRegBody}
+    getCBody(){return this.CBody}
 
     hideBoxes(id){
         this.showAppropriateDropDown(true)
@@ -195,6 +199,17 @@ class UIManager {
         const Rid = event.currentTarget.parentElement.parentElement.parentElement.myParam;
         // console.log("please bruh",Rid)
         socket.emit('RegimenDeploy',{RequestMetaData:Rid})
+    }
+
+    //-------------------------------
+    async BuildingRequest(event){
+        const whichBuilding=event.currentTarget.myParam
+
+        //check if building type already exists in OBJECTS, if not then request the glb
+        const objLoad=await globalmanager.objectLoad(whichBuilding,"Building")
+
+        //proceed to alter the placementMode
+        if(objLoad){InputManager.setPlacementMode({whichBuilding})}
     }
 }
 

@@ -87,7 +87,7 @@ class GlobalInstanceManager {
         };
     }
 
-    async objectLoad(assetId,MetaData,AssetClass,){
+    async objectLoad(assetId,AssetClass,){
         if(this.OBJECTS.has(assetId)){return true}
 
         const data = await this.loadFile(`Assets/GLB_Exports/${assetId}.glb`);

@@ -178,6 +178,19 @@ html, body {
   /* padding-bottom:max(4px, 0.3vw) */
 }
 
+#CBody{
+  width:calc(100% - max(20px, 1.5vw));
+  border-radius: 0 0 max(2px, 0.15vw) max(2px, 0.15vw);
+
+  display: grid;
+  grid-template-columns: repeat(8,1fr);
+  column-gap:max(12px, 0.8vw);
+  grid-auto-rows:1fr;
+  row-gap: max(8px, 0.6vw);;
+
+  padding:max(8px, 0.6vw);
+}
+
 #TBRegBody{
   width:calc(100% - max(20px, 1.5vw));
   border-radius: 0 0 max(2px, 0.15vw) max(2px, 0.15vw);

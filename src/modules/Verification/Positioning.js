@@ -77,7 +77,7 @@ function validateclickedPoint(pixelpoint, TChunk){
         // console.log("ok, destination point actually valid")
         return "ValidPoint"
     }else{
-        console.log(r,g,b,"invalid destination point",subgridX,subgridY,data)
+        // console.log(r,g,b,"invalid destination point",subgridX,subgridY,data)
         return "InvalidPoint"
     }
 }

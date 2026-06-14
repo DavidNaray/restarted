@@ -13,6 +13,7 @@ const previewGroup = new THREE.Group();
 
 import {globalmanager} from "./GlobalInstanceMngr.js"
 import {UImanager} from "./UIManager.js"
+import { InputManager } from "./UserInputState.js";
 
 
 export function setupSocketConnection(){
@@ -34,6 +35,10 @@ export function setupSocketConnection(){
         const AdjustRegimenCount=response.AdjustRegimenCount
         const DelRegimen=response.DelRegimen
 
+        const constructable=response.Constructable
+
+        const MovePlacementBuilding=response.MovePlacementBuilding
+
         //move units across chunks
         if(replacements){await HandleUnitReplacements(replacements)}
 
@@ -54,6 +59,8 @@ export function setupSocketConnection(){
 
         if(TechTree){HandleTechTree(TechTree)}
 
+        if(constructable){Handleconstructable(constructable)}
+
         if(Recruitable){HandleRecruitable(Recruitable)}
 
         if(NewRegimen){HandleNewRegimen(NewRegimen)}
@@ -61,6 +68,8 @@ export function setupSocketConnection(){
         if(AdjustRegimenCount){HandleAdjustRegimenCount(AdjustRegimenCount)}
 
         if(DelRegimen){HandleDelRegimen(DelRegimen)}
+
+        if(MovePlacementBuilding){HandleMovePlacementBuilding(MovePlacementBuilding)}
     })
     
     HandleSocketResponses(socket)
@@ -148,7 +157,7 @@ async function HandleDeployments(Deployments){
                 "ServerId":Deploy.ServerIds[i]
             }
 
-            const objLoad=await globalmanager.objectLoad(Deploy.UnitType,metaDataUnits,Deploy.AssetClass)
+            const objLoad=await globalmanager.objectLoad(Deploy.UnitType,Deploy.AssetClass)
             if(objLoad){whichTileUnits.addToScene(Deploy.UnitType, metaDataUnits)}
         }
     }
@@ -245,7 +254,7 @@ async function HandleUnitReplacements(replacements){
                 "owner":owner,
                 "ServerId":Number(newId)
             }
-            const objLoad=await globalmanager.objectLoad(unitType,Meta,AssetClass)
+            const objLoad=await globalmanager.objectLoad(unitType,AssetClass)
             if(objLoad){LoadTo.addToScene(unitType, Meta)}
         }
         else{/*user does not have the tile loaded to create the unit */}
@@ -476,6 +485,97 @@ function HandleDelRegimen(HandleDelRegimen){
         elem.remove()
     }
 }
+
+
+function Handleconstructable(constructable){
+    const To=UImanager.getCBody()
+    To.replaceChildren();
+
+    for(let [RType,strURLGlb] of Object.entries(constructable)){
+        let option=document.createElement("img");
+        option.style.width="100%"
+        option.style.height="100%"
+        option.src=strURLGlb[0];
+        option.style.objectFit="contain"
+        option.style.display="block"
+        option.style.aspectRatio="1/1"
+        option.style.outline="rgb(188, 187, 187) dashed 0.1vw"; 
+        option.style.backgroundColor="rgba(216,216,216,0.2)"; 
+
+        option.myParam=strURLGlb[1]
+
+        option.addEventListener("click",UImanager.BuildingRequest)
+        To.appendChild(option)
+    }
+}
+
+
+function HandleMovePlacementBuilding(MovePlacementBuilding){
+
+    function colourchange(objectDef,colour){
+        // console.log("REALLY",colour)
+        const c = new THREE.Color(colour);
+
+        objectDef.traverse((child) => {
+            if (child.isMesh && child.material) {
+                if (Array.isArray(child.material)) {child.material = child.material.map((m) => m.clone());} 
+                else {child.material = child.material.clone();}
+
+                let materials = Array.isArray(child.material) ? child.material : [child.material];
+                // vec3(0.2, 0.5, 1.0)
+                materials.forEach((mat) => {
+                    mat.transparent = true; // enable opacity
+                    mat.opacity = 0.5;           // adjust to desired see-through
+                    mat.customProgramCacheKey = () => colour;
+                    mat.onBeforeCompile = (shader) => {
+                        shader.fragmentShader = shader.fragmentShader.replace(
+                            '#include <map_fragment>',
+                            `
+                            #include <map_fragment>
+                            // overlay light blue
+                            vec3 overlayColor = vec3(${c.r.toFixed(3)}, ${c.g.toFixed(3)}, ${c.b.toFixed(3)}); // light blue
+                            float overlayOpacity = 0.5; // adjust transparency
+                            diffuseColor.rgb = mix(diffuseColor.rgb, overlayColor, overlayOpacity);
+                            `
+                        );
+                    };
+
+                    mat.needsUpdate = true;
+                });
+            }
+        });
+    }
+
+
+    const building=MovePlacementBuilding.buildingToMove
+    const [px,py]=MovePlacementBuilding.pixelPoint
+    const [chunkX,chunkY]=MovePlacementBuilding.ChunkPlaced
+    const valid=MovePlacementBuilding.valid
+    
+    //get target object details
+    let Asset=InputManager.getPlacementBuilding()
+    if(!Asset){
+        const Assetdetails=globalmanager.getAsset(building)
+        if(!Assetdetails){return};
+        Asset = new THREE.Mesh(Assetdetails.geometry, Assetdetails.materials);
+        InputManager.setPlacementBuilding(Asset)
+        scene.add(Asset);
+    }
+
+    //move the asset to the desired location on the clients coordinate system
+    const threePos=new THREE.Vector3(chunkX*7.5 + px/(1536/7.5) - 3.75 ,1,chunkY*7.5 + py/(1536/7.5) -3.75)
+    Asset.position.copy(threePos)
+       
+    if(scene.getObjectById(Asset.id) === undefined){scene.add(Asset)}
+
+    //depending on valid, change the colour of the object
+    if(valid){colourchange(Asset,"green")}
+    else{colourchange(Asset,"red")}
+}
+
+
+
+
 
 function HandleSocketResponses(socket){
 
