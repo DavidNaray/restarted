@@ -230,13 +230,21 @@ export class RendererUserInputState{
                 }   
             }
             else if(this.PlacementMode.whichBuilding){
-                //place the building
+                console.log("the buildings bruh,",this.PlacementMode.whichBuilding)
+                //request that placement
                 const position=this.getRaycastPosition()
-                this.PlacementMode=false
+                if(position){
+                    const RequestMetaData={pos:position,Building:this.PlacementMode.whichBuilding}
+                    socket.emit('BuildingPlacement',{RequestMetaData})
+                }                
+                
+                //remove placement mode
                 scene.remove(this.placementBuilding)
-                this.setPlacementBuilding=undefined
+                this.setPlacementBuilding(undefined)
+                this.PlacementMode=false
             }
-        }else if(this.PlacementMode.whichBuilding && this.FinalMouseState=="Dragging" || this.FinalMouseState=="UpMoving"){
+        }else if(this.PlacementMode.whichBuilding){
+            console.log("the buildings bruh,",this.PlacementMode.whichBuilding)
             //adjust the building position
             const position=this.getRaycastPosition()
 

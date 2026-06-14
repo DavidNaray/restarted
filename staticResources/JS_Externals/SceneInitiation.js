@@ -38,6 +38,7 @@ export function setupSocketConnection(){
         const constructable=response.Constructable
 
         const MovePlacementBuilding=response.MovePlacementBuilding
+        const PlaceBuilding=response.PlaceBuilding
 
         //move units across chunks
         if(replacements){await HandleUnitReplacements(replacements)}
@@ -70,6 +71,8 @@ export function setupSocketConnection(){
         if(DelRegimen){HandleDelRegimen(DelRegimen)}
 
         if(MovePlacementBuilding){HandleMovePlacementBuilding(MovePlacementBuilding)}
+
+        if(PlaceBuilding){HandlePlaceBuilding(PlaceBuilding)}
     })
     
     HandleSocketResponses(socket)
@@ -153,7 +156,7 @@ async function HandleDeployments(Deployments){
                 "position":Deploy.position,//in pixel values for the chunk its to be deployed in!
                 "UnitType":Deploy.UnitType,
                 "AssetClass":"Unit",//Deploy.AssetClass,
-                "owner":Deploy.owner,
+                // "owner":Deploy.owner,
                 "ServerId":Deploy.ServerIds[i]
             }
 
@@ -558,6 +561,7 @@ function HandleMovePlacementBuilding(MovePlacementBuilding){
         const Assetdetails=globalmanager.getAsset(building)
         if(!Assetdetails){return};
         Asset = new THREE.Mesh(Assetdetails.geometry, Assetdetails.materials);
+        Asset.scale.set(0.2,0.2,0.2);
         InputManager.setPlacementBuilding(Asset)
         scene.add(Asset);
     }
@@ -574,221 +578,32 @@ function HandleMovePlacementBuilding(MovePlacementBuilding){
     else{colourchange(Asset,"red")}
 }
 
+async function HandlePlaceBuilding(PlaceBuilding){
+
+    for(let Building of PlaceBuilding){    
+        const [nchunkX,nchunkY]=Building.ChunkPlaced
+        const LoadTo=globalmanager.getTile(nchunkX,nchunkY)
+
+        if(LoadTo){
+            const Meta={
+                "position":Building.pixelPoint,//in pixel values for the chunk its to be deployed in!
+                "UnitType":Building.buildingToMove,
+                "AssetClass":"Building",
+                // "owner":owner,
+                "ServerId":Number(Building.Sid)
+            }
+            const objLoad=await globalmanager.objectLoad(Building.buildingToMove,"Building")
+            if(objLoad){LoadTo.addToScene(Building.buildingToMove, Meta)}
+        }
+        else{/*user does not have the tile loaded to create the unit */}
+    }
+}
+
 
 
 
 
 function HandleSocketResponses(socket){
-
-    
-
-    socket.on('CanYouPlaceBuilding', async (response) => {
-        InputState.value="neutral"
-
-        // renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-        // renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
-        // renderer.domElement.removeEventListener( 'click', onclickBuilding );
-        if(response.position){
-            console.log("permission to place building: accepted",response)
-            const whichTile=globalmanager.getTile(response.position.chunk[0],response.position.chunk[1])
-            // console.log(whichTile)
-            const metaData={
-                "position":response.position.pixel,
-                "rotation":response.rotation,
-                "BuildingType":response.BuildingType,
-                "AssetClass":"Building",
-                "ServerId":response.ServerId,
-                "underConstruction":response.underConstruction
-            }
-            const objLoad=await whichTile.objectLoad(response.BuildingType,metaData,response.AssetClass)
-            if(objLoad){
-                whichTile.addToScene(response.BuildingType, metaData)
-
-            }
-            if(!response.underConstruction){//bad variable name, underConstruction is true if its already built....
-                const ConstBlocksDiv=document.getElementById("ConstBlocks")
-
-                const AddDiv=document.createElement("div")
-                {
-                    AddDiv.style.width="calc(100% - 0.5vh)"
-                    AddDiv.style.aspectRatio="10/1"
-                    AddDiv.style.backgroundColor="gray"
-                    AddDiv.id=`ConstQueue,${response.position.chunk[0]}.${response.position.chunk[1]},${response.ServerId}`
-                    AddDiv.style.display="grid"
-                    AddDiv.style.gridTemplateColumns="1.5fr 1fr ";
-                    AddDiv.style.columnGap="0.5vw"
-                    AddDiv.style.marginBottom="0.5vw"
-                    AddDiv.style.padding="0.25vh"
-                }
-                ConstBlocksDiv.appendChild(AddDiv)
-
-                
-                const BuildingTypeDivAndProgress=document.createElement("div")
-                {
-                    BuildingTypeDivAndProgress.style.width="100%"
-                    BuildingTypeDivAndProgress.style.height="100%"
-                    BuildingTypeDivAndProgress.style.display="grid"
-                    BuildingTypeDivAndProgress.style.gridTemplateColumns="1fr 1fr"
-                    BuildingTypeDivAndProgress.style.columnGap="0.5vw"
-                }
-
-                AddDiv.appendChild(BuildingTypeDivAndProgress)
-
-                const r = response.BuildingType.split(/(?=[A-Z])/);
-                const BuildingTypeDiv=document.createElement("div")
-                {
-                    BuildingTypeDiv.style.width="calc(100% - 0.25vw)"
-                    BuildingTypeDiv.style.height="100%"
-                    BuildingTypeDiv.style.display="flex"
-                    BuildingTypeDiv.style.alignItems="center"
-                    BuildingTypeDiv.style.paddingLeft="0.25vw"
-                    BuildingTypeDiv.innerHTML=`${r.join(" ")}`
-                    BuildingTypeDiv.style.fontSize="max(1vw,1vh)"
-                    BuildingTypeDiv.style.color="white"
-
-                }
-                BuildingTypeDivAndProgress.appendChild(BuildingTypeDiv)
-
-                const ProgressHolder=document.createElement("div")
-                {
-                    ProgressHolder.style.width="100%"
-                    ProgressHolder.style.height="100%"
-                    ProgressHolder.style.display="grid"
-                    ProgressHolder.style.gridTemplateRows="1fr 1.5fr ";
-
-                }
-                BuildingTypeDivAndProgress.appendChild(ProgressHolder)
-
-                const progressTotal=document.createElement("div")
-                {
-                    progressTotal.style.width="100%"
-                    progressTotal.style.height="100%"
-                    progressTotal.style.display="flex"
-                    progressTotal.style.alignItems="center"
-                    progressTotal.innerHTML=`Progress: 0`
-                    progressTotal.style.fontSize="max(1vw,1vh)"
-                    progressTotal.style.color="white"
-
-                }
-                ProgressHolder.appendChild(progressTotal)
-
-                const progressBarHolder=document.createElement("div")
-                {
-                    progressBarHolder.style.width="100%"
-                    progressBarHolder.style.height="100%"
-                    progressBarHolder.style.display="flex"
-                    progressBarHolder.style.alignItems="center"
-
-                }
-                ProgressHolder.appendChild(progressBarHolder)
-
-                const progressBar=document.createElement("div")
-                {
-                    progressBar.style.width="100%"
-                    progressBar.style.height="50%"
-                    // progressBar.style.background =`linear-gradient(to right,green ${30}%,gray ${70}%)`;
-                    // progressBarHolder.style.display="table-cell"
-                    // progressBarHolder
-                    progressBar.style.backgroundImage=`linear-gradient(green,green),linear-gradient(rgb(98, 98, 98),rgb(98, 98, 98))`
-                    progressBar.style.backgroundRepeat="no-repeat"
-                    progressBar.style.backgroundSize=`${0}% 100%,${100}% 100%`
-
-                }
-                progressBarHolder.appendChild(progressBar)
-
-
-                const RestDiv=document.createElement("div")
-                {
-                    RestDiv.style.width="100%"
-                    RestDiv.style.height="100%"
-                    RestDiv.style.display="grid"
-                    RestDiv.style.gridTemplateColumns="2.8fr 1fr ";
-                    RestDiv.style.columnGap="0.5vw"
-
-                }
-                AddDiv.appendChild(RestDiv)
-
-                const ManPowerSlideDiv=document.createElement("div")
-                {
-                    ManPowerSlideDiv.style.width="100%"
-                    ManPowerSlideDiv.style.height="100%"
-                    ManPowerSlideDiv.style.display="grid"
-                    ManPowerSlideDiv.style.gridTemplateRows="1fr 1.5fr ";
-
-                }
-                RestDiv.appendChild(ManPowerSlideDiv)
-
-
-                const ManPowerSlideTotal=document.createElement("div")
-                {
-                    ManPowerSlideTotal.style.width="100%"
-                    ManPowerSlideTotal.style.height="100%"
-                    ManPowerSlideTotal.style.display="flex"
-                    ManPowerSlideTotal.style.alignItems="center"
-                    ManPowerSlideTotal.innerHTML=`0`
-                    ManPowerSlideTotal.style.fontSize="max(1vw,1vh)"
-                    ManPowerSlideTotal.style.color="white"
-
-                }
-                ManPowerSlideDiv.appendChild(ManPowerSlideTotal)
-
-                const ManPowerSlideInput=document.createElement("input")
-                {
-                    ManPowerSlideInput.style.width="100%"
-                    ManPowerSlideInput.style.height="100%"
-                    ManPowerSlideInput.style.margin="0"
-                    ManPowerSlideInput.type="range"
-                    ManPowerSlideInput.min="0"
-                    ManPowerSlideInput.max=`${100}`
-                    ManPowerSlideInput.value="0"
-                    ManPowerSlideInput.step="1"
-                }
-                ManPowerSlideDiv.appendChild(ManPowerSlideInput)
-
-                const closeDiv=document.createElement("div")
-                {
-                    closeDiv.style.width="calc(100% - 0.6vw)"
-                    closeDiv.style.height="calc(100% - 0.6vw)"
-                    closeDiv.style.padding="0.3vw"
-                    // closeDiv.style.backgroundColor="black"
-
-                }
-                RestDiv.appendChild(closeDiv)
-
-                const closeButton=document.createElement("div")
-                {
-                    closeButton.style.width="100%"
-                    closeButton.style.height="100%"
-                    closeButton.style.backgroundColor="black"
-
-                }
-                closeButton.addEventListener("click",(e)=>{
-                    // console.log("close it!")
-                    socket.emit('StopConstruction',{
-                        "RequestMetaData":{ServerId:response.ServerId,chunk:response.position.chunk}
-                    })
-                })
-                closeDiv.appendChild(closeButton)
-
-
-            }
-            
-        }else{
-            console.log("permission to place building: denied",response)
-        }
-    });
-
-    socket.on('removeConstResponse', async (response) => {
-        
-        try{
-            const id=`ConstQueue,${response.chunk[0]}.${response.chunk[1]},${response.ServerId}`
-            const removeDiv=document.getElementById(id)
-            removeDiv.remove()
-            const whichTile=globalmanager.getTile(response.chunk[0],response.chunk[1])
-            whichTile.removeUnit(response.ServerId)
-        }catch(p){}
-
-    });
 
     socket.on('FactoryCountsUpdate', async (response) => {
         const CivAwareness=document.getElementById("CivAwareness")
@@ -801,71 +616,6 @@ function HandleSocketResponses(socket){
 
 
     })
-
-    socket.on('ConstructionSetupResponse', (response) => {
-        function stringintoURL(str){
-            return `url('Icons/TechTree/${str}.png')`;
-        }
-        // console.log("Construction Setup Response",response)
-
-        if(response){
-
-            const CivBlock=document.getElementById("CivAwareness");
-            CivBlock.innerHTML=`Civilian Factories: ${response.CivCount}`
-
-            const MilBlock=document.getElementById("MilAwareness");
-            MilBlock.innerHTML=`Military Factories: ${response.MilCount}`
-
-            const BuildOptionsBox=document.getElementById("BuildOptionsBox");
-            for (let key of response.Buildings) {
-                const strURL=stringintoURL(key);
-
-                const option=document.createElement("div");
-                {
-                    // option.style.innerHTML=optionTags[i];
-                    option.style.aspectRatio="1/1";
-                    // option.style.backgroundColor=ColouroptionTags[i];
-                    option.style.padding="0.75vw 0.75vw 0.75vw 0.75vw";
-                }  
-
-                const optionButton=document.createElement("div");
-                {
-                    // option.style.innerHTML=optionTags[i];
-                    optionButton.className="IconGeneral"
-                    optionButton.style.width="100%";
-                    optionButton.style.height="100%";
-                    optionButton.style.backgroundImage=strURL;//ColouroptionTags[i];
-                    optionButton.style.backgroundColor="rgba(216,216,216,0.2)";//ColouroptionTags[i];
-                    
-                    optionButton.myParam=key
-                    
-                    
-                    switch(key){
-                        case "WoodWall":
-                            
-                            optionButton.addEventListener("click",(e)=>{WallCase("WoodWall")})
-                            break;
-                        case "StoneWall":
-                            
-                            optionButton.addEventListener("click",(e)=>{WallCase("StoneWall")})
-                            break;
-                        case "Farm":
-                            
-                            optionButton.addEventListener("click",(e)=>{console.log("Farm case")})
-                            break;
-                        default:
-                            optionButton.addEventListener("click",PlaceBuilding)
-                            break
-                    }
-                    
-                } 
-
-
-                option.appendChild(optionButton)
-                BuildOptionsBox.appendChild(option)
-            }
-        }
-    });
 
     socket.on('ProductionSetupResponse',(response) =>{ 
         function stringintoURL(str){
@@ -1305,20 +1055,6 @@ function HandleSocketResponses(socket){
 }
 
 
-
-
-
-export function EmitBuildingPlacementRequest(RequestMetaData){//BuildingAssetName,
-    socket.emit('BuildingPlacementRequest',{
-        // "BuildingAssetName":BuildingAssetName,
-        "RequestMetaData":RequestMetaData
-    })
-}
-
-export function ConstructionSetupEmit(){
-    socket.emit('ConstructionSetupRequest');
-}
-
 export function ProductionSetupEmit(){
     // console.log("should be emitting?")
     socket.emit('ProductionSetupRequest');
@@ -1423,152 +1159,6 @@ function removeProductionLine(e){
 }
 
 //------------------------------------------construction
-var BuildingAssetName;//variable to hold which building is trying to be placed right now
-const hoveringBuildings=new Map()
-function onclickBuilding(event){
-    // console.log("triggin neutral early?")
-    if(!suppressPlacement.value){
-        InputState.value="neutral"
-        // console.log("CLICKED!!!!!!!!!!!!!!!!!!!!!!!!!")
-        scene.remove(hoveringBuildings.get(BuildingAssetName))
-        requestRenderIfNotRequested();
-        const intersects = intersectsTileMeshes()
-
-        if (intersects.length > 0) {
-            const intersectedMesh = intersects[0].object;
-            const foundTile =  globalmanager.meshToTiles.get(intersectedMesh);
-
-            if (foundTile) {
-                // console.log("Clicked tile:", foundTile.x, foundTile.y);
-
-                //find the tile, add the building
-
-                const IntersectPoint=intersects[0].point
-                const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
-
-                const RequestMetaData={
-                    "position":processedPoint,
-                    "rotation":0,
-                    "BuildingType":BuildingAssetName
-                }
-                //permission is false, or it will be an adjusted position
-                EmitBuildingPlacementRequest(RequestMetaData);//BuildingAssetName,
-
-                // console.log("aight, we got the press",processedPoint)
-            }
-        }
-
-        //this code needs to be moved the response of EmitBuildingPlacementRequest
-        //the user clicked, the building has been placed, remove eventListeners
-        renderer.domElement.removeEventListener( 'pointermove', onPointerMove );
-        renderer.domElement.removeEventListener( 'pointermove', onHoverBuilding );
-        renderer.domElement.removeEventListener( 'click', onclickBuilding );
-    }else{suppressPlacement.value=false;}
-
-}
-
-async function onHoverBuilding(event){
-    onPointerMove(event)
-
-    const intersects = intersectsTileMeshes()
-
-    if (intersects.length > 0) {
-        const intersectedMesh = intersects[0].object;
-        const whichTile =  globalmanager.meshToTiles.get(intersectedMesh);
-        if(whichTile){
-            const objLoad=await whichTile.objectLoad(BuildingAssetName,"","Building")
-            //would be moving the asset of BuildingAssetName
-            // console.log("hmm.......",objLoad)
-            if(objLoad){
-                const IntersectPoint=intersects[0].point
-                // const processedPoint=[IntersectPoint.x,IntersectPoint.y,IntersectPoint.z]
-                
-                const chunkX=Math.floor((IntersectPoint.x+3.75)/7.5)
-                const chunkY=Math.floor((IntersectPoint.y+3.75)/7.5)
-                if(!hoveringBuildings.has(BuildingAssetName)){
-                    //make a special move for the object in wireframe mode
-                    const src = OBJECTS.get(BuildingAssetName);
-                    const objectDef = new THREE.Mesh(src.Geometry, src.material);//src.Mesh.clone();
-                    // console.log("src scale",src.Mesh.scale)
-                    objectDef.scale.set(0.2,0.2,0.2);
-
-                    objectDef.traverse((child) => {
-                        if (child.isMesh) {
-                            if (child.isMesh && child.material) {
-                                if (Array.isArray(child.material)) {
-                                    child.material = child.material.map((m) => m.clone());
-                                } else {
-                                    child.material = child.material.clone();
-                                }
-
-                                const materials = Array.isArray(child.material) ? child.material : [child.material];
-
-                                materials.forEach((mat) => {
-                                    mat.transparent = true; // enable opacity
-                                    mat.opacity = 0.5;           // adjust to desired see-through
-                                    mat.onBeforeCompile = (shader) => {
-                                        shader.fragmentShader = shader.fragmentShader.replace(
-                                            '#include <map_fragment>',
-                                            `
-                                            #include <map_fragment>
-                                            // overlay light blue
-                                            vec3 overlayColor = vec3(0.2, 0.5, 1.0); // light blue
-                                            float overlayOpacity = 0.3; // adjust transparency
-                                            diffuseColor.rgb = mix(diffuseColor.rgb, overlayColor, overlayOpacity);
-                                            `
-                                        );
-                                    };
-
-                                    mat.needsUpdate = true;
-                                });
-                            }
-                        }
-                    });
-
-
-
-                    // const previewMesh = objectDef//new THREE.Mesh(geometry, material);
-
-                    // console.log("IntersectPoint",IntersectPoint,"chunkclick",chunkX,chunkY)
-                    const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
-                    // console.log("placing hover thing at xyz: ",xyz)
-                    objectDef.position.set(xyz[0],xyz[1],xyz[2])
-                    scene.add(objectDef);
-                    hoveringBuildings.set(BuildingAssetName,objectDef)
-                }else{
-                    const moveit=hoveringBuildings.get(BuildingAssetName)
-                    if(!moveit.parent){
-                        scene.add(moveit)
-                    }
-                    // moveit.visible=true
-                    const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,[((IntersectPoint.x+3.75)/7.5)*1536,((IntersectPoint.z+3.75)/7.5)*1536])
-                    moveit.position.set(xyz[0],xyz[1],xyz[2])
-                }
-                requestRenderIfNotRequested();
-            }
-        }
-
-    }
-}
-
-function PlaceBuilding(event){
-    try{
-        userPoints=[]
-        document.removeEventListener('keyup', wallCaseEscape)
-        renderer.domElement.removeEventListener("click", wallCaseClick)
-        renderer.domElement.removeEventListener("mousemove", wallCaseHover)
-        requestRenderIfNotRequested();
-        console.log("cleared wallcase")
-    }catch(p){}
-
-    InputState.value="Builder"
-    //on renderer.domElement so that placement doesnt follow when users mouse is over the overlay
-    renderer.domElement.addEventListener( 'pointermove', onHoverBuilding );
-    renderer.domElement.addEventListener( 'click', onclickBuilding );
-
-    BuildingAssetName=event.currentTarget.myParam
-    console.log("BuildingAssetName",BuildingAssetName)
-}
 
 
 function WallCase(wallType){

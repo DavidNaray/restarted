@@ -183,6 +183,25 @@ class TickManager {
         if(currentMessage){currentMessage.MovePlacementBuilding=message}
         else{this.messages.set(userId,{MovePlacementBuilding:message})}
     }
+
+    async PlaceBuilding(userId,TargetChunk,message){
+        // const TheUser = await ChunkManager.getUser(userId)
+
+        // const currentMessage=this.messages.get(userId)
+        // if(currentMessage){currentMessage.PlaceBuilding=message}
+        // else{this.messages.set(userId,{PlaceBuilding:message})}
+
+        const concerned=ChunkManager.getUserIdArrayForTile(TargetChunk)
+        for(let userId of concerned){
+            const currentMessage=this.messages.get(userId)
+            if(currentMessage){
+                const PlaceBuildings=currentMessage.PlaceBuilding
+                if(PlaceBuildings){currentMessage.PlaceBuilding.push(message)}
+                else{currentMessage.PlaceBuilding=[message]}
+            }
+            else{this.messages.set(userId,{PlaceBuilding:[message]})}
+        }
+    }
 }
 
 module.exports=new TickManager()

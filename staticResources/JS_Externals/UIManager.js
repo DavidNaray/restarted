@@ -204,12 +204,14 @@ class UIManager {
     //-------------------------------
     async BuildingRequest(event){
         const whichBuilding=event.currentTarget.myParam
-
         //check if building type already exists in OBJECTS, if not then request the glb
         const objLoad=await globalmanager.objectLoad(whichBuilding,"Building")
 
         //proceed to alter the placementMode
-        if(objLoad){InputManager.setPlacementMode({whichBuilding})}
+        if(objLoad){
+            InputManager.setPlacementBuilding(undefined)
+            InputManager.setPlacementMode({whichBuilding})
+        }
     }
 }
 
