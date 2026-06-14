@@ -233,8 +233,10 @@ export class RendererUserInputState{
                 //place the building
                 const position=this.getRaycastPosition()
                 this.PlacementMode=false
+                scene.remove(this.placementBuilding)
+                this.setPlacementBuilding=undefined
             }
-        }else if(this.FinalMouseState=="Dragging" || this.FinalMouseState=="UpMoving"){
+        }else if(this.PlacementMode.whichBuilding && this.FinalMouseState=="Dragging" || this.FinalMouseState=="UpMoving"){
             //adjust the building position
             const position=this.getRaycastPosition()
 

@@ -563,7 +563,8 @@ function HandleMovePlacementBuilding(MovePlacementBuilding){
     }
 
     //move the asset to the desired location on the clients coordinate system
-    const threePos=new THREE.Vector3(chunkX*7.5 + px/(1536/7.5) - 3.75 ,1,chunkY*7.5 + py/(1536/7.5) -3.75)
+    const xyz=superHeightMapTexture.getXYZ(chunkX,chunkY,MovePlacementBuilding.pixelPoint)
+    const threePos=new THREE.Vector3(chunkX*7.5 + px/(1536/7.5) - 3.75 ,xyz[1],chunkY*7.5 + py/(1536/7.5) -3.75)
     Asset.position.copy(threePos)
        
     if(scene.getObjectById(Asset.id) === undefined){scene.add(Asset)}
